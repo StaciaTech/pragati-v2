@@ -36,39 +36,26 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const psychometricQuestions = [
-    // Personal Information
-    { id: 'S0Q1', section: 'Personal Information', question: "What is your full name?", type: 'text', placeholder: "e.g., Jane Doe" },
-    { id: 'S0Q2', section: 'Personal Information', question: "What is your age?", type: 'number', placeholder: "e.g., 21" },
-    { id: 'S0Q3', section: 'Personal Information', question: "What is your gender?", type: 'radio', options: ["Male", "Female", "Other", "Prefer not to say"] },
-    { id: 'S0Q4', section: 'Personal Information', question: "What is your highest educational qualification?", type: 'select', options: ["High School", "Diploma", "Bachelor's Degree", "Master's Degree", "PhD", "Other"] },
-    { id: 'S0Q5', section: 'Personal Information', question: "How many siblings do you have?", type: 'number', placeholder: "e.g., 1" },
-    { id: 'S0Q6', section: 'Personal Information', question: "Which tier best describes your school/college?", type: 'select', options: ["Tier 1 (e.g., IIT, IIM, AIIMS, NID)", "Tier 2 (e.g., NIT, IIIT, Top State Universities)", "Tier 3 (Other colleges)"] },
-    { id: 'S0Q7', section: 'Personal Information', question: "Where are you primarily from?", type: 'text', placeholder: "e.g., Mumbai, Maharashtra" },
-    { id: 'S0Q8', section: 'Personal Information', question: "Have you or your immediate family been involved in running a business?", type: 'radio', options: ["Yes", "No"] },
-    { id: 'S0Q9', section: 'Personal Information', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
+    // Section: Personal Information (D, E, F)
+    { id: 'S0Q1', section: 'Personal Information', question: "What is your highest educational qualification?", type: 'select', options: ["High School", "Diploma", "Bachelor's Degree", "Master's Degree", "PhD", "Other"] },
+    { id: 'S0Q2', section: 'Personal Information', question: "Did your school curriculum primarily encourage creative projects, competitive exams, or rote learning?", type: 'radio', options: ["Creative Projects", "Competitive Exams", "Rote Learning", "A mix of all"] },
+    { id: 'S0Q3', section: 'Personal Information', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
+    { id: 'S0Q4', section: 'Personal Information', question: "How would you describe your family's attitude towards taking career or financial risks?", type: 'radio', options: ["Highly encouraged", "Tolerated but not encouraged", "Discouraged in favor of stability", "Not discussed"] },
+    { id: 'S0Q5', section: 'Personal Information', question: "What part of the country did you grow up in?", type: 'select', options: ["Metropolitan City (Tier 1)", "Small City (Tier 2)", "Town or Rural Area (Tier 3+)"] },
+    { id: 'S0Q6', section: 'Personal Information', question: "Was entrepreneurship or innovation a common topic of celebration or discussion in your local community growing up?", type: 'radio', options: ["Yes, very common", "Sometimes", "Rarely", "Never"] },
 
-    // Section 1: Background & Experience
-    { id: 'S1Q1', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
-    { id: 'S1Q2', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby you were passionate about during your school or college years. What did you learn from it?", type: 'textarea' },
+    // Section: Personality & Mindset (B, C, G)
+    { id: 'S1Q1', section: 'Personality & Mindset', question: "Your last three strategic decisions for a project have failed. What is your most likely next step?", type: 'radio', options: ["Analyze the failures for patterns and pivot", "Continue with the same strategy, believing in persistence", "Seek external advice before making another move", "Scrap the project and start something new"] },
+    { id: 'S1Q2', section: 'Personality & Mindset', question: "You're presented with a high-stakes opportunity that has a 30% chance of great success and a 70% chance of total failure. What do you do?", type: 'radio', options: ["Take the risk, the potential reward is worth it", "Try to find a way to reduce the risk before deciding", "Look for a safer opportunity with a higher chance of moderate success", "Avoid it, the odds are too poor"] },
+    { id: 'S1Q3', section: 'Personality & Mindset', question: "When multiple project deadlines are approaching, how do you typically manage the pressure?", type: 'radio', options: ["Prioritize ruthlessly and focus on one task at a time", "Work longer hours to try and get everything done", "Delegate some tasks to others if possible", "Feel overwhelmed and struggle to start"] },
+    { id: 'S1Q4', section: 'Personality & Mindset', question: "Which work style do you naturally prefer?", type: 'radio', options: ["Working independently on a task from start to finish", "Collaborating closely with a team throughout a project", "Leading a team and delegating tasks", "A mix of independent and collaborative work"] },
+    { id: 'S1Q5', section: 'Personality & Mindset', question: "Have you ever turned a hobby or side-project into a source of income, even a small one?", type: 'radio', options: ["Yes, successfully", "Yes, but it wasn't successful", "I've thought about it but never tried", "No, my hobbies are just for relaxation"] },
 
-    // Section 2: Personality & Mindset
-    { id: 'S2Q1', section: 'Personality & Mindset', question: "A promising new technology emerges, but it's completely outside your area of expertise. What is your most likely first reaction?", type: 'radio', options: ["Dive in and start learning it immediately", "Wait to see how it develops and is used by others", "Find an expert to explain its potential to me", "Ignore it unless it becomes directly relevant to my work"] },
-    { id: 'S2Q2', section: 'Personality & Mindset', question: "You've been working on a difficult project for months with little progress. What's your next move?", type: 'radio', options: ["Double down on my current approach, believing persistence is key", "Take a step back to analyze what's not working and pivot", "Seek advice from a mentor or expert", "Move on to a different, more promising project"] },
-    
-    // Section 3: Motivation & Values
-    { id: 'S3Q1', section: 'Motivation & Values', question: "Which of these outcomes for your startup would make you the most proud?", type: 'radio', options: ["Creating a highly profitable, market-leading company", "Solving a major social or environmental problem", "Building a beloved product used by millions", "Gaining recognition as a top innovator in your field"] },
-    { id: 'S3Q2', section: 'Motivation & Values', question: "You discover a legal loophole that could significantly increase your profits but sits in a morally grey area. How do you proceed?", type: 'radio', options: ["Exploit it; it's business", "Consult lawyers to understand the risks, then decide", "Avoid it, as it doesn't align with my values", "Try to find a different way to achieve the same result ethically"] },
-    
-    // Section 4: Abilities & Skills
-    { id: 'S4Q1', section: 'Abilities & Skills', question: "You are given data sets from three unrelated industries: farming, e-commerce, and healthcare. What is your approach to finding a potential business opportunity?", type: 'radio', options: ["Look for a common problem or inefficiency across all three", "Focus on the industry I know best", "Analyze the market with the highest growth potential", "Try to combine elements from each to create a new service"] },
-    { id: 'S4Q2', section: 'Abilities & Skills', question: "A key team member comes to you with a personal problem that's affecting their work. What is your first step?", type: 'radio', options: ["Listen actively and express empathy for their situation", "Offer practical solutions to solve their problem quickly", "Refer them to HR or a professional for support", "Give them space and time off to handle it"] },
-    
-    // Section 5: Situational Judgement
-    { id: 'S5Q1', section: 'Situational Judgement', question: "Your initial product launch gets a lukewarm response. Your team is demoralized. What message do you deliver?", type: 'radio', options: ["'We failed, but we will learn and do better next time.'", "'The market isn't ready for our vision; we need to educate them.'", "'Let's celebrate the launch and focus on the small wins and positive feedback.'", "'We need to analyze the data objectively and iterate immediately.'"] },
-    { id: 'S5Q2', section: 'Situational Judgement', question: "A major competitor just launched a feature you've been developing for six months. What do you do?", type: 'radio', options: ["Scrap our version and go back to the drawing board", "Rush our version to market to compete head-on", "Analyze their feature, identify its weaknesses, and build a superior version", "Ignore them and stick to our original product roadmap"] },
-
-    // Section 6: Goals & Aspirations (Essay)
-    { id: 'S6Q1', section: 'Goals & Aspirations', question: "Beyond financial success, what is the single most important legacy you want to create with your entrepreneurial journey?", type: 'textarea' },
+    // Section: Abilities & Vision (A, I)
+    { id: 'S2Q1', section: 'Abilities & Vision', question: "When you encounter a completely new technology, what is your first instinct?", type: 'radio', options: ["Start experimenting with it hands-on", "Read articles and documentation to understand it conceptually", "Talk to experts who are already using it", "Wait and see how it develops before investing time"] },
+    { id: 'S2Q2', section: 'Abilities & Vision', question: "Describe a time you solved a complex problem with very limited resources. What was your approach?", type: 'textarea' },
+    { id: 'S2Q3', section: 'Abilities & Vision', question: "Which of these is the most compelling reason for you to dedicate the next 10 years to an idea?", type: 'radio', options: ["Solving a problem that personally affects you or your loved ones", "The potential for significant financial return and wealth creation", "The opportunity to build a famous brand and legacy", "The intellectual challenge of solving a very difficult problem"] },
+    { id: 'S2Q4', section: 'Abilities & Vision', question: "If a major competitor copied your core product, what would be your most likely reaction?", type: 'radio', options: ["Out-innovate them by releasing better features faster", "Focus on building a stronger brand and community", "Try to compete on price", "Consider pivoting to a different market"] },
 ];
 
 
@@ -100,12 +87,8 @@ const defaultValues = questionIds.reduce((acc, id) => {
 
 const sectionFields = [
     { name: "Personal Information", fields: psychometricQuestions.filter(q => q.section === 'Personal Information').map(q => q.id) },
-    { name: "Background & Experience", fields: psychometricQuestions.filter(q => q.section === 'Background & Experience').map(q => q.id) },
     { name: "Personality & Mindset", fields: psychometricQuestions.filter(q => q.section === 'Personality & Mindset').map(q => q.id) },
-    { name: "Motivation & Values", fields: psychometricQuestions.filter(q => q.section === 'Motivation & Values').map(q => q.id) },
-    { name: "Abilities & Skills", fields: psychometricQuestions.filter(q => q.section === 'Abilities & Skills').map(q => q.id) },
-    { name: "Situational Judgement", fields: psychometricQuestions.filter(q => q.section === 'Situational Judgement').map(q => q.id) },
-    { name: "Goals & Aspirations", fields: psychometricQuestions.filter(q => q.section === 'Goals & Aspirations').map(q => q.id) },
+    { name: "Abilities & Vision", fields: psychometricQuestions.filter(q => q.section === 'Abilities & Vision').map(q => q.id) },
 ];
 
 
@@ -161,7 +144,7 @@ export default function PsychometricAnalysisPage() {
             setActiveTab("0");
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
             setHighestCompletedTab(-1);
-            setIsCompleted(false);
+            setIsCompleted(false); // This is key
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
