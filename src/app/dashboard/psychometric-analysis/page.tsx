@@ -35,69 +35,66 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 
-// Schemas for each section
-const backgroundSchema = z.object({
-  age: z.coerce.number().min(18, "Must be at least 18").max(100),
-  hometownTier: z.string().min(1, "Hometown tier is required."),
-  familyBusiness: z.string().min(1, "This field is required."),
-});
-
-const educationSchema = z.object({
-  highestDegree: z.string().min(1, "Highest degree is required."),
-  major: z.string().min(1, "Major is required."),
-  schoolTier: z.string().min(1, "School tier is required."),
-});
-
-const goalsAndInterestsSchema = z.object({
-    essay: z.string().min(100, "Essay must be at least 100 characters long to allow for meaningful analysis."),
-});
-
+// New, more detailed questions based on the expanded domains
 const psychometricQuestions = [
-    // Section 1: Personality & Mindset
-    { id: 'S1Q1', section: 'Personality & Mindset', question: "After a significant setback, I'm usually the first to start exploring what can be learned from the experience." },
-    { id: 'S1Q2', section: 'Personality & Mindset', question: "I'm more drawn to a project with a 30% chance of a 10x return than one with an 80% chance of a 2x return." },
-    { id: 'S1Q3', section: 'Personality & Mindset', question: "I prefer to have a well-defined plan before starting, rather than adapting as I go." },
-    
-    // Section 2: Motivation & Values
-    { id: 'S2Q1', section: 'Motivation & Values', question: "The primary driver for my professional ambitions is solving a problem I find deeply meaningful." },
-    { id: 'S2Q2', section: 'Motivation & Values', question: "Building something that benefits a large community is more appealing than building something that generates maximum personal wealth." },
-    
-    // Section 3: Abilities & Skills
-    { id: 'S3Q1', section: 'Abilities & Skills', question: "I can quickly identify underlying patterns and connections in complex, unfamiliar information." },
-    { id: 'S3Q2', section: 'Abilities & Skills', question: "When faced with an unexpected obstacle, my first instinct is to brainstorm multiple, distinct solutions." },
-    { id: 'S3Q3', section: 'Abilities & Skills', question: "I actively maintain a network of professional contacts, even when I don't need anything from them." },
+    // Section 1: Background & Experience
+    { id: 'S1Q1', section: 'Background & Experience', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
+    { id: 'S1Q2', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
+    { id: 'S1Q3', section: 'Background & Experience', question: "What was the primary language of instruction during your schooling?", type: 'text', placeholder: "e.g., English, Hindi, Tamil" },
+    { id: 'S1Q4', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby from your youth. What did you learn from it?", type: 'textarea' },
 
-    // Section 4: Situational Judgement
-    { id: 'S4Q1', section: 'Situational Judgement', question: "If a key team member strongly disagrees with a strategic decision I've made, my first step is to fully understand their perspective before moving forward." },
-    { id: 'S4Q2', section: 'Situational Judgement', question: "If I discovered a flaw in my product that could be exploited but would be hard for customers to notice, I would prioritize fixing it immediately, even if it delays a launch." },
+    // Section 2: Personality & Mindset
+    { id: 'S2Q1', section: 'Personality & Mindset', question: "A promising new technology emerges, but it's completely outside your area of expertise. What is your most likely first reaction?", type: 'radio', options: ["Dive in and start learning it immediately", "Wait to see how it develops and is used by others", "Find an expert to explain its potential to me", "Ignore it unless it becomes directly relevant to my work"] },
+    { id: 'S2Q2', section: 'Personality & Mindset', question: "You've been working on a difficult project for months with little progress. What's your next move?", type: 'radio', options: ["Double down on my current approach, believing persistence is key", "Take a step back to analyze what's not working and pivot", "Seek advice from a mentor or expert", "Move on to a different, more promising project"] },
+    { id: 'S2Q3', section: 'Personality & Mindset', question: "When making an important decision, you are more likely to rely on:", type: 'radio', options: ["Data and detailed analysis", "My intuition and gut feeling", "A consensus from my trusted advisors", "Past experiences and precedent"] },
+
+    // Section 3: Motivation & Values
+    { id: 'S3Q1', section: 'Motivation & Values', question: "Which of these outcomes for your startup would make you the most proud?", type: 'radio', options: ["Creating a highly profitable, market-leading company", "Solving a major social or environmental problem", "Building a beloved product used by millions", "Gaining recognition as a top innovator in your field"] },
+    { id: 'S3Q2', section: 'Motivation & Values', question: "You discover a legal loophole that could significantly increase your profits but sits in a morally grey area. How do you proceed?", type: 'radio', options: ["Exploit it; it's business", "Consult lawyers to understand the risks, then decide", "Avoid it, as it doesn't align with my values", "Try to find a different way to achieve the same result ethically"] },
+    
+    // Section 4: Abilities & Skills
+    { id: 'S4Q1', section: 'Abilities & Skills', question: "You are given data sets from three unrelated industries: farming, e-commerce, and healthcare. What is your approach to finding a potential business opportunity?", type: 'radio', options: ["Look for a common problem or inefficiency across all three", "Focus on the industry I know best", "Analyze the market with the highest growth potential", "Try to combine elements from each to create a new service"] },
+    { id: 'S4Q2', section: 'Abilities & Skills', question: "A key team member comes to you with a personal problem that's affecting their work. What is your first step?", type: 'radio', options: ["Listen actively and express empathy for their situation", "Offer practical solutions to solve their problem quickly", "Refer them to HR or a professional for support", "Give them space and time off to handle it"] },
+    
+    // Section 5: Situational Judgement
+    { id: 'S5Q1', section: 'Situational Judgement', question: "Your initial product launch gets a lukewarm response. Your team is demoralized. What message do you deliver?", type: 'radio', options: ["'We failed, but we will learn and do better next time.'", "'The market isn't ready for our vision; we need to educate them.'", "'Let's celebrate the launch and focus on the small wins and positive feedback.'", "'We need to analyze the data objectively and iterate immediately.'"] },
+    { id: 'S5Q2', section: 'Situational Judgement', question: "A major competitor just launched a feature you've been developing for six months. What do you do?", type: 'radio', options: ["Scrap our version and go back to the drawing board", "Rush our version to market to compete head-on", "Analyze their feature, identify its weaknesses, and build a superior version", "Ignore them and stick to our original product roadmap"] },
+
+    // Section 6: Goals & Aspirations (Essay)
+    { id: 'S6Q1', section: 'Goals & Aspirations', question: "Beyond financial success, what is the single most important legacy you want to create with your entrepreneurial journey?", type: 'textarea' },
 ];
 
-const fullSchema = backgroundSchema.merge(educationSchema).merge(goalsAndInterestsSchema).extend({
-    responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
-        message: "Please answer all questions.",
-    }),
+const questionIds = psychometricQuestions.map(q => q.id);
+
+// Dynamically create the Zod schema
+const formSchema = z.object({
+    ...psychometricQuestions.reduce((acc, q) => {
+        if (q.type === 'radio') {
+            acc[q.id] = z.string({ required_error: "Please select an option." });
+        } else if (q.type === 'text') {
+            acc[q.id] = z.string().min(1, "This field is required.");
+        } else {
+            acc[q.id] = z.string().min(50, "Please provide a more detailed answer (min. 50 characters).");
+        }
+        return acc;
+    }, {} as Record<string, z.ZodType<any, any>>),
 });
 
-type FullForm = z.infer<typeof fullSchema>;
 
-const defaultValues: Partial<FullForm> = {
-    age: 25,
-    gender: "",
-    hometownTier: "",
-    familyBusiness: "",
-    highestDegree: "",
-    major: "",
-    schoolTier: "",
-    essay: "",
-    responses: {},
-};
+type FullForm = z.infer<typeof formSchema>;
 
+const defaultValues = questionIds.reduce((acc, id) => {
+    acc[id] = "";
+    return acc;
+}, {} as any);
 
 const sectionFields = [
-    { name: "Background", fields: ["age", "hometownTier", "familyBusiness"], schema: backgroundSchema },
-    { name: "Education", fields: ["highestDegree", "major", "schoolTier"], schema: educationSchema },
-    { name: "Questionnaire", fields: psychometricQuestions.map(q => `responses.${q.id}`), schema: z.object({ responses: z.record(z.string().min(1)) }) },
-    { name: "Goals & Interests", fields: ["essay"], schema: goalsAndInterestsSchema },
+    { name: "Background & Experience", fields: psychometricQuestions.filter(q => q.section === 'Background & Experience').map(q => q.id) },
+    { name: "Personality & Mindset", fields: psychometricQuestions.filter(q => q.section === 'Personality & Mindset').map(q => q.id) },
+    { name: "Motivation & Values", fields: psychometricQuestions.filter(q => q.section === 'Motivation & Values').map(q => q.id) },
+    { name: "Abilities & Skills", fields: psychometricQuestions.filter(q => q.section === 'Abilities & Skills').map(q => q.id) },
+    { name: "Situational Judgement", fields: psychometricQuestions.filter(q => q.section === 'Situational Judgement').map(q => q.id) },
+    { name: "Goals & Aspirations", fields: psychometricQuestions.filter(q => q.section === 'Goals & Aspirations').map(q => q.id) },
 ];
 
 
@@ -107,26 +104,22 @@ export default function PsychometricAnalysisPage() {
     const [isLoading, setIsLoading] = React.useState(false);
     const [isCompleted, setIsCompleted] = React.useState(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
     
-    const [currentStep, setCurrentStep] = React.useState(0);
-    const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState<number[]>(Array(sectionFields.length).fill(0));
-    const [highestCompletedStep, setHighestCompletedStep] = React.useState(-1);
+    const [activeTab, setActiveTab] = React.useState("0");
+    const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState(Array(sectionFields.length).fill(0));
+    const [highestCompletedTab, setHighestCompletedTab] = React.useState(-1);
 
     const form = useForm<FullForm>({
-        resolver: zodResolver(fullSchema),
+        resolver: zodResolver(formSchema),
         defaultValues,
         mode: 'onChange',
     });
 
-    const totalQuestions = sectionFields.reduce((acc, section) => acc + section.fields.length, 0);
-    const answeredQuestions = currentQuestionIndices.reduce((total, sectionCurrentIndex, sectionIndex) => {
-        if (sectionIndex < currentStep) {
-            return total + sectionFields[sectionIndex].fields.length;
-        }
-        if (sectionIndex === currentStep) {
-            return total + sectionCurrentIndex;
-        }
-        return total;
-    }, 0);
+    const totalQuestions = psychometricQuestions.length;
+    
+    const answeredQuestions = React.useMemo(() => {
+        const formData = form.getValues();
+        return Object.values(formData).filter(value => value && value !== "").length;
+    }, [form.watch()]);
     
     const overallProgress = (answeredQuestions / totalQuestions) * 100;
     
@@ -148,9 +141,9 @@ export default function PsychometricAnalysisPage() {
             MOCK_INNOVATOR_USER.credits -= 1;
             setIsCompleted(false);
             form.reset(defaultValues);
-            setCurrentStep(0);
+            setActiveTab("0");
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
-            setHighestCompletedStep(-1);
+            setHighestCompletedTab(-1);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
@@ -158,8 +151,9 @@ export default function PsychometricAnalysisPage() {
     }
     
     const handleNext = async () => {
-        const currentSection = sectionFields[currentStep];
-        const currentQuestionIndex = currentQuestionIndices[currentStep];
+        const activeTabIndex = parseInt(activeTab);
+        const currentSection = sectionFields[activeTabIndex];
+        const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
         const fieldName = currentSection.fields[currentQuestionIndex];
         
         const isValid = await form.trigger(fieldName as any);
@@ -168,15 +162,15 @@ export default function PsychometricAnalysisPage() {
         if (currentQuestionIndex < currentSection.fields.length - 1) {
             setCurrentQuestionIndices(prev => {
                 const newIndices = [...prev];
-                newIndices[currentStep]++;
+                newIndices[activeTabIndex]++;
                 return newIndices;
             });
         } else {
              const allSectionFieldsValid = await form.trigger(currentSection.fields as any);
              if (allSectionFieldsValid) {
-                 setHighestCompletedStep(prev => Math.max(prev, currentStep));
-                 if (currentStep < sectionFields.length - 1) {
-                     setCurrentStep(prev => prev + 1);
+                 setHighestCompletedTab(prev => Math.max(prev, activeTabIndex));
+                 if (activeTabIndex < sectionFields.length - 1) {
+                     setActiveTab(String(activeTabIndex + 1));
                  } else {
                      form.handleSubmit(onSubmit)();
                  }
@@ -185,62 +179,59 @@ export default function PsychometricAnalysisPage() {
     }
 
     const handlePrevious = () => {
-        const currentQuestionIndex = currentQuestionIndices[currentStep];
+        const activeTabIndex = parseInt(activeTab);
+        const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
         if (currentQuestionIndex > 0) {
              setCurrentQuestionIndices(prev => {
                 const newIndices = [...prev];
-                newIndices[currentStep]--;
+                newIndices[activeTabIndex]--;
                 return newIndices;
             });
         } else {
-            if (currentStep > 0) {
-                setCurrentStep(prev => prev - 1);
+            if (activeTabIndex > 0) {
+                setActiveTab(String(activeTabIndex - 1));
             }
         }
     }
     
-    const renderField = (fieldName: string) => {
-        switch(fieldName) {
-            case 'age': return <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>What is your age?</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
-            case 'hometownTier': return <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Which category best describes your hometown?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'familyBusiness': return <FormField control={form.control} name="familyBusiness" render={({ field }) => ( <FormItem><FormLabel>Do you come from a family with a business background?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'highestDegree': return <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>What is your highest educational qualification?</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            case 'major': return <FormField control={form.control} name="major" render={({ field }) => ( <FormItem><FormLabel>What was your major/field of study?</FormLabel><FormControl><Input placeholder="e.g., Computer Science" {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            case 'schoolTier': return <FormField control={form.control} name="schoolTier" render={({ field }) => ( <FormItem><FormLabel>Which tier best describes your university/college?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (e.g., IIT, IIM, AIIMS)</SelectItem><SelectItem value="Tier 2">Tier 2 (e.g., NIT, Top State Universities)</SelectItem><SelectItem value="Tier 3">Tier 3 (Other Colleges)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'essay': return <FormField control={form.control} name="essay" render={({ field }) => ( <FormItem><FormLabel>Why do you want to be an entrepreneur?</FormLabel><FormDescription>Describe what drives you. Our AI will analyze this response to understand your core motivations. (Min. 100 characters)</FormDescription><FormControl><Textarea rows={8} placeholder="Tell us your story, your vision, and what you hope to achieve..." {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            default:
-                if (fieldName.startsWith('responses.')) {
-                    const questionId = fieldName.split('.')[1];
-                    const question = psychometricQuestions.find(q => q.id === questionId);
-                    if (!question) return null;
-                     return (
-                        <FormField
-                            control={form.control}
-                            name={fieldName as any}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xl font-semibold text-center text-foreground leading-relaxed block">{question.question}</FormLabel>
-                                    <FormControl>
-                                        <RadioGroup 
-                                            className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
-                                            onValueChange={field.onChange}
-                                            value={field.value}
-                                        >
-                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel>Strongly Disagree</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel>Disagree</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel>Neutral</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="4" /></FormControl><FormLabel>Agree</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
-                                        </RadioGroup>
-                                    </FormControl>
-                                    <FormMessage className="text-center pt-2" />
-                                </FormItem>
+    const renderField = (questionId: string) => {
+        const question = psychometricQuestions.find(q => q.id === questionId);
+        if (!question) return null;
+
+        const baseField = (
+            <FormField
+                control={form.control}
+                name={question.id as any}
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-xl font-semibold text-center text-foreground leading-relaxed block">{question.question}</FormLabel>
+                         <FormDescription className="text-center pb-4">{question.section}</FormDescription>
+                        <FormControl>
+                            {question.type === 'radio' ? (
+                                <RadioGroup
+                                    className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
+                                    onValueChange={field.onChange}
+                                    value={field.value}
+                                >
+                                    {question.options?.map(opt => (
+                                        <FormItem key={opt} className="flex items-center space-x-2">
+                                            <FormControl><RadioGroupItem value={opt} /></FormControl>
+                                            <FormLabel>{opt}</FormLabel>
+                                        </FormItem>
+                                    ))}
+                                </RadioGroup>
+                            ) : question.type === 'textarea' ? (
+                                <Textarea rows={6} placeholder="Your detailed response..." {...field} />
+                            ) : (
+                                <Input placeholder={question.placeholder} {...field} />
                             )}
-                        />
-                     )
-                }
-                return null;
-        }
+                        </FormControl>
+                        <FormMessage className="text-center pt-2" />
+                    </FormItem>
+                )}
+            />
+        );
+        return baseField;
     }
 
     if (isCompleted && !isLoading) {
@@ -276,17 +267,18 @@ export default function PsychometricAnalysisPage() {
                <p className="mt-4 text-muted-foreground">You must complete your Founder Psychometric Analysis before you can submit an idea.</p>
             </CardContent>
             <CardFooter className="justify-center">
-                <Button onClick={() => setIsCompleted(true)}>Take Analysis</Button>
+                <Button onClick={() => setIsCompleted(true)}>Take Analysis (Free)</Button>
             </CardFooter>
           </Card>
         )
     }
 
-    const currentSection = sectionFields[currentStep];
-    const currentQuestionIndex = currentQuestionIndices[currentStep];
+    const activeTabIndex = parseInt(activeTab);
+    const currentSection = sectionFields[activeTabIndex];
+    const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
     const fieldName = currentSection.fields[currentQuestionIndex];
     const isLastQuestionInSection = currentQuestionIndex === currentSection.fields.length - 1;
-    const isFinalStep = currentStep === sectionFields.length - 1 && isLastQuestionInSection;
+    const isFinalStep = activeTabIndex === sectionFields.length - 1 && isLastQuestionInSection;
 
 
     return (
@@ -303,14 +295,16 @@ export default function PsychometricAnalysisPage() {
                             <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
                         </CardHeader>
                         <CardContent>
-                             <Tabs value={String(currentStep)} className="w-full">
-                                <TabsList className="grid w-full grid-cols-4">
+                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
                                             value={String(index)} 
-                                            disabled={index > highestCompletedStep + 1}
-                                            onClick={(e) => e.preventDefault()}
+                                            disabled={index > highestCompletedTab + 1}
+                                            onClick={(e) => {
+                                                if (index > highestCompletedTab + 1) e.preventDefault();
+                                            }}
                                         >
                                             {tab.name}
                                         </TabsTrigger>
@@ -330,13 +324,13 @@ export default function PsychometricAnalysisPage() {
                                 type="button" 
                                 variant="outline" 
                                 onClick={handlePrevious}
-                                disabled={currentStep === 0 && currentQuestionIndex === 0}
+                                disabled={activeTabIndex === 0 && currentQuestionIndex === 0}
                             >
                                 <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                             </Button>
                            
                             <Button type="button" onClick={handleNext}>
-                                {isFinalStep ? 'Submit Analysis' : (isLastQuestionInSection ? 'Next Section' : 'Next')} 
+                                {isFinalStep ? 'Submit Analysis' : 'Next'} 
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                            
