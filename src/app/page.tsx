@@ -5,9 +5,18 @@ import * as React from 'react';
 import { Logo } from '@/components/icons';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LoginForm } from '@/components/login-form';
+import Lottie from 'lottie-react';
+import { HydrationSafeContent } from '@/components/hydration-safe-content';
 
 
 export default function LoginPage() {
+  const [animationData, setAnimationData] = React.useState(null);
+
+  React.useEffect(() => {
+    fetch('https://lottie.host/e2c73365-2a29-4720-a845-a436940b3b4f/QfUPpEkD0F.json')
+      .then(res => res.json())
+      .then(data => setAnimationData(data));
+  }, []);
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-background lg:grid lg:grid-cols-2">
