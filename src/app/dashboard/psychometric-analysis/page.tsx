@@ -35,17 +35,17 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 
+// Schemas for each section
 const backgroundSchema = z.object({
   age: z.coerce.number().min(18, "Must be at least 18").max(100),
-  gender: z.string().min(1, "Gender is required."),
   hometownTier: z.string().min(1, "Hometown tier is required."),
   familyBusiness: z.string().min(1, "This field is required."),
 });
 
 const educationSchema = z.object({
-    highestDegree: z.string().min(1, "Highest degree is required."),
-    major: z.string().min(1, "Major is required."),
-    schoolTier: z.string().min(1, "School tier is required."),
+  highestDegree: z.string().min(1, "Highest degree is required."),
+  major: z.string().min(1, "Major is required."),
+  schoolTier: z.string().min(1, "School tier is required."),
 });
 
 const goalsAndInterestsSchema = z.object({
@@ -53,46 +53,24 @@ const goalsAndInterestsSchema = z.object({
 });
 
 const psychometricQuestions = [
-    // Personality & Traits
-    { id: 'P1', category: 'Personality & Traits', question: "When a project fails, my first instinct is to analyze what I can learn from it." },
-    { id: 'P2', category: 'Personality & Traits', question: "I am more drawn to situations with high potential rewards, even if they come with significant risk." },
-    { id: 'P3', category: 'Personality & Traits', question: "I often find myself starting new projects or initiatives without being asked." },
-    { id: 'P4', category: 'Personality & Traits', question: "I prefer having full control over the final outcome of my work." },
+    // Section 1: Personality & Mindset
+    { id: 'S1Q1', section: 'Personality & Mindset', question: "After a significant setback, I'm usually the first to start exploring what can be learned from the experience." },
+    { id: 'S1Q2', section: 'Personality & Mindset', question: "I'm more drawn to a project with a 30% chance of a 10x return than one with an 80% chance of a 2x return." },
+    { id: 'S1Q3', section: 'Personality & Mindset', question: "I prefer to have a well-defined plan before starting, rather than adapting as I go." },
+    
+    // Section 2: Motivation & Values
+    { id: 'S2Q1', section: 'Motivation & Values', question: "The primary driver for my professional ambitions is solving a problem I find deeply meaningful." },
+    { id: 'S2Q2', section: 'Motivation & Values', question: "Building something that benefits a large community is more appealing than building something that generates maximum personal wealth." },
+    
+    // Section 3: Abilities & Skills
+    { id: 'S3Q1', section: 'Abilities & Skills', question: "I can quickly identify underlying patterns and connections in complex, unfamiliar information." },
+    { id: 'S3Q2', section: 'Abilities & Skills', question: "When faced with an unexpected obstacle, my first instinct is to brainstorm multiple, distinct solutions." },
+    { id: 'S3Q3', section: 'Abilities & Skills', question: "I actively maintain a network of professional contacts, even when I don't need anything from them." },
 
-    // Cognitive & Analytical Abilities
-    { id: 'C1', category: 'Cognitive & Analytical Abilities', question: "I can quickly identify underlying patterns in complex information." },
-    { id: 'C2', category: 'Cognitive & Analytical Abilities', question: "When faced with a new, unfamiliar problem, I feel energized rather than intimidated." },
-    { id: 'C3', category: 'Cognitive & Analytical Abilities', question: "I am adept at generating multiple, distinct solutions to a single problem." },
-    
-    // Socio-Cultural & Background Factors
-    { id: 'B1', category: 'Socio-Cultural & Background Factors', question: "My upbringing emphasized stability and following a set career path." },
-    { id: 'B2', category: 'Socio-Cultural & Background Factors', question: "I have had significant exposure to people from different cultures and socio-economic backgrounds." },
-    
-    // Motivational Drivers
-    { id: 'M1', category: 'Motivational Drivers', question: "The main reason I want to start a business is to solve a problem I am passionate about, regardless of the financial outcome." },
-    { id: 'M2', category: 'Motivational Drivers', question: "Building something that impacts a large community is more appealing than building something that makes a lot of money for a few." },
-    
-    // Interpersonal & Team Dynamics
-    { id: 'T1', category: 'Interpersonal & Team Dynamics', question: "When a team member disagrees with my direction, I make it a priority to understand their perspective fully before deciding on a path forward." },
-    { id: 'T2', category: 'Interpersonal & Team Dynamics', question: "I am comfortable giving direct, constructive feedback to a colleague, even if it might be uncomfortable." },
-    
-    // Mental State & Well-being
-    { id: 'W1', category: 'Mental State & Well-being', question: "Under high pressure, I am able to remain calm and make logical decisions." },
-    { id: 'W2', category: 'Mental State & Well-being', question: "I believe that fundamental abilities can be significantly developed through dedication and hard work." },
-    
-    // Entrepreneurial & Domain-Specific Factors
-    { id: 'E1', category: 'Entrepreneurial & Domain-Specific Factors', question: "I am more of a 'doer' who likes to build and test things, rather than an 'ideas person' who prefers to strategize." },
-    { id: 'E2', category: 'Entrepreneurial & Domain-Specific Factors', question: "I actively maintain a network of professional contacts." },
-    
-    // Creativity & Innovation Potential
-    { id: 'I1', category: 'Creativity & Innovation Potential', question: "I often connect ideas from different, unrelated fields to create something new." },
-    { id: 'I2', category: 'Creativity & Innovation Potential', question: "I would rather launch a product that is 80% perfect and get feedback, than wait until it is 100% perfect." },
-
-    // Ethical & Value Systems
-    { id: 'V1', category: 'Ethical & Value Systems', question: "I would walk away from a highly profitable opportunity if it conflicted with my core values." },
-    { id: 'V2', category: 'Ethical & Value Systems', question: "It is important to be completely transparent with stakeholders, even when the news is bad." },
+    // Section 4: Situational Judgement
+    { id: 'S4Q1', section: 'Situational Judgement', question: "If a key team member strongly disagrees with a strategic decision I've made, my first step is to fully understand their perspective before moving forward." },
+    { id: 'S4Q2', section: 'Situational Judgement', question: "If I discovered a flaw in my product that could be exploited but would be hard for customers to notice, I would prioritize fixing it immediately, even if it delays a launch." },
 ];
-
 
 const fullSchema = backgroundSchema.merge(educationSchema).merge(goalsAndInterestsSchema).extend({
     responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
@@ -114,8 +92,9 @@ const defaultValues: Partial<FullForm> = {
     responses: {},
 };
 
+
 const sectionFields = [
-    { name: "Background", fields: ["age", "gender", "hometownTier", "familyBusiness"], schema: backgroundSchema },
+    { name: "Background", fields: ["age", "hometownTier", "familyBusiness"], schema: backgroundSchema },
     { name: "Education", fields: ["highestDegree", "major", "schoolTier"], schema: educationSchema },
     { name: "Questionnaire", fields: psychometricQuestions.map(q => `responses.${q.id}`), schema: z.object({ responses: z.record(z.string().min(1)) }) },
     { name: "Goals & Interests", fields: ["essay"], schema: goalsAndInterestsSchema },
@@ -138,18 +117,16 @@ export default function PsychometricAnalysisPage() {
         mode: 'onChange',
     });
 
+    const totalQuestions = sectionFields.reduce((acc, section) => acc + section.fields.length, 0);
     const answeredQuestions = currentQuestionIndices.reduce((total, sectionCurrentIndex, sectionIndex) => {
-        const section = sectionFields[sectionIndex];
         if (sectionIndex < currentStep) {
-            return total + section.fields.length;
+            return total + sectionFields[sectionIndex].fields.length;
         }
         if (sectionIndex === currentStep) {
             return total + sectionCurrentIndex;
         }
         return total;
     }, 0);
-    
-    const totalQuestions = sectionFields.reduce((acc, section) => acc + section.fields.length, 0);
     
     const overallProgress = (answeredQuestions / totalQuestions) * 100;
     
@@ -170,7 +147,7 @@ export default function PsychometricAnalysisPage() {
         if (MOCK_INNOVATOR_USER.credits > 0) {
             MOCK_INNOVATOR_USER.credits -= 1;
             setIsCompleted(false);
-            form.reset();
+            form.reset(defaultValues);
             setCurrentStep(0);
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
             setHighestCompletedStep(-1);
@@ -225,7 +202,6 @@ export default function PsychometricAnalysisPage() {
     const renderField = (fieldName: string) => {
         switch(fieldName) {
             case 'age': return <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>What is your age?</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
-            case 'gender': return <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>What is your gender?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
             case 'hometownTier': return <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Which category best describes your hometown?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
             case 'familyBusiness': return <FormField control={form.control} name="familyBusiness" render={({ field }) => ( <FormItem><FormLabel>Do you come from a family with a business background?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
             case 'highestDegree': return <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>What is your highest educational qualification?</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />;
@@ -289,7 +265,7 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && isCompleted) {
+    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && !isCompleted) {
         return (
           <Card>
             <CardHeader>
@@ -300,9 +276,7 @@ export default function PsychometricAnalysisPage() {
                <p className="mt-4 text-muted-foreground">You must complete your Founder Psychometric Analysis before you can submit an idea.</p>
             </CardContent>
             <CardFooter className="justify-center">
-                <Button asChild>
-                    <Link href="/dashboard/psychometric-analysis?role=Innovator">Take Analysis</Link>
-                </Button>
+                <Button onClick={() => setIsCompleted(true)}>Take Analysis</Button>
             </CardFooter>
           </Card>
         )
@@ -379,5 +353,3 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
-
-    
