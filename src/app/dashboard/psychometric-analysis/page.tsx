@@ -110,11 +110,15 @@ export default function PsychometricAnalysisPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = React.useState(false);
-    const [isCompleted, setIsCompleted] = React.useState(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
+    const [isCompleted, setIsCompleted] = React.useState(false);
     
     const [activeTab, setActiveTab] = React.useState("0");
     const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState(Array(sectionFields.length).fill(0));
     const [highestCompletedTab, setHighestCompletedTab] = React.useState(-1);
+
+    React.useEffect(() => {
+        setIsCompleted(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
+    }, []);
 
     const form = useForm<FullForm>({
         resolver: zodResolver(formSchema),
@@ -212,9 +216,10 @@ export default function PsychometricAnalysisPage() {
                 name={question.id as any}
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel className="text-xl font-semibold text-center text-foreground leading-relaxed block">{question.question}</FormLabel>
                          <FormDescription className="text-center pb-4">{question.section}</FormDescription>
+                        <FormLabel className="text-2xl font-semibold text-center text-foreground leading-relaxed block">{question.question}</FormLabel>
                         <FormControl>
+                            <div className="pt-8">
                             {question.type === 'radio' ? (
                                 <RadioGroup
                                     className="flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center pt-4"
@@ -244,6 +249,7 @@ export default function PsychometricAnalysisPage() {
                             ) : (
                                 <Input className="max-w-md mx-auto" type={question.type} placeholder={question.placeholder} {...field} />
                             )}
+                            </div>
                         </FormControl>
                         <FormMessage className="text-center pt-2" />
                     </FormItem>
@@ -308,12 +314,14 @@ export default function PsychometricAnalysisPage() {
                         <CardHeader>
                             <CardTitle>Founder Psychometric Analysis</CardTitle>
                             <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
-                            <Progress value={overallProgress} className="mt-4"/>
-                            <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
+                             <div className="pt-4">
+                                <Progress value={overallProgress} />
+                                <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
+                            </div>
                         </CardHeader>
                         <CardContent>
                              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="flex flex-wrap h-auto">
+                                <TabsList className="flex flex-wrap h-auto bg-transparent p-0">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
@@ -322,6 +330,7 @@ export default function PsychometricAnalysisPage() {
                                             onClick={(e) => {
                                                 if (index > highestCompletedTab + 1) e.preventDefault();
                                             }}
+                                            className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-none rounded-sm"
                                         >
                                             {tab.name}
                                         </TabsTrigger>
@@ -332,12 +341,8 @@ export default function PsychometricAnalysisPage() {
                                     const fieldName = section.fields[currentQuestionIndex];
                                     return (
                                         <TabsContent key={section.name} value={String(index)}>
-                                            <div className="py-6 min-h-[300px] flex flex-col justify-center">
-                                                 <Card className="bg-transparent border-0 shadow-none">
-                                                    <CardContent>
-                                                        {renderField(fieldName)}
-                                                    </CardContent>
-                                                </Card>
+                                            <div className="py-12 min-h-[300px] flex flex-col justify-center text-center">
+                                                {renderField(fieldName)}
                                             </div>
                                         </TabsContent>
                                     );
@@ -373,6 +378,3 @@ export default function PsychometricAnalysisPage() {
     );
 }
 
-    
-
-    
