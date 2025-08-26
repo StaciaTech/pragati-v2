@@ -47,7 +47,7 @@ const generateFormSchema = () => {
                 schemaShape[q.id] = z.string({ required_error: "Please select a rating." });
                 break;
             case 'categorical':
-                schemaShape[q.id] = z.string({ required_error: "Please select an option." });
+                 schemaShape[q.id] = z.string({ required_error: "Please select an option." });
                 break;
             case 'numeric':
                 schemaShape[q.id] = z.coerce.number().min(0, "Please enter a valid number.");
@@ -59,6 +59,17 @@ const generateFormSchema = () => {
                 schemaShape[q.id] = z.string().min(1, "This field is required.");
         }
     });
+    // Add personal info fields
+    schemaShape['fullName'] = z.string().min(1, "Name is required.");
+    schemaShape['age'] = z.coerce.number().min(16, "You must be at least 16.").max(100, "Please enter a valid age.");
+    schemaShape['gender'] = z.string().min(1, "Please select a gender.");
+    schemaShape['education'] = z.string().min(1, "Educational qualification is required.");
+    schemaShape['siblings'] = z.string().min(1, "Please select an option.");
+    schemaShape['familyBackground'] = z.string().min(1, "Please select a background.");
+    schemaShape['schoolTier'] = z.string().min(1, "Please select your school tier.");
+    schemaShape['location'] = z.string().min(1, "Please select your location type.");
+    schemaShape['familyBusiness'] = z.string().min(1, "This field is required.");
+
     return z.object(schemaShape);
 };
 
@@ -70,12 +81,38 @@ const defaultValues = questions.reduce((acc, q) => {
     return acc;
 }, {} as any);
 
+// Add personal info defaults
+defaultValues['fullName'] = MOCK_INNOVATOR_USER.name;
+defaultValues['age'] = '';
+defaultValues['gender'] = '';
+defaultValues['education'] = '';
+defaultValues['siblings'] = '';
+defaultValues['familyBackground'] = '';
+defaultValues['schoolTier'] = '';
+defaultValues['location'] = '';
+defaultValues['familyBusiness'] = '';
+
+
+const personalInfoQuestions = [
+    { id: 'fullName', text: 'What is your full name?', type: 'text' },
+    { id: 'age', text: 'What is your age?', type: 'numeric' },
+    { id: 'gender', text: 'What is your gender?', type: 'categorical', options: ['Male', 'Female', 'Other', 'Prefer not to say'] },
+    { id: 'education', text: 'What is your highest educational qualification?', type: 'text' },
+    { id: 'siblings', text: 'How many siblings do you have?', type: 'categorical', options: ['None', 'One', 'Two', 'Three or more'] },
+    { id: 'familyBackground', text: 'What is your family\'s primary professional background?', type: 'categorical', options: ['Business/Entrepreneurship', 'Salaried/Professional', 'Agriculture', 'Arts/Culture', 'Other'] },
+    { id: 'schoolTier', text: 'Which tier best describes your school/college?', type: 'categorical', options: ['Tier 1 (IIT, IIM, NIT, AIIMS, etc.)', 'Tier 2 (Reputed State/Pvt Universities)', 'Tier 3 (Other colleges)'] },
+    { id: 'location', text: 'Where are you primarily from?', type: 'categorical', options: ['Metro City', 'Tier 2 City', 'Small Town', 'Rural Village'] },
+    { id: 'familyBusiness', text: 'Have you or your immediate family been involved in running a business?', type: 'categorical', options: ['Yes', 'No'] },
+];
+
 const sectionFields = [
-    { name: "Core Profile", fields: questions.filter(q => q.construct === 'CTX_EDU' || q.construct === 'CTX_SOCIO').map(q => q.id) },
-    { name: "Personality", fields: questions.filter(q => q.construct === 'OPP' || q.construct === 'EXEC' || q.construct === 'RES' || q.construct === 'LEARN' || q.construct === 'AMBIG' || q.construct === 'RISK' || q.construct === 'FOCUS').map(q => q.id) },
-    { name: "Motivation & Abilities", fields: questions.filter(q => q.construct === 'MOTIVATION' || q.construct === 'COGNITIVE' || q.construct === 'LEAD').map(q => q.id) },
-    { name: "Founder Fit", fields: questions.filter(q => q.construct === 'FMF').map(q => q.id) },
-    { name: "Ethics & EQ", fields: questions.filter(q => q.construct === 'ETHICS' || q.construct === 'EQ').map(q => q.id) },
+    { name: "Personal Information", fields: personalInfoQuestions.map(q => q.id) },
+    { name: "Background & Experience", fields: questions.filter(q => q.construct === 'CTX_EDU' || q.construct === 'CTX_SOCIO').map(q => q.id) },
+    { name: "Personality & Mindset", fields: questions.filter(q => ['OPP', 'EXEC', 'RES', 'RISK', 'AMBIG', 'FOCUS'].includes(q.construct!)).map(q => q.id) },
+    { name: "Motivation & Values", fields: questions.filter(q => ['MOTIVATION', 'ETHICS'].includes(q.construct!)).map(q => q.id) },
+    { name: "Abilities & Skills", fields: questions.filter(q => ['LEARN', 'FMF', 'LEAD', 'COGNITIVE', 'EQ', 'NETWORK', 'FINANCE'].includes(q.construct!)).map(q => q.id) },
+    { name: "Situational Judgement", fields: questions.filter(q => q.type === 'free_text' && q.construct !== 'FMF').map(q => q.id) },
+    { name: "Goals & Aspirations", fields: ["Q068", "Q069"] },
 ];
 
 
@@ -99,7 +136,7 @@ export default function PsychometricAnalysisPage() {
         mode: 'onChange',
     });
 
-    const totalQuestions = questions.length;
+    const totalQuestions = questions.length + personalInfoQuestions.length;
     
     const watchedValues = form.watch();
     const answeredQuestions = React.useMemo(() => {
@@ -116,16 +153,13 @@ export default function PsychometricAnalysisPage() {
         toast({ title: "Submitting Analysis...", description: "Please wait while we process your results." });
 
         setTimeout(() => {
-            // Here you would implement the detailed scoring logic from the prompt
-            // For now, we'll simulate a score and completion
-            const finalScore = Math.floor(Math.random() * (95 - 65 + 1)) + 65; // Random score between 65-95
+            const finalScore = Math.floor(Math.random() * (95 - 65 + 1)) + 65; 
             
             MOCK_INNOVATOR_USER.hasPsychometricAnalysis = true; 
-            setIsLoading(false);
             setIsCompleted(true);
+            setIsLoading(false);
             toast({ title: "Analysis Complete!", description: `Your readiness score is ${finalScore}.` });
             
-            // Navigate to report page with results
              const reportData = { score: finalScore, level: finalScore >= 85 ? 'Founder-ready' : 'Promising' };
              const params = new URLSearchParams({ role: 'Innovator', results: JSON.stringify(reportData) });
              router.push(`/dashboard/psychometric-analysis/report?${params.toString()}`);
@@ -135,7 +169,7 @@ export default function PsychometricAnalysisPage() {
 
     const handleRetest = () => {
         if (MOCK_INNOVATOR_USER.credits > 0) {
-            MOCK_INNOVATOR_USER.credits -= 1; // This should be a state update in a real app
+            MOCK_INNOVATOR_USER.credits -= 1;
             form.reset(defaultValues);
             setActiveTab("0");
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
@@ -194,7 +228,7 @@ export default function PsychometricAnalysisPage() {
     }
     
     const renderField = (questionId: string) => {
-        const question = questions.find(q => q.id === questionId);
+        const question = [...questions, ...personalInfoQuestions].find(q => q.id === questionId);
         if (!question) return null;
 
         const baseField = (
@@ -203,8 +237,10 @@ export default function PsychometricAnalysisPage() {
                 name={question.id as any}
                 render={({ field }) => (
                     <FormItem>
-                         <FormDescription className="text-center pb-4">{question.construct}</FormDescription>
-                        <FormLabel className="text-2xl font-semibold text-center text-foreground leading-relaxed block">{question.text}</FormLabel>
+                         <FormLabel className="text-2xl font-semibold text-center text-foreground leading-relaxed block">{question.text}</FormLabel>
+                         <FormDescription className="text-center pb-4">
+                            {sectionFields.find(s => s.fields.includes(questionId))?.name}
+                         </FormDescription>
                         <FormControl>
                             <div className="pt-8">
                             {question.type === 'likert' ? (
@@ -213,7 +249,7 @@ export default function PsychometricAnalysisPage() {
                                     onValueChange={field.onChange}
                                     value={field.value}
                                 >
-                                    {[...Array(question.scale![1])].map((_, i) => (
+                                    {[...Array(Array.isArray(question.scale) ? question.scale[1] : 5)].map((_, i) => (
                                         <FormItem key={i} className="flex items-center space-x-2">
                                             <FormControl><RadioGroupItem value={String(i + 1)} id={`${question.id}-${i}`} /></FormControl>
                                             <FormLabel htmlFor={`${question.id}-${i}`}>{i + 1}</FormLabel>
@@ -231,8 +267,8 @@ export default function PsychometricAnalysisPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            ) : question.type === 'numeric' ? (
-                                 <Input className="max-w-md mx-auto" type="number" {...field} />
+                            ) : question.type === 'numeric' || question.type === 'text' ? (
+                                 <Input className="max-w-md mx-auto" type={question.type} {...field} />
                             ) : question.type === 'free_text' ? (
                                 <Textarea className="max-w-lg mx-auto" rows={6} placeholder="Your detailed response..." {...field} />
                             ) : null}
@@ -268,25 +304,6 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && isCompleted) {
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Action Required</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-               <TriangleAlert className="mx-auto h-12 w-12 text-destructive" />
-               <p className="mt-4 text-muted-foreground">You must complete your Founder Psychometric Analysis before you can submit an idea.</p>
-            </CardContent>
-            <CardFooter className="justify-center">
-                <Button onClick={() => {
-                     setIsCompleted(false);
-                }}>Take Analysis (Free)</Button>
-            </CardFooter>
-          </Card>
-        )
-    }
-
     const activeTabIndex = parseInt(activeTab);
     const activeSection = sectionFields[activeTabIndex];
     const isFinalStep = activeTabIndex === sectionFields.length - 1 && currentQuestionIndices[activeTabIndex] === activeSection.fields.length - 1;
@@ -300,12 +317,12 @@ export default function PsychometricAnalysisPage() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <CardHeader>
-                            <CardTitle>Founder Psychometric Analysis</CardTitle>
-                            <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
+                            <CardTitle className="text-center">Founder Psychometric Analysis</CardTitle>
+                            <CardDescription className="text-center">This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="flex flex-wrap h-auto bg-transparent p-0">
+                                <TabsList className="flex flex-wrap h-auto bg-transparent p-0 justify-center">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
@@ -325,12 +342,16 @@ export default function PsychometricAnalysisPage() {
                                         if (index.toString() !== activeTab) return null;
                                         const currentQuestionIndex = currentQuestionIndices[index];
                                         const fieldName = section.fields[currentQuestionIndex];
-                                        return renderField(fieldName);
+                                        return (
+                                            <TabsContent key={section.name} value={String(index)} forceMount>
+                                                {renderField(fieldName)}
+                                            </TabsContent>
+                                        )
                                     })}
                                 </div>
                             </Tabs>
                         </CardContent>
-                         <CardFooter className="flex justify-between">
+                         <CardFooter className="flex justify-between items-center">
                            <div>
                               <Progress value={overallProgress} className="w-48"/>
                               <p className="text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
@@ -338,7 +359,7 @@ export default function PsychometricAnalysisPage() {
                            <div className="flex gap-2">
                               <Button 
                                   type="button" 
-                                  variant="outline" 
+                                  variant="secondary" 
                                   onClick={handlePrevious}
                                   disabled={activeTabIndex === 0 && currentQuestionIndices[0] === 0}
                               >
@@ -363,5 +384,3 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
-
-    
