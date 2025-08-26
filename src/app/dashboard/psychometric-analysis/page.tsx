@@ -20,7 +20,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Loader2, ArrowLeft, ArrowRight, TriangleAlert } from 'lucide-react';
 import { MOCK_INNOVATOR_USER } from '@/lib/mock-data';
-import { MOCK_QUESTION_BANK } from '@/lib/psychometric-questions';
+import { NEW_QUESTION_BANK } from '@/lib/psychometric-questions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Progress } from '@/components/ui/progress';
@@ -36,41 +36,36 @@ import {
 } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const { questions } = MOCK_QUESTION_BANK;
+const { domains } = NEW_QUESTION_BANK;
 
 // Helper function to prevent gibberish input
 const isNotGibberish = (value: string) => {
-    if (value.length < 10) return true; // Don't apply to very short strings
-    // Check for repetitive characters (e.g., "aaaaaa" or "ababab")
+    if (value.length < 10) return true; 
     const repetitiveCharsRegex = /(.+?)\1{4,}/;
     if (repetitiveCharsRegex.test(value)) return false;
-    // Check for lack of spaces in long strings
     if (value.length > 50 && !/\s/.test(value)) return false;
     return true;
 };
 
-// Dynamically generate Zod schema from question bank
+// Dynamically generate Zod schema from the new question bank structure
 const generateFormSchema = () => {
     const schemaShape: Record<string, z.ZodType<any, any>> = {};
-    questions.forEach(q => {
-        switch (q.type) {
-            case 'likert':
-                schemaShape[q.id] = z.string({ required_error: "Please select a rating." });
-                break;
-            case 'categorical':
-                 schemaShape[q.id] = z.string({ required_error: "Please select an option." });
-                break;
-            case 'numeric':
-                schemaShape[q.id] = z.coerce.number().min(0, "Please enter a valid number.");
-                break;
-            case 'free_text':
-                 schemaShape[q.id] = z.string()
-                    .min(10, "Please provide a more detailed answer (at least 10 characters).")
-                    .refine(isNotGibberish, { message: "Please provide a more meaningful answer." });
-                 break;
-            default:
-                schemaShape[q.id] = z.string().min(1, "This field is required.");
-        }
+    domains.forEach(domain => {
+      domain.questions.forEach(q => {
+          switch (q.type) {
+              case 'multiple_choice':
+                  schemaShape[q.id] = z.string({ required_error: "Please select an option." });
+                  break;
+              case 'scale':
+                  schemaShape[q.id] = z.string({ required_error: "Please select a rating." });
+                  break;
+              case 'open_text':
+                   schemaShape[q.id] = z.string()
+                      .min(10, "Please provide a more detailed answer (at least 10 characters).")
+                      .refine(isNotGibberish, { message: "Please provide a more meaningful answer." });
+                   break;
+          }
+      });
     });
     
     return z.object(schemaShape);
@@ -79,69 +74,72 @@ const generateFormSchema = () => {
 const formSchema = generateFormSchema();
 type FullForm = z.infer<typeof formSchema>;
 
-const defaultValues = questions.reduce((acc, q) => {
+const allQuestions = domains.flatMap(d => d.questions);
+
+const defaultValues = allQuestions.reduce((acc, q) => {
     acc[q.id] = '';
     return acc;
 }, {} as any);
-
-const personalInfoQuestions = questions.filter(q => q.construct === 'CTX_EDU' || q.construct === 'CTX_SOCIO');
-const coreQuestions = questions.filter(q => !personalInfoQuestions.map(pi => pi.id).includes(q.id));
-
-const sectionFields = [
-    { name: "Personal Information", fields: personalInfoQuestions.map(q => q.id) },
-    { name: "Background & Experience", fields: coreQuestions.filter(q => ['FMF', 'LEAD', 'NETWORK'].includes(q.construct!)).map(q => q.id) },
-    { name: "Personality & Mindset", fields: coreQuestions.filter(q => ['RES', 'RISK', 'AMBIG', 'FOCUS'].includes(q.construct!)).map(q => q.id) },
-    { name: "Motivation & Values", fields: coreQuestions.filter(q => ['MOTIVATION', 'ETHICS'].includes(q.construct!)).map(q => q.id) },
-    { name: "Abilities & Skills", fields: coreQuestions.filter(q => ['OPP', 'EXEC', 'LEARN', 'COGNITIVE', 'EQ', 'FINANCE'].includes(q.construct!)).map(q => q.id) },
-    { name: "Goals & Aspirations", fields: ["Q068", "Q069"] },
-];
 
 
 export default function PsychometricAnalysisPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = React.useState(false);
-    const [isCompleted, setIsCompleted] = React.useState(false);
+    const [isCompleted, setIsCompleted] = React.useState(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
     
-    const [activeTab, setActiveTab] = React.useState("0");
-    const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState(Array(sectionFields.length).fill(0));
-    const [highestCompletedTab, setHighestCompletedTab] = React.useState(-1);
-    const [questionQueue, setQuestionQueue] = React.useState<string[]>(sectionFields.flatMap(s => s.fields));
-
-
-    React.useEffect(() => {
-        setIsCompleted(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
-    }, []);
-
+    const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
+    
     const form = useForm<FullForm>({
         resolver: zodResolver(formSchema),
         defaultValues,
         mode: 'onChange',
     });
     
-    const totalQuestionsInQueue = questionQueue.length;
-    const watchedValues = form.watch();
-    const answeredQuestions = React.useMemo(() => {
-        return Object.values(watchedValues).filter(value => {
-            if (typeof value === 'number') return true;
-            return !!value;
-        }).length;
-    }, [watchedValues]);
-    
-    const overallProgress = (answeredQuestions / totalQuestionsInQueue) * 100;
+    const overallProgress = (currentQuestionIndex / allQuestions.length) * 100;
     
     const onSubmit = (data: FullForm) => {
         setIsLoading(true);
         toast({ title: "Submitting Analysis...", description: "Please wait while we process your results." });
 
         setTimeout(() => {
-            const finalScore = Math.floor(Math.random() * (95 - 65 + 1)) + 65; 
-            
             MOCK_INNOVATOR_USER.hasPsychometricAnalysis = true; 
             setIsLoading(false);
-            toast({ title: "Analysis Complete!", description: `Your readiness score is ${finalScore}.` });
             
-             const reportData = { score: finalScore, level: finalScore >= 85 ? 'Founder-ready' : 'Promising' };
+            // Simplified Scoring Simulation
+            const scores: Record<string, number> = {};
+            domains.forEach(domain => {
+                let domainScore = 0;
+                let maxScore = 0;
+                domain.questions.forEach(q => {
+                    const response = data[q.id as keyof FullForm];
+                    let questionScore = 0;
+                    if(q.type === 'multiple_choice') {
+                        questionScore = q.options.find(opt => opt.label === response)?.score || 0;
+                    } else if (q.type === 'scale') {
+                        let scaleValue = parseInt(response, 10);
+                        if (q.reverse_scoring) {
+                            scaleValue = (q.scale_max + q.scale_min) - scaleValue;
+                        }
+                        questionScore = scaleValue;
+                    } else {
+                        questionScore = 3; // Mock score for open text
+                    }
+                    domainScore += questionScore * q.weight;
+                    maxScore += (q.type === 'open_text' ? 5 : q.scale_max || 5) * q.weight;
+                });
+                scores[domain.id] = (domainScore / maxScore) * 100;
+            });
+            
+            const finalScore = (scores['entrepreneurial_potential'] * 0.6) + (scores['psychological_resilience'] * 0.4);
+
+            toast({ title: "Analysis Complete!", description: `Your readiness score is ${finalScore.toFixed(0)}.` });
+            
+             const reportData = { 
+                score: finalScore, 
+                level: finalScore >= 65 ? (finalScore >= 85 ? 'High Potential' : 'Promising') : 'Needs Development',
+                domainScores: scores 
+            };
              const params = new URLSearchParams({ role: 'Innovator', results: JSON.stringify(reportData) });
              router.push(`/dashboard/psychometric-analysis/report?${params.toString()}`);
 
@@ -152,10 +150,7 @@ export default function PsychometricAnalysisPage() {
         if (MOCK_INNOVATOR_USER.credits > 0) {
             MOCK_INNOVATOR_USER.credits -= 1;
             form.reset(defaultValues);
-            setActiveTab("0");
-            setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
-            setHighestCompletedTab(-1);
-            setQuestionQueue(sectionFields.flatMap(s => s.fields));
+            setCurrentQuestionIndex(0);
             setIsCompleted(false);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
@@ -163,89 +158,37 @@ export default function PsychometricAnalysisPage() {
         }
     }
 
-    const checkBranching = (questionId: string, value: any) => {
-        const question = questions.find(q => q.id === questionId);
-        if (!question || !question.branch_on) return;
-
-        const { condition, value: targetValue, enqueue } = question.branch_on;
-        let shouldBranch = false;
-        
-        switch (condition) {
-            case '<': shouldBranch = Number(value) < Number(targetValue); break;
-            case '==': shouldBranch = value === targetValue; break;
-            // Add other conditions as needed
-        }
-
-        if (shouldBranch) {
-            setQuestionQueue(prevQueue => {
-                const currentQuestionIndex = prevQueue.indexOf(questionId);
-                const newQueue = [...prevQueue];
-                // Insert new questions right after the current one
-                newQueue.splice(currentQuestionIndex + 1, 0, ...enqueue);
-                return newQueue;
-            });
-        }
-    }
-    
     const handleNext = async () => {
-        const activeTabIndex = parseInt(activeTab);
-        const currentSection = sectionFields[activeTabIndex];
-        const currentQuestionId = currentSection.fields[currentQuestionIndices[activeTabIndex]];
-        
-        if (!currentQuestionId) return;
-        
-        const isValid = await form.trigger(currentQuestionId as any);
+        const currentQuestion = allQuestions[currentQuestionIndex];
+        if (!currentQuestion) return;
+
+        const isValid = await form.trigger(currentQuestion.id as any);
         if (!isValid) return;
 
-        const currentValue = form.getValues(currentQuestionId as any);
-        checkBranching(currentQuestionId, currentValue);
-
         // Reset radio group value to avoid flicker on next question
-        const currentQuestion = questions.find(q => q.id === currentQuestionId);
-        if (currentQuestion?.type === 'likert') {
-            form.resetField(currentQuestionId as any, { defaultValue: '' });
+        if (currentQuestion.type === 'scale') {
+          form.resetField(currentQuestion.id as any, { defaultValue: '' });
         }
-
-        if (currentQuestionIndices[activeTabIndex] < currentSection.fields.length - 1) {
-            setCurrentQuestionIndices(prev => {
-                const newIndices = [...prev];
-                newIndices[activeTabIndex]++;
-                return newIndices;
-            });
+        
+        if (currentQuestionIndex < allQuestions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
         } else {
-             const allSectionFieldsValid = await form.trigger(currentSection.fields as any);
-             if (allSectionFieldsValid) {
-                 setHighestCompletedTab(prev => Math.max(prev, activeTabIndex));
-                 if (activeTabIndex < sectionFields.length - 1) {
-                     setActiveTab(String(activeTabIndex + 1));
-                 } else {
-                     form.handleSubmit(onSubmit)();
-                 }
-             }
+            form.handleSubmit(onSubmit)();
         }
-    }
+    };
 
     const handlePrevious = () => {
-        const activeTabIndex = parseInt(activeTab);
-        const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
         if (currentQuestionIndex > 0) {
-             setCurrentQuestionIndices(prev => {
-                const newIndices = [...prev];
-                newIndices[activeTabIndex]--;
-                return newIndices;
-            });
-        } else {
-            if (activeTabIndex > 0) {
-                setActiveTab(String(activeTabIndex - 1));
-            }
+            setCurrentQuestionIndex(prev => prev - 1);
         }
     }
     
-    const renderField = (questionId: string) => {
-        const question = questions.find(q => q.id === questionId);
+    const renderField = (question: any) => {
         if (!question) return null;
+        
+        const currentDomain = domains.find(d => d.questions.some(q => q.id === question.id));
 
-        const baseField = (
+        return (
             <FormField
                 control={form.control}
                 name={question.id as any}
@@ -253,37 +196,35 @@ export default function PsychometricAnalysisPage() {
                     <FormItem>
                          <FormLabel className="text-2xl font-semibold text-center text-foreground leading-relaxed block">{question.text}</FormLabel>
                          <FormDescription className="text-center pb-4">
-                            {sectionFields.find(s => s.fields.includes(questionId))?.name}
+                            {currentDomain?.name}
                          </FormDescription>
                         <FormControl>
                             <div className="pt-8">
-                            {question.type === 'likert' ? (
+                            {question.type === 'scale' ? (
                                 <RadioGroup
                                     className="flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center pt-4"
                                     onValueChange={field.onChange}
                                     value={field.value}
                                 >
-                                    {Array.isArray(question.scale) && [...Array(question.scale[1])].map((_, i) => (
+                                    {[...Array(question.scale_max)].map((_, i) => (
                                         <FormItem key={i} className="flex items-center space-x-2">
                                             <FormControl><RadioGroupItem value={String(i + 1)} id={`${question.id}-${i}`} /></FormControl>
                                             <FormLabel htmlFor={`${question.id}-${i}`}>{i + 1}</FormLabel>
                                         </FormItem>
                                     ))}
                                 </RadioGroup>
-                            ) : question.type === 'categorical' ? (
+                            ) : question.type === 'multiple_choice' ? (
                                 <div className="max-w-md mx-auto">
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl>
                                             <SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {Array.isArray(question.scale) && question.scale?.map(opt => <SelectItem key={opt as string} value={opt as string}>{opt as string}</SelectItem>)}
+                                            {question.options?.map((opt: any) => <SelectItem key={opt.label} value={opt.label}>{opt.label}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            ) : question.type === 'numeric' ? (
-                                 <Input className="max-w-md mx-auto" type="number" {...field} />
-                            ) : question.type === 'free_text' ? (
+                            ) : question.type === 'open_text' ? (
                                 <Textarea className="max-w-lg mx-auto" rows={6} placeholder="Your detailed response..." {...field} />
                             ) : null}
                             </div>
@@ -293,7 +234,6 @@ export default function PsychometricAnalysisPage() {
                 )}
             />
         );
-        return baseField;
     }
 
     if (isCompleted && !isLoading) {
@@ -318,13 +258,11 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    const activeTabIndex = parseInt(activeTab);
-    const activeSection = sectionFields[activeTabIndex];
-    const currentQuestionId = activeSection ? activeSection.fields[currentQuestionIndices[activeTabIndex]] : null;
-    const currentValue = currentQuestionId ? form.watch(currentQuestionId as any) : null;
+    const currentQuestion = allQuestions[currentQuestionIndex];
+    const currentValue = currentQuestion ? form.watch(currentQuestion.id as any) : null;
     const isNextDisabled = !currentValue && typeof currentValue !== 'number';
 
-    const isFinalStep = activeTabIndex === sectionFields.length - 1 && currentQuestionIndices[activeTabIndex] === activeSection?.fields.length - 1;
+    const isFinalStep = currentQuestionIndex === allQuestions.length - 1;
 
 
     return (
@@ -339,28 +277,9 @@ export default function PsychometricAnalysisPage() {
                             <CardDescription className="text-center">This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="flex flex-wrap h-auto bg-transparent p-0 justify-center">
-                                    {sectionFields.map((tab, index) => (
-                                        <TabsTrigger 
-                                            key={tab.name} 
-                                            value={String(index)} 
-                                            disabled={index > highestCompletedTab + 1}
-                                            onClick={(e) => {
-                                                if (index > highestCompletedTab + 1) e.preventDefault();
-                                            }}
-                                            className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-none rounded-sm"
-                                        >
-                                            {tab.name}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                                 <div className="py-12 min-h-[300px] flex flex-col justify-center text-center">
-                                    {currentQuestionId ? renderField(currentQuestionId) : (
-                                        <p>Loading question...</p>
-                                    )}
-                                </div>
-                            </Tabs>
+                            <div className="py-12 min-h-[300px] flex flex-col justify-center text-center">
+                                {currentQuestion ? renderField(currentQuestion) : <p>Loading question...</p>}
+                            </div>
                         </CardContent>
                          <CardFooter className="flex justify-between items-center">
                            <div>
@@ -372,7 +291,7 @@ export default function PsychometricAnalysisPage() {
                                   type="button" 
                                   variant="secondary" 
                                   onClick={handlePrevious}
-                                  disabled={activeTabIndex === 0 && currentQuestionIndices[0] === 0}
+                                  disabled={currentQuestionIndex === 0}
                               >
                                   <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                               </Button>
