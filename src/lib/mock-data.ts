@@ -512,6 +512,7 @@ export let MOCK_IDEAS: Array<{
   consultationDate: string | null;
   consultationTime: string | null;
   ttcAssigned: string | null;
+  teamId?: string;
 }> = [
   {
     id: 'IDEA-001',
@@ -534,6 +535,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: '2024-07-20',
     consultationTime: '10:00',
     ttcAssigned: 'TTC_001',
+    teamId: 'TEAM-001',
   },
   {
     id: 'IDEA-002',
@@ -556,6 +558,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: null,
     consultationTime: null,
     ttcAssigned: null,
+    teamId: 'TEAM-002',
   },
    {
     id: 'IDEA-003',
@@ -578,6 +581,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: null,
     consultationTime: null,
     ttcAssigned: null,
+    teamId: 'TEAM-001',
   },
   {
     id: 'IDEA-004',
@@ -600,6 +604,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: '2024-04-25',
     consultationTime: '11:00',
     ttcAssigned: 'TTC_002',
+    teamId: 'TEAM-003',
   },
    {
     id: 'IDEA-005',
@@ -622,6 +627,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: null,
     consultationTime: null,
     ttcAssigned: 'TTC_001',
+    teamId: 'TEAM-001',
   },
    {
     id: 'IDEA-006',
@@ -644,6 +650,7 @@ export let MOCK_IDEAS: Array<{
     consultationDate: null,
     consultationTime: null,
     ttcAssigned: null,
+    teamId: 'TEAM-002',
   },
 ];
 
@@ -720,10 +727,10 @@ export let MOCK_TTCS = [
 ];
 
 export let MOCK_INNOVATORS = [
-  { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 50, status: 'Active', hasPsychometricAnalysis: true },
-  { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL002', credits: 30, status: 'Active', hasPsychometricAnalysis: true },
-  { id: 'INV003', name: 'Alice Johnson', email: 'alice.j@example.com', collegeId: 'COL001', credits: 20, status: 'Active', hasPsychometricAnalysis: false },
-  { id: 'INV004', name: 'Bob Brown', email: 'bob.b@example.com', collegeId: 'COL001', credits: 0, status: 'Inactive', hasPsychometricAnalysis: false },
+  { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 50, status: 'Active', hasPsychometricAnalysis: true, teamId: 'TEAM-001' },
+  { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL002', credits: 30, status: 'Active', hasPsychometricAnalysis: true, teamId: 'TEAM-002' },
+  { id: 'INV003', name: 'Alice Johnson', email: 'alice.j@example.com', collegeId: 'COL001', credits: 20, status: 'Active', hasPsychometricAnalysis: false, teamId: 'TEAM-001' },
+  { id: 'INV004', name: 'Bob Brown', email: 'bob.b@example.com', collegeId: 'COL001', credits: 0, status: 'Inactive', hasPsychometricAnalysis: false, teamId: 'TEAM-003' },
 ];
 
 export const MOCK_PRINCIPAL_USERS = [
