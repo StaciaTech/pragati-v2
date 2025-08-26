@@ -176,7 +176,3 @@ export default function PsychometricReportPage() {
     </div>
   );
 }
-
-    
-
-    
