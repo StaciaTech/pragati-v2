@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -58,7 +57,7 @@ const educationSchema = z.object({
 
 const interestsSchema = z.object({
     hobbies: z.string().min(1, "Please list at least one hobby."),
-    essay: z.string().min(50, "Essay must be at least 50 characters."),
+    essay: z.string().min(50, "Essay must be at least 50 characters long."),
 });
 
 const psychometricQuestions = [
@@ -111,18 +110,17 @@ const psychometricQuestions = [
     { id: 'D4', category: 'Leadership & Influence', question: "I coach people to grow." },
 
     // Ethics & Integrity
-    { id: 'H1', category: 'Ethics & Integrity', question: "I refuse deals that compromise values." },
-    { id: 'H2', category: 'Ethics & Integrity', question: "I set up basic compliance (data, finance, labor) early." },
-    { id: 'H3', category: 'Ethics & Integrity', question: "I am transparent about risks and tradeoffs." },
-    { id: 'H4', category: 'Ethics & Integrity', question: "I keep promises to users and partners." },
+    { id: 'H1', category: 'Ethics & Integrity', question: "I refuse deals that compromise my core values." },
+    { id: 'H2', category: 'Ethics & Integrity', question: "I prioritize establishing basic compliance (data, finance, labor) early." },
+    { id: 'H3', category: 'Ethics & Integrity', question: "I am transparent with stakeholders about risks and tradeoffs." },
+    { id: 'H4', category: 'Ethics & Integrity', question: "I make it a point to keep promises to users and partners." },
 
     // Focus & Prioritization
-    { id: 'C1', category: 'Focus & Prioritization', question: "I say no to good ideas to protect great ones." },
-    { id: 'C2', category: 'Focus & Prioritization', question: "I run with a 1‑3 metric North Star." },
-    { id: 'C3', category: 'Focus & Prioritization', question: "I drop initiatives that don’t move the needle." },
-    { id: 'C4', category: 'Focus & Prioritization', question: "I time‑box exploration before committing." },
+    { id: 'C1', category: 'Focus & Prioritization', question: "I am comfortable saying no to good ideas to protect great ones." },
+    { id: 'C2', category: 'Focus & Prioritization', question: "I prefer to operate with a single 'North Star' metric." },
+    { id: 'C3', category: 'Focus & Prioritization', question: "I can quickly drop initiatives that don’t move the needle." },
+    { id: 'C4', category: 'Focus & Prioritization', question: "I time‑box my exploration of new ideas before committing fully." },
 ];
-
 
 const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema).extend({
     responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
@@ -219,16 +217,15 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
     const currentQuestion = psychometricQuestions[currentQuestionIndex];
 
     return (
-        <div className="space-y-8 min-h-[300px] flex flex-col justify-between">
+        <div className="space-y-4 min-h-[350px] flex flex-col justify-between">
             <div>
-                <Progress value={progress} className="w-full mb-8" />
-                 <Card>
+                <Progress value={progress} className="w-full mb-4" />
+                <p className="text-center text-sm text-muted-foreground mb-4">{currentQuestion.category} - Question {currentQuestionIndex + 1} of {psychometricQuestions.length}</p>
+                <Card className="bg-background/80 backdrop-blur-sm border-white/20 shadow-xl">
                     <CardHeader>
-                        <CardTitle className="text-lg">{currentQuestion.category}</CardTitle>
-                        <CardDescription>Question {currentQuestionIndex + 1} of {psychometricQuestions.length}</CardDescription>
+                        <CardTitle className="text-xl font-semibold text-center text-foreground leading-relaxed">{currentQuestion.question}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                         <Label className="text-base mt-2 block">{currentQuestion.question}</Label>
                         <FormField
                             control={form.control}
                             name={`responses.${currentQuestion.id}`}
@@ -236,7 +233,7 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
                                 <FormItem>
                                     <FormControl>
                                         <RadioGroup 
-                                            className="flex flex-wrap gap-x-6 gap-y-4 mt-4"
+                                            className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
                                             onValueChange={field.onChange}
                                             value={field.value}
                                         >
@@ -247,14 +244,14 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
                                             <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
                                         </RadioGroup>
                                     </FormControl>
-                                    <FormMessage />
+                                    <FormMessage className="text-center pt-2" />
                                 </FormItem>
                             )}
                         />
                     </CardContent>
                 </Card>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between mt-4">
                 <Button type="button" variant="outline" onClick={handlePsychPrev}>
                    <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                 </Button>
@@ -353,34 +350,40 @@ export default function PsychometricAnalysisPage() {
     ];
 
     return (
-        <Card>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <CardHeader>
-                        <CardTitle>Founder Psychometric Analysis</CardTitle>
-                        <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Stepper activeStep={activeStep} orientation="vertical">
-                            {steps.map((step, index) => (
-                                <StepperItem key={index} index={index}>
-                                    <StepperTrigger>
-                                        <h3 className="font-semibold">{step.label}</h3>
-                                    </StepperTrigger>
-                                    <StepperContent>
-                                        {step.content}
-                                    </StepperContent>
-                                </StepperItem>
-                            ))}
-                        </Stepper>
-                    </CardContent>
-                </form>
-            </Form>
-             {isLoading && (
-                <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                </div>
-            )}
-        </Card>
+        <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center p-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-indigo-500/20 to-blue-500/20 animate-background-pan -z-10" />
+
+            <Card className="w-full max-w-4xl bg-background/80 backdrop-blur-lg border-white/20 shadow-2xl">
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <CardHeader>
+                            <CardTitle>Founder Psychometric Analysis</CardTitle>
+                            <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Stepper activeStep={activeStep} orientation="vertical">
+                                {steps.map((step, index) => (
+                                    <StepperItem key={index} index={index}>
+                                        <StepperTrigger>
+                                            <h3 className="font-semibold">{step.label}</h3>
+                                        </StepperTrigger>
+                                        <StepperContent>
+                                            {step.content}
+                                        </StepperContent>
+                                    </StepperItem>
+                                ))}
+                            </Stepper>
+                        </CardContent>
+                    </form>
+                </Form>
+                {isLoading && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                    </div>
+                )}
+            </Card>
+        </div>
     );
 }
+
+    
