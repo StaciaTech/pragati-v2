@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Award, BarChart3, CheckCircle2, Star, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { Award, BarChart3, CheckCircle2, Star, Target, TrendingDown, TrendingUp, Bot } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -22,6 +22,10 @@ const mockReportData = {
         { dimension: 'Execution Discipline', score: 65, summary: 'Could benefit from more structured planning and follow-through.' },
         { dimension: 'Focus & Prioritization', score: 60, summary: 'Tends to chase multiple opportunities at once.' },
     ],
+    essayAnalysis: {
+        summary: "The founder's motivation appears to be deeply rooted in solving a personal problem they experienced, indicating strong intrinsic drive and user empathy. Key themes include a desire for autonomy and a passion for creating social impact.",
+        keywords: ["Autonomy", "Social Impact", "Problem-Solving", "User Empathy"]
+    },
     upskillingPlan: [
         {
             title: 'Mastering Execution Discipline',
@@ -114,6 +118,21 @@ export default function PsychometricReportPage() {
             </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/> AI-Powered Essay Analysis</CardTitle>
+            <CardDescription>An analysis of your long-form response about your motivations.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <p className="text-sm text-muted-foreground italic">"{mockReportData.essayAnalysis.summary}"</p>
+            <div className="flex flex-wrap gap-2 mt-4">
+                {mockReportData.essayAnalysis.keywords.map(keyword => (
+                    <Badge key={keyword} variant="secondary">{keyword}</Badge>
+                ))}
+            </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

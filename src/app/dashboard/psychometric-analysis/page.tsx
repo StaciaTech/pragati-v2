@@ -222,30 +222,37 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
         <div className="space-y-8 min-h-[300px] flex flex-col justify-between">
             <div>
                 <Progress value={progress} className="w-full mb-8" />
-                <p className="text-sm font-medium text-muted-foreground">{currentQuestion.category}</p>
-                <Label className="text-lg mt-2 block">{currentQuestionIndex + 1}. {currentQuestion.question}</Label>
-                <FormField
-                    control={form.control}
-                    name={`responses.${currentQuestion.id}`}
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                                <RadioGroup 
-                                    className="flex flex-wrap gap-x-6 gap-y-4 mt-4"
-                                    onValueChange={field.onChange}
-                                    value={field.value}
-                                >
-                                    <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel>Strongly Disagree</FormLabel></FormItem>
-                                    <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel>Disagree</FormLabel></FormItem>
-                                    <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel>Neutral</FormLabel></FormItem>
-                                    <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="4" /></FormControl><FormLabel>Agree</FormLabel></FormItem>
-                                    <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
-                                </RadioGroup>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">{currentQuestion.category}</CardTitle>
+                        <CardDescription>Question {currentQuestionIndex + 1} of {psychometricQuestions.length}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Label className="text-base mt-2 block">{currentQuestion.question}</Label>
+                        <FormField
+                            control={form.control}
+                            name={`responses.${currentQuestion.id}`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <RadioGroup 
+                                            className="flex flex-wrap gap-x-6 gap-y-4 mt-4"
+                                            onValueChange={field.onChange}
+                                            value={field.value}
+                                        >
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel>Strongly Disagree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel>Disagree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel>Neutral</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="4" /></FormControl><FormLabel>Agree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
             </div>
             <div className="flex justify-between">
                 <Button type="button" variant="outline" onClick={handlePsychPrev}>
@@ -266,7 +273,7 @@ const Step4 = ({ form, onPrev }: { form: any, onPrev: () => void }) => {
                 <FormItem><FormLabel>Hobbies & Interests</FormLabel><FormDescription>List a few of your hobbies or interests outside of work/academics.</FormDescription><FormControl><Input placeholder="e.g., Reading, Trekking, Chess" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
              <FormField control={form.control} name="essay" render={({ field }) => (
-                <FormItem><FormLabel>Your Motivation</FormLabel><FormDescription>Briefly describe what drives you to become an entrepreneur. (Min. 50 characters)</FormDescription><FormControl><Textarea rows={5} placeholder="Tell us your story..." {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Your Motivation</FormLabel><FormDescription>Briefly describe what drives you to become an entrepreneur. Our AI will analyze this response to understand your core motivations. (Min. 50 characters)</FormDescription><FormControl><Textarea rows={5} placeholder="Tell us your story..." {...field} /></FormControl><FormMessage /></FormItem>
             )} />
              <div className="flex justify-between">
                 <Button type="button" variant="outline" onClick={onPrev}>Previous</Button>
