@@ -28,7 +28,6 @@ import {
   StepperContent,
   StepperItem,
   StepperTrigger,
-  useStepper,
 } from '@/components/ui/stepper';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -63,24 +62,72 @@ const interestsSchema = z.object({
 });
 
 const psychometricQuestions = [
+    // Opportunity Orientation
     { id: 'O1', category: 'Opportunity Orientation', question: "I regularly talk to potential users/customers before building." },
     { id: 'O2', category: 'Opportunity Orientation', question: "I can reframe problems to uncover hidden needs." },
     { id: 'O3', category: 'Opportunity Orientation', question: "I validate assumptions with small experiments." },
     { id: 'O4', category: 'Opportunity Orientation', question: "I track competitors and analog markets for ideas." },
 
+    // Execution Discipline
     { id: 'E1', category: 'Execution Discipline', question: "I break goals into weekly, measurable tasks." },
     { id: 'E2', category: 'Execution Discipline', question: "My teammates would call me reliable." },
     { id: 'E3', category: 'Execution Discipline', question: "I hit deadlines even under pressure." },
     { id: 'E4', category: 'Execution Discipline', question: "I maintain operating cadences (standups, reviews)." },
 
+    // Resilience
     { id: 'R1', category: 'Resilience', question: "Setbacks energize me to try again." },
     { id: 'R2', category: 'Resilience', question: "I persist when results are slow." },
     { id: 'R3', category: 'Resilience', question: "I can work through prolonged uncertainty." },
     { id: 'R4', category: 'Resilience', question: "I recover quickly from tough feedback." },
+
+    // Learning Agility
+    { id: 'L1', category: 'Learning Agility', question: "I seek feedback even when uncomfortable." },
+    { id: 'L2', category: 'Learning Agility', question: "I can learn a new skill within weeks when needed." },
+    { id: 'L3', category: 'Learning Agility', question: "I run frequent postmortems on my work." },
+    { id: 'L4', category: 'Learning Agility', question: "I adjust direction quickly based on new data." },
+    
+    // Ambiguity Tolerance
+    { id: 'A1', category: 'Ambiguity Tolerance', question: "I’m comfortable deciding with incomplete information." },
+    { id: 'A2', category: 'Ambiguity Tolerance', question: "I can hold multiple hypotheses at once." },
+    { id: 'A3', category: 'Ambiguity Tolerance', question: "I treat ambiguity as a creative space." },
+    { id: 'A4', category: 'Ambiguity Tolerance', question: "I avoid over‑analysis before taking first steps." },
+    
+     // Risk Calibration
+    { id: 'K1', category: 'Risk Calibration', question: "I take calculated risks with clear downside plans." },
+    { id: 'K2', category: 'Risk Calibration', question: "I cap exposure via budget/time limits." },
+    { id: 'K3', category: 'Risk Calibration', question: "I run pre‑mortems to anticipate failure modes." },
+    { id: 'K4', category: 'Risk Calibration', question: "I diversify bets instead of all‑in." },
+
+    // Founder-Market Fit
+    { id: 'F1', category: 'Founder-Market Fit', question: "I have deep domain knowledge relevant to my idea." },
+    { id: 'F2', category: 'Founder-Market Fit', question: "I possess or can reach key decision-makers in the space." },
+    { id: 'F3', category: 'Founder-Market Fit', question: "My track record grants me credibility with customers/investors." },
+    { id: 'F4', category: 'Founder-Market Fit', question: "I enjoy spending time with this user/problem group." },
+
+    // Leadership & Influence
+    { id: 'D1', category: 'Leadership & Influence', question: "I can attract strong people to work with me." },
+    { id: 'D2', category: 'Leadership & Influence', question: "I give clear, motivating direction." },
+    { id: 'D3', category: 'Leadership & Influence', question: "I handle conflict quickly and fairly." },
+    { id: 'D4', category: 'Leadership & Influence', question: "I coach people to grow." },
+
+    // Ethics & Integrity
+    { id: 'H1', category: 'Ethics & Integrity', question: "I refuse deals that compromise values." },
+    { id: 'H2', category: 'Ethics & Integrity', question: "I set up basic compliance (data, finance, labor) early." },
+    { id: 'H3', category: 'Ethics & Integrity', question: "I am transparent about risks and tradeoffs." },
+    { id: 'H4', category: 'Ethics & Integrity', question: "I keep promises to users and partners." },
+
+    // Focus & Prioritization
+    { id: 'C1', category: 'Focus & Prioritization', question: "I say no to good ideas to protect great ones." },
+    { id: 'C2', category: 'Focus & Prioritization', question: "I run with a 1‑3 metric North Star." },
+    { id: 'C3', category: 'Focus & Prioritization', question: "I drop initiatives that don’t move the needle." },
+    { id: 'C4', category: 'Focus & Prioritization', question: "I time‑box exploration before committing." },
 ];
 
+
 const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema).extend({
-    responses: z.record(z.string().min(1, "Please select an answer.")),
+    responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
+        message: "Please answer all questions.",
+    }),
 });
 
 type FullForm = z.infer<typeof fullSchema>;
@@ -147,9 +194,13 @@ const Step2 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
 
 const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev: () => void }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
-    const progress = ((currentQuestionIndex + 1) / psychometricQuestions.length) * 100;
+    const progress = ((currentQuestionIndex) / psychometricQuestions.length) * 100;
 
-    const handlePsychNext = () => {
+    const handlePsychNext = async () => {
+        const currentQuestion = psychometricQuestions[currentQuestionIndex];
+        const isValid = await form.trigger(`responses.${currentQuestion.id}`);
+        if(!isValid) return;
+
         if (currentQuestionIndex < psychometricQuestions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
         } else {
@@ -180,7 +231,7 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
                         <FormItem>
                             <FormControl>
                                 <RadioGroup 
-                                    className="flex flex-col sm:flex-row gap-4 mt-4"
+                                    className="flex flex-wrap gap-x-6 gap-y-4 mt-4"
                                     onValueChange={field.onChange}
                                     value={field.value}
                                 >
@@ -200,7 +251,7 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
                 <Button type="button" variant="outline" onClick={handlePsychPrev}>
                    <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                 </Button>
-                <Button type="button" onClick={handlePsychNext} disabled={!form.getValues(`responses.${currentQuestion.id}`)}>
+                <Button type="button" onClick={handlePsychNext}>
                     {currentQuestionIndex < psychometricQuestions.length - 1 ? 'Next' : 'Next Section'} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
@@ -231,6 +282,7 @@ export default function PsychometricAnalysisPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = React.useState(false);
     const [isCompleted, setIsCompleted] = React.useState(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
+    const [activeStep, setActiveStep] = React.useState(0);
 
     const form = useForm<FullForm>({
         resolver: zodResolver(fullSchema),
@@ -257,6 +309,7 @@ export default function PsychometricAnalysisPage() {
             MOCK_INNOVATOR_USER.credits -= 1;
             setIsCompleted(false);
             form.reset();
+            setActiveStep(0);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
@@ -285,6 +338,13 @@ export default function PsychometricAnalysisPage() {
         )
     }
 
+    const steps = [
+        { label: "Background", content: <Step1 form={form} onNext={() => setActiveStep(1)} /> },
+        { label: "Education", content: <Step2 form={form} onNext={() => setActiveStep(2)} onPrev={() => setActiveStep(0)} /> },
+        { label: "Questionnaire", content: <Step3 form={form} onNext={() => setActiveStep(3)} onPrev={() => setActiveStep(1)} /> },
+        { label: "Goals & Interests", content: <Step4 form={form} onPrev={() => setActiveStep(2)} /> },
+    ];
+
     return (
         <Card>
             <Form {...form}>
@@ -294,23 +354,17 @@ export default function PsychometricAnalysisPage() {
                         <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Stepper>
-                            <StepperItem index={0}>
-                                <StepperTrigger><CardTitle>Background</CardTitle></StepperTrigger>
-                                <StepperContent><Step1 form={form} onNext={() => form.setValue('stepper', 1)} /></StepperContent>
-                            </StepperItem>
-                            <StepperItem index={1}>
-                                <StepperTrigger><CardTitle>Education</CardTitle></StepperTrigger>
-                                <StepperContent><Step2 form={form} onNext={() => form.setValue('stepper', 2)} onPrev={() => form.setValue('stepper', 0)}/></StepperContent>
-                            </StepperItem>
-                            <StepperItem index={2}>
-                                <StepperTrigger><CardTitle>Questionnaire</CardTitle></StepperTrigger>
-                                <StepperContent><Step3 form={form} onNext={() => form.setValue('stepper', 3)} onPrev={() => form.setValue('stepper', 1)} /></StepperContent>
-                            </StepperItem>
-                             <StepperItem index={3}>
-                                <StepperTrigger><CardTitle>Interests & Goals</CardTitle></StepperTrigger>
-                                <StepperContent><Step4 form={form} onPrev={() => form.setValue('stepper', 2)} /></StepperContent>
-                            </StepperItem>
+                        <Stepper activeStep={activeStep} orientation="vertical">
+                            {steps.map((step, index) => (
+                                <StepperItem key={index} index={index}>
+                                    <StepperTrigger>
+                                        <h3 className="font-semibold">{step.label}</h3>
+                                    </StepperTrigger>
+                                    <StepperContent>
+                                        {step.content}
+                                    </StepperContent>
+                                </StepperItem>
+                            ))}
                         </Stepper>
                     </CardContent>
                 </form>
