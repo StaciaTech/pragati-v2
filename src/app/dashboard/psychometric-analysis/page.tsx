@@ -42,7 +42,10 @@ const psychometricQuestions = [
     { id: 'S0Q3', section: 'Personal Information', question: "What is your gender?", type: 'radio', options: ["Male", "Female", "Other", "Prefer not to say"] },
     { id: 'S0Q4', section: 'Personal Information', question: "What is your highest educational qualification?", type: 'select', options: ["High School", "Diploma", "Bachelor's Degree", "Master's Degree", "PhD", "Other"] },
     { id: 'S0Q5', section: 'Personal Information', question: "How many siblings do you have?", type: 'number', placeholder: "e.g., 1" },
-    { id: 'S0Q6', section: 'Personal Information', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
+    { id: 'S0Q6', section: 'Personal Information', question: "Which tier best describes your school/college?", type: 'select', options: ["Tier 1 (e.g., IIT, IIM, AIIMS, NID)", "Tier 2 (e.g., NIT, IIIT, Top State Universities)", "Tier 3 (Other colleges)"] },
+    { id: 'S0Q7', section: 'Personal Information', question: "Where are you primarily from?", type: 'text', placeholder: "e.g., Mumbai, Maharashtra" },
+    { id: 'S0Q8', section: 'Personal Information', question: "Have you or your immediate family been involved in running a business?", type: 'radio', options: ["Yes", "No"] },
+    { id: 'S0Q9', section: 'Personal Information', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
 
     // Section 1: Background & Experience
     { id: 'S1Q1', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
@@ -130,7 +133,10 @@ export default function PsychometricAnalysisPage() {
     
     const watchedValues = form.watch();
     const answeredQuestions = React.useMemo(() => {
-        return Object.values(watchedValues).filter(value => value && value !== "" && value !== 0).length;
+        return Object.values(watchedValues).filter(value => {
+            if (typeof value === 'number') return true; // 0 is a valid answer
+            return !!value;
+        }).length;
     }, [watchedValues]);
     
     const overallProgress = (answeredQuestions / totalQuestions) * 100;
