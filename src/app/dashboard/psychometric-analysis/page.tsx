@@ -275,7 +275,7 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && MOCK_INNOVATOR_USER.credits === undefined) { // A stand-in for a real check
+    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && isCompleted) {
         return (
           <Card>
             <CardHeader>
@@ -287,8 +287,7 @@ export default function PsychometricAnalysisPage() {
             </CardContent>
             <CardFooter className="justify-center">
                 <Button onClick={() => {
-                     MOCK_INNOVATOR_USER.hasPsychometricAnalysis = true; // Simulate taking the test
-                     setIsCompleted(false); // Go to the test screen
+                     setIsCompleted(false);
                 }}>Take Analysis (Free)</Button>
             </CardFooter>
           </Card>
@@ -314,7 +313,7 @@ export default function PsychometricAnalysisPage() {
                         </CardHeader>
                         <CardContent>
                              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+                                <TabsList className="flex flex-wrap h-auto">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
@@ -373,5 +372,7 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
+
+    
 
     
