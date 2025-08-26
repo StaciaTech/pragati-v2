@@ -692,34 +692,10 @@ export default function IdeaReportPage() {
                                     return (
                                         <AccordionItem value={paramName} key={paramName}>
                                             <AccordionTrigger className="font-semibold mb-2 hover:no-underline">
-                                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full pr-2 gap-2 text-left">
-                                                    <span className="flex-1">{paramName}</span>
+                                                <div className="flex justify-between items-center w-full pr-2">
+                                                    <span>{paramName}</span>
                                                     {summary && (
-                                                    <div className="flex items-center gap-4 text-right shrink-0">
-                                                        <div className="hidden md:flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-4 text-xs text-muted-foreground">
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="flex items-center gap-1.5 cursor-default">
-                                                                            <ThumbsUp className="h-4 w-4 text-green-500" />
-                                                                            <span className="flex-1 text-left">{summary.strongestPoint}</span>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top" align="start"><p className="max-w-xs">{summary.strongestPoint}</p></TooltipContent>
-                                                                </Tooltip>
-                                                                 <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="flex items-center gap-1.5 cursor-default">
-                                                                            <Lightbulb className="h-4 w-4 text-orange-400" />
-                                                                             <span className="flex-1 text-left">{summary.improvementPoint}</span>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top" align="start"><p className="max-w-xs">{summary.improvementPoint}</p></TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                        <Badge className={cn(getScoreColor(summary.avgScore), 'bg-opacity-10 border-opacity-20')} variant="outline">{summary.avgScore.toFixed(0)}</Badge>
-                                                    </div>
+                                                      <Badge className={cn(getScoreColor(summary.avgScore), 'bg-opacity-10 border-opacity-20')} variant="outline">{summary.avgScore.toFixed(0)}</Badge>
                                                     )}
                                                 </div>
                                             </AccordionTrigger>
