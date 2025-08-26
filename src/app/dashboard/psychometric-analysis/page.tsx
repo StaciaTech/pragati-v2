@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -291,6 +292,17 @@ export default function PsychometricAnalysisPage() {
     const form = useForm<FullForm>({
         resolver: zodResolver(fullSchema),
         defaultValues: {
+            age: undefined,
+            gender: "",
+            maritalStatus: "",
+            siblings: undefined,
+            hometownTier: "",
+            familyBusiness: "",
+            highestDegree: "",
+            major: "",
+            schoolTier: "",
+            hobbies: "",
+            essay: "",
             responses: {},
         }
     });
@@ -377,7 +389,7 @@ export default function PsychometricAnalysisPage() {
                     </form>
                 </Form>
                 {isLoading && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                    <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-lg">
                         <Loader2 className="w-12 h-12 animate-spin text-primary" />
                     </div>
                 )}
@@ -385,3 +397,5 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
+
+    
