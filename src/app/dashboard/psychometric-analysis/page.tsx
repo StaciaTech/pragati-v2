@@ -194,7 +194,7 @@ const Step2 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
 
 const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev: () => void }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
-    const progress = ((currentQuestionIndex) / psychometricQuestions.length) * 100;
+    const progress = ((currentQuestionIndex + 1) / psychometricQuestions.length) * 100;
 
     const handlePsychNext = async () => {
         const currentQuestion = psychometricQuestions[currentQuestionIndex];
@@ -219,9 +219,9 @@ const Step3 = ({ form, onNext, onPrev }: { form: any, onNext: () => void, onPrev
     const currentQuestion = psychometricQuestions[currentQuestionIndex];
 
     return (
-        <div className="space-y-8 min-h-[300px]">
-            <Progress value={progress} className="w-full" />
+        <div className="space-y-8 min-h-[300px] flex flex-col justify-between">
             <div>
+                <Progress value={progress} className="w-full mb-8" />
                 <p className="text-sm font-medium text-muted-foreground">{currentQuestion.category}</p>
                 <Label className="text-lg mt-2 block">{currentQuestionIndex + 1}. {currentQuestion.question}</Label>
                 <FormField
