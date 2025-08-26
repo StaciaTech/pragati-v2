@@ -750,22 +750,29 @@ export let MOCK_TTC_AUDIT_TRAIL = [
   { id: 3, timestamp: '2024-07-14 02:00 PM', ttc: 'Mr. Rahul Verma', action: 'Viewed Idea IDEA-002 report' },
 ];
 
-export const STATUS_COLORS: { [key: string]: string } = {
-    Validating: 'bg-gray-500 text-white',
-    Approved: 'bg-green-500 text-white',
-    GOOD: 'bg-green-500 text-white',
-    Moderate: 'bg-orange-500 text-white',
-    MODERATE: 'bg-orange-500 text-white',
-    Rejected: 'bg-red-500 text-white',
-    'NOT RECOMMENDED': 'bg-red-500 text-white',
-    Pending: 'bg-blue-500 text-white',
-    Scheduled: 'bg-indigo-500 text-white',
-    Completed: 'bg-green-600 text-white',
-    Active: 'bg-green-500 text-white',
-    Inactive: 'bg-gray-500 text-white',
-    Locked: 'bg-red-600 text-white',
-    'Not Requested': 'bg-gray-400 text-white',
-  };
+export const STATUS_COLORS: { [key: string]: 'default' | 'destructive' | 'secondary' | 'outline' } = {
+  Validating: 'secondary',
+  Approved: 'default',
+  Exemplary: 'default',
+  Developing: 'secondary',
+  'Needs Refinement': 'destructive',
+  Slay: 'default',
+  Mid: 'secondary',
+  Flop: 'destructive',
+  GOOD: 'default',
+  Moderate: 'secondary',
+  MODERATE: 'secondary',
+  Rejected: 'destructive',
+  'NOT RECOMMENDED': 'destructive',
+  Pending: 'secondary',
+  Scheduled: 'default',
+  Completed: 'default',
+  Active: 'default',
+  Inactive: 'secondary',
+  Locked: 'destructive',
+  'Not Requested': 'outline',
+  Cancelled: 'destructive',
+};
 
   export const MOCK_SCORING_PRESETS = {
     "Balanced": {
@@ -803,3 +810,5 @@ export const STATUS_COLORS: { [key: string]: string } = {
     { id: 2, title: 'System Load Normal', description: 'System performance is stable.', read: true },
   ],
 };
+
+    
