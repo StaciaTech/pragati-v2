@@ -23,7 +23,6 @@ import { MOCK_INNOVATOR_USER } from '@/lib/mock-data';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -35,19 +34,16 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 
-// New, more detailed questions based on the expanded domains
 const psychometricQuestions = [
     // Section 1: Background & Experience
     { id: 'S1Q1', section: 'Background & Experience', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
     { id: 'S1Q2', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
-    { id: 'S1Q3', section: 'Background & Experience', question: "What was the primary language of instruction during your schooling?", type: 'text', placeholder: "e.g., English, Hindi, Tamil" },
-    { id: 'S1Q4', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby from your youth. What did you learn from it?", type: 'textarea' },
+    { id: 'S1Q3', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby you were passionate about during your school or college years. What did you learn from it?", type: 'textarea' },
 
     // Section 2: Personality & Mindset
     { id: 'S2Q1', section: 'Personality & Mindset', question: "A promising new technology emerges, but it's completely outside your area of expertise. What is your most likely first reaction?", type: 'radio', options: ["Dive in and start learning it immediately", "Wait to see how it develops and is used by others", "Find an expert to explain its potential to me", "Ignore it unless it becomes directly relevant to my work"] },
     { id: 'S2Q2', section: 'Personality & Mindset', question: "You've been working on a difficult project for months with little progress. What's your next move?", type: 'radio', options: ["Double down on my current approach, believing persistence is key", "Take a step back to analyze what's not working and pivot", "Seek advice from a mentor or expert", "Move on to a different, more promising project"] },
-    { id: 'S2Q3', section: 'Personality & Mindset', question: "When making an important decision, you are more likely to rely on:", type: 'radio', options: ["Data and detailed analysis", "My intuition and gut feeling", "A consensus from my trusted advisors", "Past experiences and precedent"] },
-
+    
     // Section 3: Motivation & Values
     { id: 'S3Q1', section: 'Motivation & Values', question: "Which of these outcomes for your startup would make you the most proud?", type: 'radio', options: ["Creating a highly profitable, market-leading company", "Solving a major social or environmental problem", "Building a beloved product used by millions", "Gaining recognition as a top innovator in your field"] },
     { id: 'S3Q2', section: 'Motivation & Values', question: "You discover a legal loophole that could significantly increase your profits but sits in a morally grey area. How do you proceed?", type: 'radio', options: ["Exploit it; it's business", "Consult lawyers to understand the risks, then decide", "Avoid it, as it doesn't align with my values", "Try to find a different way to achieve the same result ethically"] },
@@ -66,7 +62,6 @@ const psychometricQuestions = [
 
 const questionIds = psychometricQuestions.map(q => q.id);
 
-// Dynamically create the Zod schema
 const formSchema = z.object({
     ...psychometricQuestions.reduce((acc, q) => {
         if (q.type === 'radio') {
@@ -79,7 +74,6 @@ const formSchema = z.object({
         return acc;
     }, {} as Record<string, z.ZodType<any, any>>),
 });
-
 
 type FullForm = z.infer<typeof formSchema>;
 
@@ -274,11 +268,7 @@ export default function PsychometricAnalysisPage() {
     }
 
     const activeTabIndex = parseInt(activeTab);
-    const currentSection = sectionFields[activeTabIndex];
-    const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
-    const fieldName = currentSection.fields[currentQuestionIndex];
-    const isLastQuestionInSection = currentQuestionIndex === currentSection.fields.length - 1;
-    const isFinalStep = activeTabIndex === sectionFields.length - 1 && isLastQuestionInSection;
+    const isFinalStep = activeTabIndex === sectionFields.length - 1 && currentQuestionIndices[activeTabIndex] === sectionFields[activeTabIndex].fields.length - 1;
 
 
     return (
@@ -310,13 +300,21 @@ export default function PsychometricAnalysisPage() {
                                         </TabsTrigger>
                                     ))}
                                 </TabsList>
-                                 <div className="py-6 min-h-[300px] flex flex-col justify-center">
-                                     <Card className="bg-transparent border-0 shadow-none">
-                                        <CardContent>
-                                            {renderField(fieldName)}
-                                        </CardContent>
-                                     </Card>
-                                 </div>
+                                {sectionFields.map((section, index) => {
+                                    const currentQuestionIndex = currentQuestionIndices[index];
+                                    const fieldName = section.fields[currentQuestionIndex];
+                                    return (
+                                        <TabsContent key={section.name} value={String(index)}>
+                                            <div className="py-6 min-h-[300px] flex flex-col justify-center">
+                                                <Card className="bg-transparent border-0 shadow-none">
+                                                    <CardContent>
+                                                        {renderField(fieldName)}
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        </TabsContent>
+                                    );
+                                })}
                             </Tabs>
                         </CardContent>
                          <CardFooter className="flex justify-between">
@@ -324,7 +322,7 @@ export default function PsychometricAnalysisPage() {
                                 type="button" 
                                 variant="outline" 
                                 onClick={handlePrevious}
-                                disabled={activeTabIndex === 0 && currentQuestionIndex === 0}
+                                disabled={activeTabIndex === 0 && currentQuestionIndices[0] === 0}
                             >
                                 <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                             </Button>
