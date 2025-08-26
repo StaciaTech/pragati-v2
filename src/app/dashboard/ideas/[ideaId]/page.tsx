@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { MOCK_IDEAS, STATUS_COLORS, MOCK_CONSULTATIONS, MOCK_TTCS, MOCK_PSYCHOMETRIC_PROFILES } from '@/lib/mock-data';
+import { MOCK_IDEAS, STATUS_COLORS, MOCK_CONSULTATIONS, MOCK_TTCS, MOCK_PSYCHOMETRIC_PROFILES, MOCK_INNOVATORS } from '@/lib/mock-data';
 import type { ValidationReport } from '@/ai/schemas';
 import { ROLES } from '@/lib/constants';
 import { ArrowLeft, Download, ThumbsUp, Lightbulb, RefreshCw, MessageSquare, TrendingUp, TrendingDown, Star, Share2, Copy, CalendarIcon, ChevronRight, CheckCircle2, UserCheck, Shield } from 'lucide-react';
@@ -49,6 +49,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { FacebookIcon, LinkedInIcon, TwitterIcon, WhatsAppIcon, MailIcon } from '@/components/social-icons';
 import { ScoreDisplay } from '@/components/score-display';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const getBackLink = (role: string | null) => {
@@ -316,6 +317,15 @@ export default function IdeaReportPage() {
   const shareUrl = idea ? encodeURIComponent(`${window.location.origin}/dashboard/ideas/${idea.id}?role=${ROLES.INNOVATOR}`) : '';
   const shareText = idea ? encodeURIComponent(`Check out my idea report for "${idea.title}" on PragatiAI!`) : '';
 
+  const getInitials = (name: string) => {
+    return name?.split(' ').map((n) => n[0]).join('') || '';
+  };
+  
+  const teamMembers = MOCK_INNOVATORS.filter(innovator => 
+    innovator.email === idea.innovatorEmail || // The owner
+    (idea.teamId && innovator.teamId === idea.teamId) // Co-founders
+  );
+
   return (
     <>
     <div className="space-y-6">
@@ -361,7 +371,7 @@ export default function IdeaReportPage() {
                 <ScoreDisplay score={score} status={status} />
               )}
             </CardHeader>
-             {report ? (
+            {report ? (
               <CardContent className="space-y-8 pt-2">
                 
                 <div className="space-y-2">
@@ -373,28 +383,48 @@ export default function IdeaReportPage() {
                 
                 <Separator />
                 
-                {role === ROLES.SUPER_ADMIN && innovatorProfile && (
+                {role === ROLES.SUPER_ADMIN && (
                   <>
                   <Card className="bg-muted/50">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Shield className="h-5 w-5 text-primary" />
-                        Confidential: Founder Psychometric Analysis
+                        Confidential: Team Psychometric Summary
                       </CardTitle>
-                      <CardDescription>This section is only visible to Super Admins.</CardDescription>
+                      <CardDescription>This section is only visible to Super Admins. It shows an aggregated view of the founding team's psychometric profiles.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="font-semibold">Profile: {innovatorProfile.profileType}</h4>
-                          <p className="text-sm text-muted-foreground italic mt-1">"{innovatorProfile.generalAnalysis}"</p>
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-sm"><strong className="font-medium text-foreground">Domain Fit:</strong> {innovatorProfile.domainFit}</p>
-                          <p className="text-sm"><strong className="font-medium text-foreground">Expertise Fit:</strong> {innovatorProfile.expertiseFit}</p>
-                           <p className="text-sm"><strong className="font-medium text-foreground">Key Success Factors:</strong> {innovatorProfile.successFactors}</p>
-                        </div>
+                         <div>
+                            <h4 className="font-semibold mb-2">Team Composition ({teamMembers.length})</h4>
+                            <div className="flex -space-x-2 overflow-hidden">
+                                {teamMembers.map(member => (
+                                     <TooltipProvider key={member.id}>
+                                         <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                 <Avatar className="inline-block h-10 w-10 rounded-full ring-2 ring-background">
+                                                    <AvatarImage src={`https://avatar.vercel.sh/${member.name}.png`} alt={member.name} />
+                                                    <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                                                </Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>{member.name}</p></TooltipContent>
+                                         </Tooltip>
+                                     </TooltipProvider>
+                                ))}
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                             <h4 className="font-semibold">Team SWOT Analysis (Mock)</h4>
+                             <p className="text-sm"><strong className="font-medium text-green-600">Strengths:</strong> Strong technical expertise in AI/ML.</p>
+                             <p className="text-sm"><strong className="font-medium text-red-600">Weaknesses:</strong> Lack of sales and marketing experience.</p>
+                             <p className="text-sm"><strong className="font-medium text-blue-600">Opportunities:</strong> Leverage university network for pilot users.</p>
+                             <p className="text-sm"><strong className="font-medium text-orange-600">Threats:</strong> High competition from established players.</p>
+                         </div>
                       </div>
+                       <div className="mt-4">
+                            <h4 className="font-semibold">Upskilling & Hiring Recommendation</h4>
+                            <p className="text-sm text-muted-foreground mt-1">Based on the analysis, the team should focus on acquiring a co-founder or early hire with a strong background in Business Development to address the go-to-market gap.</p>
+                        </div>
                     </CardContent>
                   </Card>
                   <Separator />

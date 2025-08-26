@@ -788,7 +788,7 @@ export const STATUS_COLORS: { [key: string]: string } = {
   ],
   [ROLES.PRINCIPAL]: [
     { id: 1, title: 'New Credit Request from TTC', description: 'TTC Dr. Priya Sharma has requested 20 credits.', read: false },
-    { id: 2, title: 'Plan Upgrade Recommended', description: 'Your usage is high. Consider upgrading to the Advance Pro plan.', read: false },
+    { id: 2, title: 'Plan Upgrade Recommended', description: 'Your usage is high. Consider upgrading to the Advance Pro plan.', read: true },
     { id: 3, title: 'Payment Due', description: 'Your monthly subscription payment is due next week.', read: true },
   ],
   [ROLES.SUPER_ADMIN]: [

@@ -27,6 +27,11 @@ export const NAV_LINKS: Record<
       href: `/dashboard?role=${ROLES.INNOVATOR}`,
     },
     {
+      title: "Founder Analysis",
+      icon: User,
+      href: `/dashboard/psychometric-analysis?role=${ROLES.INNOVATOR}`,
+    },
+    {
       title: "Submit Idea",
       icon: PlusCircle,
       href: `/dashboard/submit?role=${ROLES.INNOVATOR}`,
