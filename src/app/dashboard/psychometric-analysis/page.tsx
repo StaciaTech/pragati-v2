@@ -5,14 +5,6 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -34,6 +26,14 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card';
 
 const backgroundSchema = z.object({
   age: z.coerce.number().min(18, "Must be at least 18").max(100),
@@ -117,6 +117,7 @@ const psychometricQuestions = [
     { id: 'C4', category: 'Focus & Prioritization', question: "I time‑box my exploration of new ideas before committing fully." },
 ];
 
+
 const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema).extend({
     responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
         message: "Please answer all questions.",
@@ -140,6 +141,13 @@ const defaultValues: Partial<FullForm> = {
     responses: {},
 };
 
+const sectionFields = [
+    { name: "Background", fields: ["age", "gender", "maritalStatus", "siblings", "hometownTier", "familyBusiness"], schema: backgroundSchema },
+    { name: "Education", fields: ["highestDegree", "major", "schoolTier"], schema: educationSchema },
+    { name: "Questionnaire", fields: psychometricQuestions.map(q => `responses.${q.id}`), schema: z.object({ responses: z.record(z.string().min(1)) }) },
+    { name: "Goals & Interests", fields: ["hobbies", "essay"], schema: interestsSchema },
+];
+
 
 export default function PsychometricAnalysisPage() {
     const { toast } = useToast();
@@ -148,17 +156,21 @@ export default function PsychometricAnalysisPage() {
     const [isCompleted, setIsCompleted] = React.useState(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
     
     const [currentStep, setCurrentStep] = React.useState(0);
+    const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState<number[]>(Array(sectionFields.length).fill(0));
     const [highestCompletedStep, setHighestCompletedStep] = React.useState(-1);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
 
     const form = useForm<FullForm>({
         resolver: zodResolver(fullSchema),
         defaultValues,
+        mode: 'onChange',
     });
-    
-    const totalSteps = 4; // Background, Education, Questionnaire, Goals
-    const overallProgress = (currentStep / (totalSteps -1)) * 100;
 
+    const totalQuestions = sectionFields.reduce((acc, section) => acc + section.fields.length, 0);
+    const answeredQuestions = 
+        currentQuestionIndices.reduce((acc, curr, index) => acc + (index < currentStep ? sectionFields[index].fields.length : curr), 0);
+
+    const overallProgress = (answeredQuestions / totalQuestions) * 100;
+    
     const onSubmit = (data: FullForm) => {
         setIsLoading(true);
         toast({ title: "Submitting Analysis...", description: "Please wait while we process your results." });
@@ -178,142 +190,106 @@ export default function PsychometricAnalysisPage() {
             setIsCompleted(false);
             form.reset();
             setCurrentStep(0);
+            setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
             setHighestCompletedStep(-1);
-            setCurrentQuestionIndex(0);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
         }
     }
     
-    const handleNextStep = async () => {
-        let isValid = false;
-        if (currentStep === 0) {
-            isValid = await form.trigger(["age", "gender", "maritalStatus", "siblings", "hometownTier", "familyBusiness"]);
-        } else if (currentStep === 1) {
-            isValid = await form.trigger(["highestDegree", "major", "schoolTier"]);
-        } else if (currentStep === 2) {
-             isValid = await form.trigger(["responses"]);
-        }
+    const handleNext = async () => {
+        const currentSection = sectionFields[currentStep];
+        const currentQuestionIndex = currentQuestionIndices[currentStep];
+        const fieldName = currentSection.fields[currentQuestionIndex];
+        
+        const isValid = await form.trigger(fieldName as any);
+        if (!isValid) return;
 
-        if (isValid) {
-            setHighestCompletedStep(prev => Math.max(prev, currentStep));
-            setCurrentStep(prev => prev + 1);
+        if (currentQuestionIndex < currentSection.fields.length - 1) {
+            setCurrentQuestionIndices(prev => {
+                const newIndices = [...prev];
+                newIndices[currentStep]++;
+                return newIndices;
+            });
+        } else {
+             // Last question of the section, validate all fields in section before proceeding
+             const allSectionFieldsValid = await form.trigger(currentSection.fields as any);
+             if (allSectionFieldsValid) {
+                 setHighestCompletedStep(prev => Math.max(prev, currentStep));
+                 if (currentStep < sectionFields.length - 1) {
+                     setCurrentStep(prev => prev + 1);
+                 } else {
+                     // This is the final submit button
+                     form.handleSubmit(onSubmit)();
+                 }
+             }
         }
     }
 
-    const handlePrevStep = () => {
-        setCurrentStep(prev => prev - 1);
-    }
-
-    const tabs = [
-        { name: "Background", validationFields: ["age", "gender", "maritalStatus", "siblings", "hometownTier", "familyBusiness"] },
-        { name: "Education", validationFields: ["highestDegree", "major", "schoolTier"] },
-        { name: "Questionnaire", validationFields: ["responses"] },
-        { name: "Goals & Interests", validationFields: ["hobbies", "essay"] }
-    ];
-
-    const getStepContent = () => {
-        switch (currentStep) {
-            case 0: // Background
-                return (
-                    <div className="space-y-6">
-                        <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="maritalStatus" render={({ field }) => ( <FormItem><FormLabel>Marital Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Single">Single</SelectItem><SelectItem value="Married">Married</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="siblings" render={({ field }) => ( <FormItem><FormLabel>Number of Siblings</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Hometown City Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="familyBusiness" render={({ field }) => ( <FormItem><FormLabel>Do you come from a family with a business background?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />
-                    </div>
-                );
-            case 1: // Education
-                return (
-                     <div className="space-y-6">
-                        <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>Highest Educational Qualification</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="major" render={({ field }) => ( <FormItem><FormLabel>Major/Field of Study</FormLabel><FormControl><Input placeholder="e.g., Computer Science" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="schoolTier" render={({ field }) => ( <FormItem><FormLabel>University/College Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (e.g., IIT, IIM, AIIMS)</SelectItem><SelectItem value="Tier 2">Tier 2 (e.g., NIT, Top State Universities)</SelectItem><SelectItem value="Tier 3">Tier 3 (Other Colleges)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />
-                    </div>
-                );
-            case 2: // Questionnaire
-                const questionProgress = ((currentQuestionIndex + 1) / psychometricQuestions.length) * 100;
-                const currentQuestion = psychometricQuestions[currentQuestionIndex];
-                
-                const handlePsychNext = async () => {
-                    const isValid = await form.trigger(`responses.${currentQuestion.id}`);
-                    if(!isValid) return;
-
-                    if (currentQuestionIndex < psychometricQuestions.length - 1) {
-                        setCurrentQuestionIndex(prev => prev + 1);
-                    } else {
-                        handleNextStep();
-                    }
-                };
-            
-                const handlePsychPrev = () => {
-                    if (currentQuestionIndex > 0) {
-                        setCurrentQuestionIndex(prev => prev - 1);
-                    } else {
-                        handlePrevStep();
-                    }
-                }
-
-                return (
-                    <div className="space-y-4 min-h-[350px] flex flex-col justify-between">
-                        <div>
-                            <Progress value={questionProgress} className="w-full mb-4" />
-                            <p className="text-center text-sm text-muted-foreground mb-4">{currentQuestion.category} - Question {currentQuestionIndex + 1} of {psychometricQuestions.length}</p>
-                            <Card className="bg-background/80 backdrop-blur-sm border-white/20 shadow-xl">
-                                <CardHeader>
-                                    <CardTitle className="text-xl font-semibold text-center text-foreground leading-relaxed">{currentQuestion.question}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <FormField
-                                        control={form.control}
-                                        name={`responses.${currentQuestion.id}`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <RadioGroup 
-                                                        className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
-                                                        onValueChange={field.onChange}
-                                                        value={field.value}
-                                                    >
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel>Strongly Disagree</FormLabel></FormItem>
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel>Disagree</FormLabel></FormItem>
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel>Neutral</FormLabel></FormItem>
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="4" /></FormControl><FormLabel>Agree</FormLabel></FormItem>
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
-                                                    </RadioGroup>
-                                                </FormControl>
-                                                <FormMessage className="text-center pt-2" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </div>
-                        <div className="flex justify-between mt-4">
-                            <Button type="button" variant="outline" onClick={handlePsychPrev}>
-                               <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-                            </Button>
-                            <Button type="button" onClick={handlePsychNext}>
-                                {currentQuestionIndex < psychometricQuestions.length - 1 ? 'Next' : 'Next Section'} <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                );
-            case 3: // Goals & Interests
-                 return (
-                    <div className="space-y-6">
-                        <FormField control={form.control} name="hobbies" render={({ field }) => ( <FormItem><FormLabel>Hobbies & Interests</FormLabel><FormDescription>List a few of your hobbies or interests outside of work/academics.</FormDescription><FormControl><Input placeholder="e.g., Reading, Trekking, Chess" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="essay" render={({ field }) => ( <FormItem><FormLabel>Your Motivation</FormLabel><FormDescription>Briefly describe what drives you to become an entrepreneur. Our AI will analyze this response to understand your core motivations. (Min. 50 characters)</FormDescription><FormControl><Textarea rows={5} placeholder="Tell us your story..." {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    </div>
-                );
-            default:
-                return null;
+    const handlePrevious = () => {
+        const currentQuestionIndex = currentQuestionIndices[currentStep];
+        if (currentQuestionIndex > 0) {
+             setCurrentQuestionIndices(prev => {
+                const newIndices = [...prev];
+                newIndices[currentStep]--;
+                return newIndices;
+            });
+        } else {
+            if (currentStep > 0) {
+                setCurrentStep(prev => prev - 1);
+            }
         }
     }
     
+    const renderField = (fieldName: string) => {
+        switch(fieldName) {
+            case 'age': return <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
+            case 'gender': return <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'maritalStatus': return <FormField control={form.control} name="maritalStatus" render={({ field }) => ( <FormItem><FormLabel>Marital Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Single">Single</SelectItem><SelectItem value="Married">Married</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'siblings': return <FormField control={form.control} name="siblings" render={({ field }) => ( <FormItem><FormLabel>Number of Siblings</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
+            case 'hometownTier': return <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Hometown City Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'familyBusiness': return <FormField control={form.control} name="familyBusiness" render={({ field }) => ( <FormItem><FormLabel>Do you come from a family with a business background?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'highestDegree': return <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>Highest Educational Qualification</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'major': return <FormField control={form.control} name="major" render={({ field }) => ( <FormItem><FormLabel>Major/Field of Study</FormLabel><FormControl><Input placeholder="e.g., Computer Science" {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'schoolTier': return <FormField control={form.control} name="schoolTier" render={({ field }) => ( <FormItem><FormLabel>University/College Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (e.g., IIT, IIM, AIIMS)</SelectItem><SelectItem value="Tier 2">Tier 2 (e.g., NIT, Top State Universities)</SelectItem><SelectItem value="Tier 3">Tier 3 (Other Colleges)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'hobbies': return <FormField control={form.control} name="hobbies" render={({ field }) => ( <FormItem><FormLabel>Hobbies & Interests</FormLabel><FormDescription>List a few of your hobbies or interests outside of work/academics.</FormDescription><FormControl><Input placeholder="e.g., Reading, Trekking, Chess" {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'essay': return <FormField control={form.control} name="essay" render={({ field }) => ( <FormItem><FormLabel>Your Motivation</FormLabel><FormDescription>Briefly describe what drives you to become an entrepreneur. Our AI will analyze this response to understand your core motivations. (Min. 50 characters)</FormDescription><FormControl><Textarea rows={5} placeholder="Tell us your story..." {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            default:
+                if (fieldName.startsWith('responses.')) {
+                    const questionId = fieldName.split('.')[1];
+                    const question = psychometricQuestions.find(q => q.id === questionId);
+                    if (!question) return null;
+                     return (
+                        <FormField
+                            control={form.control}
+                            name={fieldName as any}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xl font-semibold text-center text-foreground leading-relaxed block">{question.question}</FormLabel>
+                                    <FormControl>
+                                        <RadioGroup 
+                                            className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
+                                            onValueChange={field.onChange}
+                                            value={field.value}
+                                        >
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1" /></FormControl><FormLabel>Strongly Disagree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="2" /></FormControl><FormLabel>Disagree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="3" /></FormControl><FormLabel>Neutral</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="4" /></FormControl><FormLabel>Agree</FormLabel></FormItem>
+                                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="5" /></FormControl><FormLabel>Strongly Agree</FormLabel></FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                    <FormMessage className="text-center pt-2" />
+                                </FormItem>
+                            )}
+                        />
+                     )
+                }
+                return null;
+        }
+    }
+
     if (isCompleted && !isLoading) {
         return (
              <Card>
@@ -355,6 +331,13 @@ export default function PsychometricAnalysisPage() {
         )
     }
 
+    const currentSection = sectionFields[currentStep];
+    const currentQuestionIndex = currentQuestionIndices[currentStep];
+    const fieldName = currentSection.fields[currentQuestionIndex];
+    const isLastQuestionInSection = currentQuestionIndex === currentSection.fields.length - 1;
+    const isFinalStep = currentStep === sectionFields.length - 1 && isLastQuestionInSection;
+
+
     return (
         <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center p-4 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-indigo-500/20 to-blue-500/20 animate-background-pan -z-10" />
@@ -366,22 +349,32 @@ export default function PsychometricAnalysisPage() {
                             <CardTitle>Founder Psychometric Analysis</CardTitle>
                             <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
                             <Progress value={overallProgress} className="mt-4"/>
+                            <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
                         </CardHeader>
                         <CardContent>
                              <Tabs value={String(currentStep)} onValueChange={(val) => setCurrentStep(Number(val))} className="w-full">
                                 <TabsList className="grid w-full grid-cols-4">
-                                    {tabs.map((tab, index) => (
+                                    {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
                                             value={String(index)} 
                                             disabled={index > highestCompletedStep + 1}
+                                            onClick={() => {
+                                                if (index <= highestCompletedStep + 1) {
+                                                    setCurrentStep(index);
+                                                }
+                                            }}
                                         >
                                             {tab.name}
                                         </TabsTrigger>
                                     ))}
                                 </TabsList>
-                                 <div className="py-6">
-                                     {getStepContent()}
+                                 <div className="py-6 min-h-[300px] flex flex-col justify-center">
+                                     <Card className="bg-transparent border-0 shadow-none">
+                                        <CardContent>
+                                            {renderField(fieldName)}
+                                        </CardContent>
+                                     </Card>
                                  </div>
                             </Tabs>
                         </CardContent>
@@ -389,22 +382,17 @@ export default function PsychometricAnalysisPage() {
                             <Button 
                                 type="button" 
                                 variant="outline" 
-                                onClick={handlePrevStep}
-                                disabled={currentStep === 0 || currentStep === 2}
+                                onClick={handlePrevious}
+                                disabled={currentStep === 0 && currentQuestionIndex === 0}
                             >
-                                Previous
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                             </Button>
-                            {currentStep === 3 ? (
-                                <Button type="submit">Submit Analysis</Button>
-                            ) : (
-                                <Button 
-                                    type="button" 
-                                    onClick={handleNextStep}
-                                    disabled={currentStep === 2}
-                                >
-                                    Next
-                                </Button>
-                            )}
+                           
+                            <Button type="button" onClick={handleNext}>
+                                {isFinalStep ? 'Submit Analysis' : (isLastQuestionInSection ? 'Next Section' : 'Next')} 
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                           
                          </CardFooter>
                     </form>
                 </Form>
@@ -418,5 +406,3 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
-
-    
