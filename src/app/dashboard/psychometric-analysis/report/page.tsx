@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Award, BarChart3, CheckCircle2, Star, Target, TrendingDown, TrendingUp, Bot } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useSearchParams } from 'next/navigation';
 
 // Mock data - in a real app, this would be fetched based on the user's analysis results
 const mockReportData = {
@@ -51,6 +52,13 @@ const mockReportData = {
 };
 
 export default function PsychometricReportPage() {
+  const searchParams = useSearchParams();
+  const resultsParam = searchParams.get('results');
+  const results = resultsParam ? JSON.parse(resultsParam) : mockReportData;
+  const score = results.score || mockReportData.overallScore;
+  const level = results.level || (score >= 85 ? 'Founder-ready' : 'Promising');
+
+
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -73,12 +81,12 @@ export default function PsychometricReportPage() {
             </Card>
              <Card className="p-4">
                 <Award className="mx-auto h-8 w-8 text-primary mb-2" />
-                <p className="text-lg font-semibold">{mockReportData.overallScore} / 100</p>
+                <p className="text-lg font-semibold">{score} / 100</p>
                 <p className="text-sm text-muted-foreground">Overall Readiness Score</p>
             </Card>
              <Card className="p-4">
                 <BarChart3 className="mx-auto h-8 w-8 text-primary mb-2" />
-                <p className="text-lg font-semibold">High Potential</p>
+                <p className="text-lg font-semibold">{level}</p>
                 <p className="text-sm text-muted-foreground">General Verdict</p>
             </Card>
         </CardContent>
