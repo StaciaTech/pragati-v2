@@ -38,6 +38,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const { questions } = MOCK_QUESTION_BANK;
 
+// Helper function to prevent gibberish input
+const isNotGibberish = (value: string) => {
+    if (value.length < 10) return true; // Don't apply to very short strings
+    // Check for repetitive characters (e.g., "aaaaaa" or "ababab")
+    const repetitiveCharsRegex = /(.+?)\1{4,}/;
+    if (repetitiveCharsRegex.test(value)) return false;
+    // Check for lack of spaces in long strings
+    if (value.length > 50 && !/\s/.test(value)) return false;
+    return true;
+};
+
 // Dynamically generate Zod schema from question bank
 const generateFormSchema = () => {
     const schemaShape: Record<string, z.ZodType<any, any>> = {};
@@ -53,23 +64,15 @@ const generateFormSchema = () => {
                 schemaShape[q.id] = z.coerce.number().min(0, "Please enter a valid number.");
                 break;
             case 'free_text':
-                 schemaShape[q.id] = z.string().min(1, "This field is required.");
+                 schemaShape[q.id] = z.string()
+                    .min(10, "Please provide a more detailed answer (at least 10 characters).")
+                    .refine(isNotGibberish, { message: "Please provide a more meaningful answer." });
                  break;
             default:
                 schemaShape[q.id] = z.string().min(1, "This field is required.");
         }
     });
-    // Add personal info fields
-    schemaShape['fullName'] = z.string().min(1, "Name is required.");
-    schemaShape['age'] = z.coerce.number().min(16, "You must be at least 16.").max(100, "Please enter a valid age.");
-    schemaShape['gender'] = z.string().min(1, "Please select a gender.");
-    schemaShape['education'] = z.string().min(1, "Educational qualification is required.");
-    schemaShape['siblings'] = z.string().min(1, "Please select an option.");
-    schemaShape['familyBackground'] = z.string().min(1, "Please select a background.");
-    schemaShape['schoolTier'] = z.string().min(1, "Please select your school tier.");
-    schemaShape['location'] = z.string().min(1, "Please select your location type.");
-    schemaShape['familyBusiness'] = z.string().min(1, "This field is required.");
-
+    
     return z.object(schemaShape);
 };
 
@@ -81,37 +84,15 @@ const defaultValues = questions.reduce((acc, q) => {
     return acc;
 }, {} as any);
 
-// Add personal info defaults
-defaultValues['fullName'] = MOCK_INNOVATOR_USER.name;
-defaultValues['age'] = '';
-defaultValues['gender'] = '';
-defaultValues['education'] = '';
-defaultValues['siblings'] = '';
-defaultValues['familyBackground'] = '';
-defaultValues['schoolTier'] = '';
-defaultValues['location'] = '';
-defaultValues['familyBusiness'] = '';
-
-
-const personalInfoQuestions = [
-    { id: 'fullName', text: 'What is your full name?', type: 'text' },
-    { id: 'age', text: 'What is your age?', type: 'numeric' },
-    { id: 'gender', text: 'What is your gender?', type: 'categorical', options: ['Male', 'Female', 'Other', 'Prefer not to say'] },
-    { id: 'education', text: 'What is your highest educational qualification?', type: 'text' },
-    { id: 'siblings', text: 'How many siblings do you have?', type: 'categorical', options: ['None', 'One', 'Two', 'Three or more'] },
-    { id: 'familyBackground', text: 'What is your family\'s primary professional background?', type: 'categorical', options: ['Business/Entrepreneurship', 'Salaried/Professional', 'Agriculture', 'Arts/Culture', 'Other'] },
-    { id: 'schoolTier', text: 'Which tier best describes your school/college?', type: 'categorical', options: ['Tier 1 (IIT, IIM, NIT, AIIMS, etc.)', 'Tier 2 (Reputed State/Pvt Universities)', 'Tier 3 (Other colleges)'] },
-    { id: 'location', text: 'Where are you primarily from?', type: 'categorical', options: ['Metro City', 'Tier 2 City', 'Small Town', 'Rural Village'] },
-    { id: 'familyBusiness', text: 'Have you or your immediate family been involved in running a business?', type: 'categorical', options: ['Yes', 'No'] },
-];
+const personalInfoQuestions = questions.filter(q => q.construct === 'CTX_EDU' || q.construct === 'CTX_SOCIO');
+const coreQuestions = questions.filter(q => !personalInfoQuestions.map(pi => pi.id).includes(q.id));
 
 const sectionFields = [
     { name: "Personal Information", fields: personalInfoQuestions.map(q => q.id) },
-    { name: "Background & Experience", fields: questions.filter(q => q.construct === 'CTX_EDU' || q.construct === 'CTX_SOCIO').map(q => q.id) },
-    { name: "Personality & Mindset", fields: questions.filter(q => ['OPP', 'EXEC', 'RES', 'RISK', 'AMBIG', 'FOCUS'].includes(q.construct!)).map(q => q.id) },
-    { name: "Motivation & Values", fields: questions.filter(q => ['MOTIVATION', 'ETHICS'].includes(q.construct!)).map(q => q.id) },
-    { name: "Abilities & Skills", fields: questions.filter(q => ['LEARN', 'FMF', 'LEAD', 'COGNITIVE', 'EQ', 'NETWORK', 'FINANCE'].includes(q.construct!)).map(q => q.id) },
-    { name: "Situational Judgement", fields: questions.filter(q => q.type === 'free_text' && q.construct !== 'FMF').map(q => q.id) },
+    { name: "Background & Experience", fields: coreQuestions.filter(q => ['FMF', 'LEAD', 'NETWORK'].includes(q.construct!)).map(q => q.id) },
+    { name: "Personality & Mindset", fields: coreQuestions.filter(q => ['RES', 'RISK', 'AMBIG', 'FOCUS'].includes(q.construct!)).map(q => q.id) },
+    { name: "Motivation & Values", fields: coreQuestions.filter(q => ['MOTIVATION', 'ETHICS'].includes(q.construct!)).map(q => q.id) },
+    { name: "Abilities & Skills", fields: coreQuestions.filter(q => ['OPP', 'EXEC', 'LEARN', 'COGNITIVE', 'EQ', 'FINANCE'].includes(q.construct!)).map(q => q.id) },
     { name: "Goals & Aspirations", fields: ["Q068", "Q069"] },
 ];
 
@@ -125,6 +106,8 @@ export default function PsychometricAnalysisPage() {
     const [activeTab, setActiveTab] = React.useState("0");
     const [currentQuestionIndices, setCurrentQuestionIndices] = React.useState(Array(sectionFields.length).fill(0));
     const [highestCompletedTab, setHighestCompletedTab] = React.useState(-1);
+    const [questionQueue, setQuestionQueue] = React.useState<string[]>(sectionFields.flatMap(s => s.fields));
+
 
     React.useEffect(() => {
         setIsCompleted(MOCK_INNOVATOR_USER.hasPsychometricAnalysis);
@@ -135,18 +118,17 @@ export default function PsychometricAnalysisPage() {
         defaultValues,
         mode: 'onChange',
     });
-
-    const totalQuestions = questions.length + personalInfoQuestions.length;
     
+    const totalQuestionsInQueue = questionQueue.length;
     const watchedValues = form.watch();
     const answeredQuestions = React.useMemo(() => {
         return Object.values(watchedValues).filter(value => {
-            if (typeof value === 'number') return true; // 0 is a valid answer
+            if (typeof value === 'number') return true;
             return !!value;
         }).length;
     }, [watchedValues]);
     
-    const overallProgress = (answeredQuestions / totalQuestions) * 100;
+    const overallProgress = (answeredQuestions / totalQuestionsInQueue) * 100;
     
     const onSubmit = (data: FullForm) => {
         setIsLoading(true);
@@ -174,25 +156,52 @@ export default function PsychometricAnalysisPage() {
             setActiveTab("0");
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
             setHighestCompletedTab(-1);
+            setQuestionQueue(sectionFields.flatMap(s => s.fields));
             setIsCompleted(false);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
         }
     }
+
+    const checkBranching = (questionId: string, value: any) => {
+        const question = questions.find(q => q.id === questionId);
+        if (!question || !question.branch_on) return;
+
+        const { condition, value: targetValue, enqueue } = question.branch_on;
+        let shouldBranch = false;
+        
+        switch (condition) {
+            case '<': shouldBranch = Number(value) < Number(targetValue); break;
+            case '==': shouldBranch = value === targetValue; break;
+            // Add other conditions as needed
+        }
+
+        if (shouldBranch) {
+            setQuestionQueue(prevQueue => {
+                const currentQuestionIndex = prevQueue.indexOf(questionId);
+                const newQueue = [...prevQueue];
+                // Insert new questions right after the current one
+                newQueue.splice(currentQuestionIndex + 1, 0, ...enqueue);
+                return newQueue;
+            });
+        }
+    }
     
     const handleNext = async () => {
         const activeTabIndex = parseInt(activeTab);
         const currentSection = sectionFields[activeTabIndex];
-        const currentQuestionIndex = currentQuestionIndices[activeTabIndex];
-        const fieldName = currentSection.fields[currentQuestionIndex];
+        const currentQuestionId = currentSection.fields[currentQuestionIndices[activeTabIndex]];
         
-        if (!fieldName) return;
+        if (!currentQuestionId) return;
         
-        const isValid = await form.trigger(fieldName as any);
+        const isValid = await form.trigger(currentQuestionId as any);
         if (!isValid) return;
 
-        if (currentQuestionIndex < currentSection.fields.length - 1) {
+        const currentValue = form.getValues(currentQuestionId as any);
+        checkBranching(currentQuestionId, currentValue);
+
+        if (currentQuestionIndices[activeTabIndex] < currentSection.fields.length - 1) {
             setCurrentQuestionIndices(prev => {
                 const newIndices = [...prev];
                 newIndices[activeTabIndex]++;
@@ -228,7 +237,7 @@ export default function PsychometricAnalysisPage() {
     }
     
     const renderField = (questionId: string) => {
-        const question = [...questions, ...personalInfoQuestions].find(q => q.id === questionId);
+        const question = questions.find(q => q.id === questionId);
         if (!question) return null;
 
         const baseField = (
@@ -249,7 +258,7 @@ export default function PsychometricAnalysisPage() {
                                     onValueChange={field.onChange}
                                     value={field.value}
                                 >
-                                    {[...Array(Array.isArray(question.scale) ? question.scale[1] : 5)].map((_, i) => (
+                                    {Array.isArray(question.scale) && [...Array(question.scale[1])].map((_, i) => (
                                         <FormItem key={i} className="flex items-center space-x-2">
                                             <FormControl><RadioGroupItem value={String(i + 1)} id={`${question.id}-${i}`} /></FormControl>
                                             <FormLabel htmlFor={`${question.id}-${i}`}>{i + 1}</FormLabel>
@@ -263,12 +272,12 @@ export default function PsychometricAnalysisPage() {
                                             <SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {question.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                            {Array.isArray(question.scale) && question.scale?.map(opt => <SelectItem key={opt as string} value={opt as string}>{opt as string}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            ) : question.type === 'numeric' || question.type === 'text' ? (
-                                 <Input className="max-w-md mx-auto" type={question.type} {...field} />
+                            ) : question.type === 'numeric' ? (
+                                 <Input className="max-w-md mx-auto" type="number" {...field} />
                             ) : question.type === 'free_text' ? (
                                 <Textarea className="max-w-lg mx-auto" rows={6} placeholder="Your detailed response..." {...field} />
                             ) : null}
@@ -384,3 +393,5 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
+
+    
