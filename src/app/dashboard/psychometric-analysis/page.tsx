@@ -320,10 +320,6 @@ export default function PsychometricAnalysisPage() {
                         <CardHeader>
                             <CardTitle>Founder Psychometric Analysis</CardTitle>
                             <CardDescription>This comprehensive analysis helps us understand your unique strengths. The first attempt is free.</CardDescription>
-                             <div className="pt-4">
-                                <Progress value={overallProgress} />
-                                <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
-                            </div>
                         </CardHeader>
                         <CardContent>
                              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -356,20 +352,25 @@ export default function PsychometricAnalysisPage() {
                             </Tabs>
                         </CardContent>
                          <CardFooter className="flex justify-between">
-                            <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={handlePrevious}
-                                disabled={activeTabIndex === 0 && currentQuestionIndices[0] === 0}
-                            >
-                                <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-                            </Button>
+                           <div>
+                              <Progress value={overallProgress} className="w-48"/>
+                              <p className="text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
+                           </div>
+                           <div className="flex gap-2">
+                              <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  onClick={handlePrevious}
+                                  disabled={activeTabIndex === 0 && currentQuestionIndices[0] === 0}
+                              >
+                                  <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+                              </Button>
                            
-                            <Button type="button" onClick={handleNext}>
-                                {isFinalStep ? 'Submit Analysis' : 'Next'} 
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                           
+                              <Button type="button" onClick={handleNext}>
+                                  {isFinalStep ? 'Submit Analysis' : 'Next'} 
+                                  <ArrowRight className="ml-2 h-4 w-4" />
+                              </Button>
+                           </div>
                          </CardFooter>
                     </form>
                 </Form>
@@ -384,3 +385,4 @@ export default function PsychometricAnalysisPage() {
     );
 }
 
+    
