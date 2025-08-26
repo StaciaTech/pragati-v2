@@ -131,10 +131,10 @@ const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema
 type FullForm = z.infer<typeof fullSchema>;
 
 const defaultValues: Partial<FullForm> = {
-    age: undefined,
+    age: 25,
     gender: "",
     maritalStatus: "",
-    siblings: undefined,
+    siblings: 1,
     hometownTier: "",
     familyBusiness: "",
     highestDegree: "",
@@ -392,11 +392,10 @@ export default function PsychometricAnalysisPage() {
                 {isLoading && (
                     <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center rounded-lg">
                         <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                        <p className="mt-4 text-muted-foreground">Analyzing your responses...</p>
                     </div>
                 )}
             </Card>
         </div>
     );
 }
-
-    
