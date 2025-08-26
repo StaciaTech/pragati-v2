@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/stepper';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Loader2, ArrowLeft, ArrowRight, TriangleAlert } from 'lucide-react';
 import { MOCK_INNOVATOR_USER } from '@/lib/mock-data';
@@ -130,6 +129,21 @@ const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema
 });
 
 type FullForm = z.infer<typeof fullSchema>;
+
+const defaultValues: Partial<FullForm> = {
+    age: undefined,
+    gender: "",
+    maritalStatus: "",
+    siblings: undefined,
+    hometownTier: "",
+    familyBusiness: "",
+    highestDegree: "",
+    major: "",
+    schoolTier: "",
+    hobbies: "",
+    essay: "",
+    responses: {},
+};
 
 const Step1 = ({ form, onNext }: { form: any, onNext: () => void }) => {
     const handleNext = async () => {
@@ -291,20 +305,7 @@ export default function PsychometricAnalysisPage() {
 
     const form = useForm<FullForm>({
         resolver: zodResolver(fullSchema),
-        defaultValues: {
-            age: undefined,
-            gender: "",
-            maritalStatus: "",
-            siblings: undefined,
-            hometownTier: "",
-            familyBusiness: "",
-            highestDegree: "",
-            major: "",
-            schoolTier: "",
-            hobbies: "",
-            essay: "",
-            responses: {},
-        }
+        defaultValues,
     });
 
     const onSubmit = (data: FullForm) => {

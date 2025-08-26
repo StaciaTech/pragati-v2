@@ -5,8 +5,8 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
-import { FileUp, BrainCircuit, ArrowRight, ArrowLeft, TriangleAlert, UserCheck, UserPlus, Send } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { FileUp, ArrowRight, TriangleAlert, UserPlus, Send } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -40,7 +40,6 @@ import {
   Stepper,
   StepperContent,
   StepperItem,
-  StepperNext,
   StepperPrevious,
   StepperTrigger,
   useStepper,
@@ -59,10 +58,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Lottie from 'lottie-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -227,7 +224,7 @@ function Step2({ form }: { form: any }) {
         <StepperItem index={1}>
         <StepperTrigger>
           <CardTitle>Invite Co-Founders</CardTitle>
-          <CardDescription>Add your team members to proceed.</CardDescription>
+          <CardDescription>Add your team members to proceed. Each member must complete their psychometric analysis.</CardDescription>
         </StepperTrigger>
         <StepperContent>
             <div className="space-y-4 py-6">
@@ -271,7 +268,7 @@ function Step2({ form }: { form: any }) {
 function Step3({ form, isSubmitting }: { form: any, isSubmitting: boolean }) {
     const allValues = form.getValues();
     
-    const teamEmails = [MOCK_INNOVATOR_USER.email, ...(allValues.teamMembers?.map((m: any) => m.email) || [])];
+    const teamEmails = [MOCK_INNOVATOR_USER.email, ...(allValues.teamMembers?.map((m: any) => m.email).filter((e: string) => e) || [])];
     const allCompleted = teamEmails.every((email: string) => {
         const member = MOCK_INNOVATORS.find(inv => inv.email.toLowerCase() === email.toLowerCase());
         return member ? member.hasPsychometricAnalysis : false;
@@ -313,6 +310,9 @@ function Step3({ form, isSubmitting }: { form: any, isSubmitting: boolean }) {
                               </li>
                           ))}
                         </ul>
+                         {!allCompleted && (
+                            <p className="text-destructive text-sm mt-4">All team members must complete their psychometric analysis before you can submit.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -436,7 +436,7 @@ export default function SubmitIdeaPage() {
   }
 
   return (
-    <Card className="relative border-purple-500 border-indigo-500 bg-[length:200%_auto] animate-background-pan">
+    <Card className="relative">
       <CardHeader>
         <CardTitle>Submit New Idea</CardTitle>
         <CardDescription>
