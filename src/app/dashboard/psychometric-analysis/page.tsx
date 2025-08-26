@@ -33,12 +33,20 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const psychometricQuestions = [
+    // Personal Information
+    { id: 'S0Q1', section: 'Personal Information', question: "What is your full name?", type: 'text', placeholder: "e.g., Jane Doe" },
+    { id: 'S0Q2', section: 'Personal Information', question: "What is your age?", type: 'number', placeholder: "e.g., 21" },
+    { id: 'S0Q3', section: 'Personal Information', question: "What is your gender?", type: 'radio', options: ["Male", "Female", "Other", "Prefer not to say"] },
+    { id: 'S0Q4', section: 'Personal Information', question: "What is your highest educational qualification?", type: 'select', options: ["High School", "Diploma", "Bachelor's Degree", "Master's Degree", "PhD", "Other"] },
+    { id: 'S0Q5', section: 'Personal Information', question: "How many siblings do you have?", type: 'number', placeholder: "e.g., 1" },
+    { id: 'S0Q6', section: 'Personal Information', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
+
     // Section 1: Background & Experience
-    { id: 'S1Q1', section: 'Background & Experience', question: "Which statement best describes your family's professional background?", type: 'radio', options: ["Primarily business/entrepreneurial", "Primarily salaried professionals (doctors, engineers)", "Primarily government service", "Primarily agriculture/skilled trades", "Mixed or other"] },
-    { id: 'S1Q2', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
-    { id: 'S1Q3', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby you were passionate about during your school or college years. What did you learn from it?", type: 'textarea' },
+    { id: 'S1Q1', section: 'Background & Experience', question: "Growing up, how was failure generally viewed in your household?", type: 'radio', options: ["As a valuable learning opportunity", "As something to be avoided but was understood", "As a significant disappointment", "It was not openly discussed"] },
+    { id: 'S1Q2', section: 'Background & Experience', question: "Describe a significant non-academic project or hobby you were passionate about during your school or college years. What did you learn from it?", type: 'textarea' },
 
     // Section 2: Personality & Mindset
     { id: 'S2Q1', section: 'Personality & Mindset', question: "A promising new technology emerges, but it's completely outside your area of expertise. What is your most likely first reaction?", type: 'radio', options: ["Dive in and start learning it immediately", "Wait to see how it develops and is used by others", "Find an expert to explain its potential to me", "Ignore it unless it becomes directly relevant to my work"] },
@@ -60,20 +68,24 @@ const psychometricQuestions = [
     { id: 'S6Q1', section: 'Goals & Aspirations', question: "Beyond financial success, what is the single most important legacy you want to create with your entrepreneurial journey?", type: 'textarea' },
 ];
 
+
 const questionIds = psychometricQuestions.map(q => q.id);
 
 const formSchema = z.object({
     ...psychometricQuestions.reduce((acc, q) => {
-        if (q.type === 'radio') {
+        if (q.type === 'radio' || q.type === 'select') {
             acc[q.id] = z.string({ required_error: "Please select an option." });
         } else if (q.type === 'text') {
             acc[q.id] = z.string().min(1, "This field is required.");
+        } else if (q.type === 'number') {
+            acc[q.id] = z.coerce.number().min(0, "Please enter a valid number.");
         } else {
             acc[q.id] = z.string().min(50, "Please provide a more detailed answer (min. 50 characters).");
         }
         return acc;
     }, {} as Record<string, z.ZodType<any, any>>),
 });
+
 
 type FullForm = z.infer<typeof formSchema>;
 
@@ -82,7 +94,9 @@ const defaultValues = questionIds.reduce((acc, id) => {
     return acc;
 }, {} as any);
 
+
 const sectionFields = [
+    { name: "Personal Information", fields: psychometricQuestions.filter(q => q.section === 'Personal Information').map(q => q.id) },
     { name: "Background & Experience", fields: psychometricQuestions.filter(q => q.section === 'Background & Experience').map(q => q.id) },
     { name: "Personality & Mindset", fields: psychometricQuestions.filter(q => q.section === 'Personality & Mindset').map(q => q.id) },
     { name: "Motivation & Values", fields: psychometricQuestions.filter(q => q.section === 'Motivation & Values').map(q => q.id) },
@@ -110,10 +124,10 @@ export default function PsychometricAnalysisPage() {
 
     const totalQuestions = psychometricQuestions.length;
     
+    const watchedValues = form.watch();
     const answeredQuestions = React.useMemo(() => {
-        const formData = form.getValues();
-        return Object.values(formData).filter(value => value && value !== "").length;
-    }, [form.watch()]);
+        return Object.values(watchedValues).filter(value => value && value !== "" && value !== 0).length;
+    }, [watchedValues]);
     
     const overallProgress = (answeredQuestions / totalQuestions) * 100;
     
@@ -133,12 +147,11 @@ export default function PsychometricAnalysisPage() {
     const handleRetest = () => {
         if (MOCK_INNOVATOR_USER.credits > 0) {
             MOCK_INNOVATOR_USER.credits -= 1;
-            MOCK_INNOVATOR_USER.hasPsychometricAnalysis = false; // Reset mock data as well
-            setIsCompleted(false);
             form.reset(defaultValues);
             setActiveTab("0");
             setCurrentQuestionIndices(Array(sectionFields.length).fill(0));
             setHighestCompletedTab(-1);
+            setIsCompleted(false);
             toast({ title: "Request Approved", description: "1 credit has been used. You can now retake the analysis." });
         } else {
             toast({ variant: "destructive", title: "Insufficient Credits", description: "You do not have enough credits to request a retest." });
@@ -204,21 +217,32 @@ export default function PsychometricAnalysisPage() {
                         <FormControl>
                             {question.type === 'radio' ? (
                                 <RadioGroup
-                                    className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-4"
+                                    className="flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center pt-4"
                                     onValueChange={field.onChange}
                                     value={field.value}
                                 >
                                     {question.options?.map(opt => (
                                         <FormItem key={opt} className="flex items-center space-x-2">
-                                            <FormControl><RadioGroupItem value={opt} /></FormControl>
-                                            <FormLabel>{opt}</FormLabel>
+                                            <FormControl><RadioGroupItem value={opt} id={`${question.id}-${opt}`} /></FormControl>
+                                            <FormLabel htmlFor={`${question.id}-${opt}`}>{opt}</FormLabel>
                                         </FormItem>
                                     ))}
                                 </RadioGroup>
+                            ) : question.type === 'select' ? (
+                                <div className="max-w-md mx-auto">
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {question.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             ) : question.type === 'textarea' ? (
-                                <Textarea rows={6} placeholder="Your detailed response..." {...field} />
+                                <Textarea className="max-w-lg mx-auto" rows={6} placeholder="Your detailed response..." {...field} />
                             ) : (
-                                <Input placeholder={question.placeholder} {...field} />
+                                <Input className="max-w-md mx-auto" type={question.type} placeholder={question.placeholder} {...field} />
                             )}
                         </FormControl>
                         <FormMessage className="text-center pt-2" />
@@ -251,8 +275,7 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    // This now correctly uses the state `isCompleted` which is mutable, instead of the mock data.
-    if (!isCompleted && MOCK_INNOVATOR_USER.credits === undefined) { // A stand-in for a real check
+    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && MOCK_INNOVATOR_USER.credits === undefined) { // A stand-in for a real check
         return (
           <Card>
             <CardHeader>
@@ -263,7 +286,10 @@ export default function PsychometricAnalysisPage() {
                <p className="mt-4 text-muted-foreground">You must complete your Founder Psychometric Analysis before you can submit an idea.</p>
             </CardContent>
             <CardFooter className="justify-center">
-                <Button onClick={() => setIsCompleted(true)}>Take Analysis (Free)</Button>
+                <Button onClick={() => {
+                     MOCK_INNOVATOR_USER.hasPsychometricAnalysis = true; // Simulate taking the test
+                     setIsCompleted(false); // Go to the test screen
+                }}>Take Analysis (Free)</Button>
             </CardFooter>
           </Card>
         )
@@ -288,7 +314,7 @@ export default function PsychometricAnalysisPage() {
                         </CardHeader>
                         <CardContent>
                              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
+                                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
@@ -308,7 +334,7 @@ export default function PsychometricAnalysisPage() {
                                     return (
                                         <TabsContent key={section.name} value={String(index)}>
                                             <div className="py-6 min-h-[300px] flex flex-col justify-center">
-                                                <Card className="bg-transparent border-0 shadow-none">
+                                                 <Card className="bg-transparent border-0 shadow-none">
                                                     <CardContent>
                                                         {renderField(fieldName)}
                                                     </CardContent>
@@ -347,3 +373,5 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
+
+    
