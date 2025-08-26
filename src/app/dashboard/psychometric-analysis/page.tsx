@@ -38,8 +38,6 @@ import {
 const backgroundSchema = z.object({
   age: z.coerce.number().min(18, "Must be at least 18").max(100),
   gender: z.string().min(1, "Gender is required."),
-  maritalStatus: z.string().min(1, "Marital status is required."),
-  siblings: z.coerce.number().min(0).max(20),
   hometownTier: z.string().min(1, "Hometown tier is required."),
   familyBusiness: z.string().min(1, "This field is required."),
 });
@@ -50,75 +48,53 @@ const educationSchema = z.object({
     schoolTier: z.string().min(1, "School tier is required."),
 });
 
-const interestsSchema = z.object({
-    hobbies: z.string().min(1, "Please list at least one hobby."),
-    essay: z.string().min(50, "Essay must be at least 50 characters long."),
+const goalsAndInterestsSchema = z.object({
+    essay: z.string().min(100, "Essay must be at least 100 characters long to allow for meaningful analysis."),
 });
 
 const psychometricQuestions = [
-    // Opportunity Orientation
-    { id: 'O1', category: 'Opportunity Orientation', question: "I regularly talk to potential users/customers before building." },
-    { id: 'O2', category: 'Opportunity Orientation', question: "I can reframe problems to uncover hidden needs." },
-    { id: 'O3', category: 'Opportunity Orientation', question: "I validate assumptions with small experiments." },
-    { id: 'O4', category: 'Opportunity Orientation', question: "I track competitors and analog markets for ideas." },
+    // Personality & Traits
+    { id: 'P1', category: 'Personality & Traits', question: "When a project fails, my first instinct is to analyze what I can learn from it." },
+    { id: 'P2', category: 'Personality & Traits', question: "I am more drawn to situations with high potential rewards, even if they come with significant risk." },
+    { id: 'P3', category: 'Personality & Traits', question: "I often find myself starting new projects or initiatives without being asked." },
+    { id: 'P4', category: 'Personality & Traits', question: "I prefer having full control over the final outcome of my work." },
 
-    // Execution Discipline
-    { id: 'E1', category: 'Execution Discipline', question: "I break goals into weekly, measurable tasks." },
-    { id: 'E2', category: 'Execution Discipline', question: "My teammates would call me reliable." },
-    { id: 'E3', category: 'Execution Discipline', question: "I hit deadlines even under pressure." },
-    { id: 'E4', category: 'Execution Discipline', question: "I maintain operating cadences (standups, reviews)." },
-
-    // Resilience
-    { id: 'R1', category: 'Resilience', question: "Setbacks energize me to try again." },
-    { id: 'R2', category: 'Resilience', question: "I persist when results are slow." },
-    { id: 'R3', category: 'Resilience', question: "I can work through prolonged uncertainty." },
-    { id: 'R4', category: 'Resilience', question: "I recover quickly from tough feedback." },
-
-    // Learning Agility
-    { id: 'L1', category: 'Learning Agility', question: "I seek feedback even when uncomfortable." },
-    { id: 'L2', category: 'Learning Agility', question: "I can learn a new skill within weeks when needed." },
-    { id: 'L3', category: 'Learning Agility', question: "I run frequent postmortems on my work." },
-    { id: 'L4', category: 'Learning Agility', question: "I adjust direction quickly based on new data." },
+    // Cognitive & Analytical Abilities
+    { id: 'C1', category: 'Cognitive & Analytical Abilities', question: "I can quickly identify underlying patterns in complex information." },
+    { id: 'C2', category: 'Cognitive & Analytical Abilities', question: "When faced with a new, unfamiliar problem, I feel energized rather than intimidated." },
+    { id: 'C3', category: 'Cognitive & Analytical Abilities', question: "I am adept at generating multiple, distinct solutions to a single problem." },
     
-    // Ambiguity Tolerance
-    { id: 'A1', category: 'Ambiguity Tolerance', question: "I’m comfortable deciding with incomplete information." },
-    { id: 'A2', category: 'Ambiguity Tolerance', question: "I can hold multiple hypotheses at once." },
-    { id: 'A3', category: 'Ambiguity Tolerance', question: "I treat ambiguity as a creative space." },
-    { id: 'A4', category: 'Ambiguity Tolerance', question: "I avoid over‑analysis before taking first steps." },
+    // Socio-Cultural & Background Factors
+    { id: 'B1', category: 'Socio-Cultural & Background Factors', question: "My upbringing emphasized stability and following a set career path." },
+    { id: 'B2', category: 'Socio-Cultural & Background Factors', question: "I have had significant exposure to people from different cultures and socio-economic backgrounds." },
     
-     // Risk Calibration
-    { id: 'K1', category: 'Risk Calibration', question: "I take calculated risks with clear downside plans." },
-    { id: 'K2', category: 'Risk Calibration', question: "I cap exposure via budget/time limits." },
-    { id: 'K3', category: 'Risk Calibration', question: "I run pre‑mortems to anticipate failure modes." },
-    { id: 'K4', category: 'Risk Calibration', question: "I diversify bets instead of all‑in." },
+    // Motivational Drivers
+    { id: 'M1', category: 'Motivational Drivers', question: "The main reason I want to start a business is to solve a problem I am passionate about, regardless of the financial outcome." },
+    { id: 'M2', category: 'Motivational Drivers', question: "Building something that impacts a large community is more appealing than building something that makes a lot of money for a few." },
+    
+    // Interpersonal & Team Dynamics
+    { id: 'T1', category: 'Interpersonal & Team Dynamics', question: "When a team member disagrees with my direction, I make it a priority to understand their perspective fully before deciding on a path forward." },
+    { id: 'T2', category: 'Interpersonal & Team Dynamics', question: "I am comfortable giving direct, constructive feedback to a colleague, even if it might be uncomfortable." },
+    
+    // Mental State & Well-being
+    { id: 'W1', category: 'Mental State & Well-being', question: "Under high pressure, I am able to remain calm and make logical decisions." },
+    { id: 'W2', category: 'Mental State & Well-being', question: "I believe that fundamental abilities can be significantly developed through dedication and hard work." },
+    
+    // Entrepreneurial & Domain-Specific Factors
+    { id: 'E1', category: 'Entrepreneurial & Domain-Specific Factors', question: "I am more of a 'doer' who likes to build and test things, rather than an 'ideas person' who prefers to strategize." },
+    { id: 'E2', category: 'Entrepreneurial & Domain-Specific Factors', question: "I actively maintain a network of professional contacts." },
+    
+    // Creativity & Innovation Potential
+    { id: 'I1', category: 'Creativity & Innovation Potential', question: "I often connect ideas from different, unrelated fields to create something new." },
+    { id: 'I2', category: 'Creativity & Innovation Potential', question: "I would rather launch a product that is 80% perfect and get feedback, than wait until it is 100% perfect." },
 
-    // Founder-Market Fit
-    { id: 'F1', category: 'Founder-Market Fit', question: "I have deep domain knowledge relevant to my idea." },
-    { id: 'F2', category: 'Founder-Market Fit', question: "I possess or can reach key decision-makers in the space." },
-    { id: 'F3', category: 'Founder-Market Fit', question: "My track record grants me credibility with customers/investors." },
-    { id: 'F4', category: 'Founder-Market Fit', question: "I enjoy spending time with this user/problem group." },
-
-    // Leadership & Influence
-    { id: 'D1', category: 'Leadership & Influence', question: "I can attract strong people to work with me." },
-    { id: 'D2', category: 'Leadership & Influence', question: "I give clear, motivating direction." },
-    { id: 'D3', category: 'Leadership & Influence', question: "I handle conflict quickly and fairly." },
-    { id: 'D4', category: 'Leadership & Influence', question: "I coach people to grow." },
-
-    // Ethics & Integrity
-    { id: 'H1', category: 'Ethics & Integrity', question: "I refuse deals that compromise my core values." },
-    { id: 'H2', category: 'Ethics & Integrity', question: "I prioritize establishing basic compliance (data, finance, labor) early." },
-    { id: 'H3', category: 'Ethics & Integrity', question: "I am transparent with stakeholders about risks and tradeoffs." },
-    { id: 'H4', category: 'Ethics & Integrity', question: "I make it a point to keep promises to users and partners." },
-
-    // Focus & Prioritization
-    { id: 'C1', category: 'Focus & Prioritization', question: "I am comfortable saying no to good ideas to protect great ones." },
-    { id: 'C2', category: 'Focus & Prioritization', question: "I prefer to operate with a single 'North Star' metric." },
-    { id: 'C3', category: 'Focus & Prioritization', question: "I can quickly drop initiatives that don’t move the needle." },
-    { id: 'C4', category: 'Focus & Prioritization', question: "I time‑box my exploration of new ideas before committing fully." },
+    // Ethical & Value Systems
+    { id: 'V1', category: 'Ethical & Value Systems', question: "I would walk away from a highly profitable opportunity if it conflicted with my core values." },
+    { id: 'V2', category: 'Ethical & Value Systems', question: "It is important to be completely transparent with stakeholders, even when the news is bad." },
 ];
 
 
-const fullSchema = backgroundSchema.merge(educationSchema).merge(interestsSchema).extend({
+const fullSchema = backgroundSchema.merge(educationSchema).merge(goalsAndInterestsSchema).extend({
     responses: z.record(z.string().min(1, "Please select an answer.")).refine(val => Object.keys(val).length === psychometricQuestions.length, {
         message: "Please answer all questions.",
     }),
@@ -129,23 +105,20 @@ type FullForm = z.infer<typeof fullSchema>;
 const defaultValues: Partial<FullForm> = {
     age: 25,
     gender: "",
-    maritalStatus: "",
-    siblings: 1,
     hometownTier: "",
     familyBusiness: "",
     highestDegree: "",
     major: "",
     schoolTier: "",
-    hobbies: "",
     essay: "",
     responses: {},
 };
 
 const sectionFields = [
-    { name: "Background", fields: ["age", "gender", "maritalStatus", "siblings", "hometownTier", "familyBusiness"], schema: backgroundSchema },
+    { name: "Background", fields: ["age", "gender", "hometownTier", "familyBusiness"], schema: backgroundSchema },
     { name: "Education", fields: ["highestDegree", "major", "schoolTier"], schema: educationSchema },
     { name: "Questionnaire", fields: psychometricQuestions.map(q => `responses.${q.id}`), schema: z.object({ responses: z.record(z.string().min(1)) }) },
-    { name: "Goals & Interests", fields: ["hobbies", "essay"], schema: interestsSchema },
+    { name: "Goals & Interests", fields: ["essay"], schema: goalsAndInterestsSchema },
 ];
 
 
@@ -165,10 +138,19 @@ export default function PsychometricAnalysisPage() {
         mode: 'onChange',
     });
 
+    const answeredQuestions = currentQuestionIndices.reduce((total, sectionCurrentIndex, sectionIndex) => {
+        const section = sectionFields[sectionIndex];
+        if (sectionIndex < currentStep) {
+            return total + section.fields.length;
+        }
+        if (sectionIndex === currentStep) {
+            return total + sectionCurrentIndex;
+        }
+        return total;
+    }, 0);
+    
     const totalQuestions = sectionFields.reduce((acc, section) => acc + section.fields.length, 0);
-    const answeredQuestions = 
-        currentQuestionIndices.reduce((acc, curr, index) => acc + (index < currentStep ? sectionFields[index].fields.length : curr), 0);
-
+    
     const overallProgress = (answeredQuestions / totalQuestions) * 100;
     
     const onSubmit = (data: FullForm) => {
@@ -213,14 +195,12 @@ export default function PsychometricAnalysisPage() {
                 return newIndices;
             });
         } else {
-             // Last question of the section, validate all fields in section before proceeding
              const allSectionFieldsValid = await form.trigger(currentSection.fields as any);
              if (allSectionFieldsValid) {
                  setHighestCompletedStep(prev => Math.max(prev, currentStep));
                  if (currentStep < sectionFields.length - 1) {
                      setCurrentStep(prev => prev + 1);
                  } else {
-                     // This is the final submit button
                      form.handleSubmit(onSubmit)();
                  }
              }
@@ -244,17 +224,14 @@ export default function PsychometricAnalysisPage() {
     
     const renderField = (fieldName: string) => {
         switch(fieldName) {
-            case 'age': return <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
-            case 'gender': return <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'maritalStatus': return <FormField control={form.control} name="maritalStatus" render={({ field }) => ( <FormItem><FormLabel>Marital Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Single">Single</SelectItem><SelectItem value="Married">Married</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'siblings': return <FormField control={form.control} name="siblings" render={({ field }) => ( <FormItem><FormLabel>Number of Siblings</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
-            case 'hometownTier': return <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Hometown City Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'age': return <FormField control={form.control} name="age" render={({ field }) => ( <FormItem><FormLabel>What is your age?</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />;
+            case 'gender': return <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>What is your gender?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'hometownTier': return <FormField control={form.control} name="hometownTier" render={({ field }) => ( <FormItem><FormLabel>Which category best describes your hometown?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (Major Metro)</SelectItem><SelectItem value="Tier 2">Tier 2 (Metro)</SelectItem><SelectItem value="Tier 3">Tier 3 (Town/Rural)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
             case 'familyBusiness': return <FormField control={form.control} name="familyBusiness" render={({ field }) => ( <FormItem><FormLabel>Do you come from a family with a business background?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'highestDegree': return <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>Highest Educational Qualification</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            case 'major': return <FormField control={form.control} name="major" render={({ field }) => ( <FormItem><FormLabel>Major/Field of Study</FormLabel><FormControl><Input placeholder="e.g., Computer Science" {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            case 'schoolTier': return <FormField control={form.control} name="schoolTier" render={({ field }) => ( <FormItem><FormLabel>University/College Tier</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (e.g., IIT, IIM, AIIMS)</SelectItem><SelectItem value="Tier 2">Tier 2 (e.g., NIT, Top State Universities)</SelectItem><SelectItem value="Tier 3">Tier 3 (Other Colleges)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
-            case 'hobbies': return <FormField control={form.control} name="hobbies" render={({ field }) => ( <FormItem><FormLabel>Hobbies & Interests</FormLabel><FormDescription>List a few of your hobbies or interests outside of work/academics.</FormDescription><FormControl><Input placeholder="e.g., Reading, Trekking, Chess" {...field} /></FormControl><FormMessage /></FormItem> )} />;
-            case 'essay': return <FormField control={form.control} name="essay" render={({ field }) => ( <FormItem><FormLabel>Your Motivation</FormLabel><FormDescription>Briefly describe what drives you to become an entrepreneur. Our AI will analyze this response to understand your core motivations. (Min. 50 characters)</FormDescription><FormControl><Textarea rows={5} placeholder="Tell us your story..." {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'highestDegree': return <FormField control={form.control} name="highestDegree" render={({ field }) => ( <FormItem><FormLabel>What is your highest educational qualification?</FormLabel><FormControl><Input placeholder="e.g., Bachelor of Technology" {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'major': return <FormField control={form.control} name="major" render={({ field }) => ( <FormItem><FormLabel>What was your major/field of study?</FormLabel><FormControl><Input placeholder="e.g., Computer Science" {...field} /></FormControl><FormMessage /></FormItem> )} />;
+            case 'schoolTier': return <FormField control={form.control} name="schoolTier" render={({ field }) => ( <FormItem><FormLabel>Which tier best describes your university/college?</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tier 1">Tier 1 (e.g., IIT, IIM, AIIMS)</SelectItem><SelectItem value="Tier 2">Tier 2 (e.g., NIT, Top State Universities)</SelectItem><SelectItem value="Tier 3">Tier 3 (Other Colleges)</SelectItem></SelectContent></Select><FormMessage /></FormItem> )} />;
+            case 'essay': return <FormField control={form.control} name="essay" render={({ field }) => ( <FormItem><FormLabel>Why do you want to be an entrepreneur?</FormLabel><FormDescription>Describe what drives you. Our AI will analyze this response to understand your core motivations. (Min. 100 characters)</FormDescription><FormControl><Textarea rows={8} placeholder="Tell us your story, your vision, and what you hope to achieve..." {...field} /></FormControl><FormMessage /></FormItem> )} />;
             default:
                 if (fieldName.startsWith('responses.')) {
                     const questionId = fieldName.split('.')[1];
@@ -352,18 +329,14 @@ export default function PsychometricAnalysisPage() {
                             <p className="text-right text-xs text-muted-foreground mt-1">{Math.round(overallProgress)}% Complete</p>
                         </CardHeader>
                         <CardContent>
-                             <Tabs value={String(currentStep)} onValueChange={(val) => setCurrentStep(Number(val))} className="w-full">
+                             <Tabs value={String(currentStep)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-4">
                                     {sectionFields.map((tab, index) => (
                                         <TabsTrigger 
                                             key={tab.name} 
                                             value={String(index)} 
                                             disabled={index > highestCompletedStep + 1}
-                                            onClick={() => {
-                                                if (index <= highestCompletedStep + 1) {
-                                                    setCurrentStep(index);
-                                                }
-                                            }}
+                                            onClick={(e) => e.preventDefault()}
                                         >
                                             {tab.name}
                                         </TabsTrigger>
@@ -406,3 +379,5 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
+
+    

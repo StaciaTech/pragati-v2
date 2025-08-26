@@ -14,13 +14,13 @@ const mockReportData = {
     overallProfile: 'Visionary Builder',
     overallScore: 82,
     strengths: [
-        { dimension: 'Opportunity Orientation', score: 90, summary: 'Excellent at identifying market gaps and user needs.' },
-        { dimension: 'Learning Agility', score: 85, summary: 'Quick to adapt and learn from new information.' },
-        { dimension: 'Resilience', score: 80, summary: 'Recovers well from setbacks and persists through challenges.' },
+        { dimension: 'Creativity & Innovation', score: 90, summary: 'Excellent at connecting disparate ideas and experimenting.' },
+        { dimension: 'Motivational Drivers', score: 85, summary: 'Highly mission-driven with a strong internal locus of control.' },
+        { dimension: 'Personality & Traits', score: 80, summary: 'Shows high proactivity and resilience in the face of challenges.' },
     ],
     areasForImprovement: [
-        { dimension: 'Execution Discipline', score: 65, summary: 'Could benefit from more structured planning and follow-through.' },
-        { dimension: 'Focus & Prioritization', score: 60, summary: 'Tends to chase multiple opportunities at once.' },
+        { dimension: 'Financial Discipline', score: 65, summary: 'Could benefit from more structured financial planning.' },
+        { dimension: 'Execution Discipline', score: 60, summary: 'Tends to prioritize ideation over day-to-day execution tasks.' },
     ],
     essayAnalysis: {
         summary: "The founder's motivation appears to be deeply rooted in solving a personal problem they experienced, indicating strong intrinsic drive and user empathy. Key themes include a desire for autonomy and a passion for creating social impact.",
@@ -28,24 +28,24 @@ const mockReportData = {
     },
     upskillingPlan: [
         {
-            title: 'Mastering Execution Discipline',
-            description: 'Focus on building systems to ensure reliable delivery.',
+            title: 'Mastering Financial Discipline',
+            description: 'Focus on building systems for financial tracking and planning.',
+            steps: [
+                'Complete a basic online course on "Finance for Startups".',
+                'Create a detailed 12-month financial projection for your primary idea.',
+                'Track all personal and project-related expenses for one month.',
+            ],
+            resources: [{ name: 'Venture Deals by Brad Feld', href: '#' }]
+        },
+        {
+            title: 'Enhancing Execution Discipline',
+            description: 'Learn to translate great ideas into consistent daily action.',
             steps: [
                 'Implement the OKR (Objectives and Key Results) framework for Q3.',
                 'Use a project management tool (like Trello or Asana) to track all tasks.',
                 'Time-block your calendar for the next 4 weeks, dedicating specific slots for deep work.',
             ],
-            resources: [{ name: 'Measure What Matters by John Doerr', href: '#' }]
-        },
-        {
-            title: 'Sharpening Focus',
-            description: 'Learn to prioritize ruthlessly to maximize impact.',
-            steps: [
-                'Define a single "North Star Metric" for your current project.',
-                'At the start of each week, list your top 3 priorities and decline or delegate all other tasks.',
-                'Practice saying "no" to at least one new request this week.',
-            ],
-            resources: [{ name: 'Essentialism by Greg McKeown', href: '#' }]
+            resources: [{ name: 'The 4 Disciplines of Execution by Chris McChesney', href: '#' }]
         },
     ]
 };
@@ -176,3 +176,5 @@ export default function PsychometricReportPage() {
     </div>
   );
 }
+
+    
