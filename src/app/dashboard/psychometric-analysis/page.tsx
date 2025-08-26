@@ -138,7 +138,6 @@ export default function PsychometricAnalysisPage() {
             const finalScore = Math.floor(Math.random() * (95 - 65 + 1)) + 65; 
             
             MOCK_INNOVATOR_USER.hasPsychometricAnalysis = true; 
-            setIsCompleted(true);
             setIsLoading(false);
             toast({ title: "Analysis Complete!", description: `Your readiness score is ${finalScore}.` });
             
@@ -200,6 +199,12 @@ export default function PsychometricAnalysisPage() {
 
         const currentValue = form.getValues(currentQuestionId as any);
         checkBranching(currentQuestionId, currentValue);
+
+        // Reset radio group value to avoid flicker on next question
+        const currentQuestion = questions.find(q => q.id === currentQuestionId);
+        if (currentQuestion?.type === 'likert') {
+            form.resetField(currentQuestionId as any, { defaultValue: '' });
+        }
 
         if (currentQuestionIndices[activeTabIndex] < currentSection.fields.length - 1) {
             setCurrentQuestionIndices(prev => {
@@ -315,7 +320,11 @@ export default function PsychometricAnalysisPage() {
     
     const activeTabIndex = parseInt(activeTab);
     const activeSection = sectionFields[activeTabIndex];
-    const isFinalStep = activeTabIndex === sectionFields.length - 1 && currentQuestionIndices[activeTabIndex] === activeSection.fields.length - 1;
+    const currentQuestionId = activeSection ? activeSection.fields[currentQuestionIndices[activeTabIndex]] : null;
+    const currentValue = currentQuestionId ? form.watch(currentQuestionId as any) : null;
+    const isNextDisabled = !currentValue && typeof currentValue !== 'number';
+
+    const isFinalStep = activeTabIndex === sectionFields.length - 1 && currentQuestionIndices[activeTabIndex] === activeSection?.fields.length - 1;
 
 
     return (
@@ -347,16 +356,9 @@ export default function PsychometricAnalysisPage() {
                                     ))}
                                 </TabsList>
                                  <div className="py-12 min-h-[300px] flex flex-col justify-center text-center">
-                                    {sectionFields.map((section, index) => {
-                                        if (index.toString() !== activeTab) return null;
-                                        const currentQuestionIndex = currentQuestionIndices[index];
-                                        const fieldName = section.fields[currentQuestionIndex];
-                                        return (
-                                            <TabsContent key={section.name} value={String(index)} forceMount>
-                                                {renderField(fieldName)}
-                                            </TabsContent>
-                                        )
-                                    })}
+                                    {currentQuestionId ? renderField(currentQuestionId) : (
+                                        <p>Loading question...</p>
+                                    )}
                                 </div>
                             </Tabs>
                         </CardContent>
@@ -375,7 +377,7 @@ export default function PsychometricAnalysisPage() {
                                   <ArrowLeft className="mr-2 h-4 w-4" /> Previous
                               </Button>
                            
-                              <Button type="button" onClick={handleNext}>
+                              <Button type="button" onClick={handleNext} disabled={isNextDisabled}>
                                   {isFinalStep ? 'Submit Analysis' : 'Next'} 
                                   <ArrowRight className="ml-2 h-4 w-4" />
                               </Button>
@@ -393,5 +395,3 @@ export default function PsychometricAnalysisPage() {
         </div>
     );
 }
-
-    
