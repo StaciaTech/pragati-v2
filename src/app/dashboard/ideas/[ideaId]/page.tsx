@@ -738,11 +738,11 @@ export default function IdeaReportPage() {
 
 
                                                     return (
-                                                        <div key={subParamName} id={id} className="p-3 grid grid-cols-12 gap-4 items-center scroll-mt-20">
-                                                            <div className="col-span-12 md:col-span-3">
+                                                        <div key={subParamName} id={id} className="p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center scroll-mt-20">
+                                                            <div className="md:col-span-3">
                                                                 <h6 className="font-medium text-sm">{subParamName}</h6>
                                                             </div>
-                                                            <div className="col-span-12 md:col-span-1 flex items-center justify-start md:justify-center">
+                                                            <div className="md:col-span-1 flex items-center justify-start md:justify-center">
                                                                 <div className="relative h-16 w-16">
                                                                     <svg className="h-full w-full" viewBox="0 0 40 40">
                                                                         <circle cx="20" cy="20" r="18" className="stroke-muted" strokeWidth="3" fill="transparent" />
@@ -764,16 +764,16 @@ export default function IdeaReportPage() {
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <div className="col-span-12 md:col-span-4 space-y-1">
+                                                            <div className="md:col-span-4 space-y-1">
                                                                 <div className="flex items-start gap-2 text-sm">
                                                                     <ThumbsUp className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                                                    <p className="text-muted-foreground">{whatWentWell}</p>
+                                                                    <p className="text-muted-foreground flex-1 break-words">{whatWentWell}</p>
                                                                 </div>
                                                             </div>
-                                                            <div className="col-span-12 md:col-span-4 space-y-1">
+                                                            <div className="md:col-span-4 space-y-1">
                                                                 <div className="flex items-start gap-2 text-sm">
                                                                     <Lightbulb className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
-                                                                    <p className="text-muted-foreground">{whatCanBeImproved}</p>
+                                                                    <p className="text-muted-foreground flex-1 break-words">{whatCanBeImproved}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
