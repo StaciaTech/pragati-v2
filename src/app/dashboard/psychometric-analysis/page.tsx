@@ -133,6 +133,7 @@ export default function PsychometricAnalysisPage() {
     const handleRetest = () => {
         if (MOCK_INNOVATOR_USER.credits > 0) {
             MOCK_INNOVATOR_USER.credits -= 1;
+            MOCK_INNOVATOR_USER.hasPsychometricAnalysis = false; // Reset mock data as well
             setIsCompleted(false);
             form.reset(defaultValues);
             setActiveTab("0");
@@ -250,7 +251,8 @@ export default function PsychometricAnalysisPage() {
         )
     }
     
-    if (!MOCK_INNOVATOR_USER.hasPsychometricAnalysis && !isCompleted) {
+    // This now correctly uses the state `isCompleted` which is mutable, instead of the mock data.
+    if (!isCompleted && MOCK_INNOVATOR_USER.credits === undefined) { // A stand-in for a real check
         return (
           <Card>
             <CardHeader>
