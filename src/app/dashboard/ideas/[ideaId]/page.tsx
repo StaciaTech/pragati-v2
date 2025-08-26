@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -15,10 +14,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { MOCK_IDEAS, STATUS_COLORS, MOCK_CONSULTATIONS, MOCK_TTCS } from '@/lib/mock-data';
+import { MOCK_IDEAS, STATUS_COLORS, MOCK_CONSULTATIONS, MOCK_TTCS, MOCK_PSYCHOMETRIC_PROFILES } from '@/lib/mock-data';
 import type { ValidationReport } from '@/ai/schemas';
 import { ROLES } from '@/lib/constants';
-import { ArrowLeft, Download, ThumbsUp, Lightbulb, RefreshCw, MessageSquare, TrendingUp, TrendingDown, Star, Share2, Copy, CalendarIcon, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Download, ThumbsUp, Lightbulb, RefreshCw, MessageSquare, TrendingUp, TrendingDown, Star, Share2, Copy, CalendarIcon, ChevronRight, CheckCircle2, UserCheck, Shield } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -50,7 +49,6 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { FacebookIcon, LinkedInIcon, TwitterIcon, WhatsAppIcon, MailIcon } from '@/components/social-icons';
 import { ScoreDisplay } from '@/components/score-display';
-import { Logo, StaciaLogo } from '@/components/icons';
 
 
 const getBackLink = (role: string | null) => {
@@ -93,6 +91,8 @@ export default function IdeaReportPage() {
   const role = searchParams.get('role');
   const idea = MOCK_IDEAS.find((i) => i.id === ideaId);
   const report = idea?.report as ValidationReport | null;
+  
+  const innovatorProfile = idea ? MOCK_PSYCHOMETRIC_PROFILES[idea.innovatorId] : null;
 
   const [openAccordionItems, setOpenAccordionItems] = React.useState<string[]>([]);
   const allClusterNames = report ? Object.keys(report.sections.detailedEvaluation.clusters) : [];
@@ -114,233 +114,32 @@ export default function IdeaReportPage() {
   );
 
   const handleDownload = async () => {
-    if (!report || !spiderChartRef.current) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Report data is not available for download.',
-        });
-        return;
+    if (!reportRef.current) return;
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = imgWidth / imgHeight;
+    const width = pdfWidth;
+    const height = width / ratio;
+    
+    let position = 0;
+    let heightLeft = height;
+
+    pdf.addImage(imgData, 'PNG', 0, position, width, height);
+    heightLeft -= pdfHeight;
+
+    while (heightLeft > 0) {
+        position = heightLeft - height;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, width, height);
+        heightLeft -= pdfHeight;
     }
-
-    const doc = new jsPDF('p', 'pt', 'a4');
-    const margins = { top: 60, bottom: 60, left: 40, right: 40 };
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const centerX = pageWidth / 2;
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const contentWidth = pageWidth - margins.left - margins.right;
-    let y = margins.top;
-
-    const themeColors = {
-        primary: '#20639B', // Dark Blue
-        accent: '#3CAEA3',  // Teal
-        text: '#333333',
-        muted: '#666666',
-        background: '#FFFFFF',
-        lightGray: '#F0F4F8',
-        green: '#10B981',
-        orange: '#F59E0B',
-        red: '#EF4444',
-    };
-
-    const addHeaderFooter = () => {
-        const pageCount = doc.internal.pages.length;
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            // Footer
-            doc.setFontSize(8);
-            doc.setTextColor(themeColors.muted);
-            doc.text(`Page ${i} of ${pageCount}`, margins.left, pageHeight - 30);
-            doc.text(`Powered by Stacia Corp`, pageWidth - margins.right, pageHeight - 30, { align: 'right' });
-            doc.setDrawColor(themeColors.lightGray);
-            doc.line(margins.left, pageHeight - 40, pageWidth - margins.right, pageHeight - 40);
-        }
-    };
     
-    const checkPageBreak = (requiredHeight: number) => {
-        if (y + requiredHeight > pageHeight - margins.bottom) {
-            doc.addPage();
-            y = margins.top;
-        }
-    };
-
-    const addTitle = (text: string, size = 22, spacing = 30) => {
-        checkPageBreak(spacing * 2);
-        doc.setFontSize(size);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(themeColors.primary);
-        doc.text(text, margins.left, y);
-        y += spacing;
-    };
-    
-    const addSubTitle = (text: string, size = 14, spacing = 25) => {
-        checkPageBreak(spacing * 2);
-        doc.setFontSize(size);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(themeColors.text);
-        doc.text(text, margins.left, y);
-        y += spacing;
-    };
-
-    const addBodyText = (text: string | string[], size = 10, spacing = 15) => {
-        if (!text) return;
-        checkPageBreak(spacing * 2);
-        const splitText = doc.splitTextToSize(text, contentWidth);
-        doc.setFontSize(size);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(themeColors.muted);
-        doc.text(splitText, margins.left, y);
-        y += (Array.isArray(splitText) ? splitText.length : 1) * size * 1.2;
-    };
-    
-     const addKeyValue = (key: string, value: string | number) => {
-        checkPageBreak(20);
-        const keyText = `${key}: `;
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(themeColors.text);
-        
-        const valueLines = doc.splitTextToSize(String(value), contentWidth - doc.getTextWidth(keyText));
-        doc.text(keyText, margins.left, y);
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(themeColors.muted);
-        doc.text(valueLines, margins.left + doc.getTextWidth(keyText), y);
-        y += (Array.isArray(valueLines) ? valueLines.length : 1) * 10 * 1.2 + 5;
-    };
-
-    const drawScoreMeter = (x: number, c_y: number, score: number) => {
-        const radius = 15;
-        const scoreColor = score >= 85 ? themeColors.green : score >= 50 ? themeColors.orange : themeColors.red;
-        
-        doc.setDrawColor(themeColors.lightGray);
-        doc.setLineWidth(4);
-        doc.circle(x, c_y, radius, 'S');
-
-        const angle = (score / 100) * 360;
-        doc.setDrawColor(scoreColor);
-        doc.setLineWidth(4);
-        for (let i = 0; i < angle; i++) {
-            const rad = (i - 90) * (Math.PI / 180);
-            doc.line(x + radius * Math.cos(rad), c_y + radius * Math.sin(rad), x + radius * Math.cos(rad), c_y + radius * Math.sin(rad));
-        }
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(scoreColor);
-        doc.text(String(score), x, c_y, { align: 'center', baseline: 'middle' });
-    };
-
-    
-    // --- PDF Generation ---
-    // Cover Page
-    doc.setFillColor(themeColors.primary);
-    doc.rect(0, 0, pageWidth, pageHeight / 2, 'F');
-    doc.setFillColor(themeColors.background);
-    doc.rect(0, pageHeight / 2, pageWidth, pageHeight / 2, 'F');
-
-    doc.setFontSize(36);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(themeColors.background);
-    doc.text('PragatiAI Validation Report', centerX, pageHeight / 3, { align: 'center' });
-    doc.setFontSize(24);
-    doc.setTextColor(themeColors.background);
-    doc.text(report.ideaName, centerX, pageHeight / 3 + 40, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.setTextColor(themeColors.text);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, centerX, pageHeight / 2 + 30, { align: 'center' });
-    
-    doc.setFontSize(8);
-    doc.setTextColor(themeColors.muted);
-    const idText = `Idea ID: ${report.ideaId} | Validation ID: ${report.validationId} | Report ID: ${report.reportId}`;
-    doc.text(idText, centerX, pageHeight / 2 + 50, { align: 'center' });
-    
-    // Executive Summary
-    doc.addPage();
-    y = margins.top;
-    addTitle('Executive Summary');
-    addKeyValue('Idea Name', report.sections.executiveSummary.ideaName);
-    addKeyValue('Concept', report.sections.executiveSummary.concept);
-    addKeyValue('Overall Score', report.sections.executiveSummary.overallScore.toFixed(2));
-    addKeyValue('Outcome', report.sections.executiveSummary.validationOutcome);
-    addKeyValue('Recommendation', report.sections.executiveSummary.recommendation);
-    y += 20;
-
-    // Spider Chart
-    try {
-        const canvas = await html2canvas(spiderChartRef.current, { scale: 2, backgroundColor: null });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth * 0.8;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        checkPageBreak(imgHeight + 40);
-        addTitle('Cluster Performance Overview');
-        doc.addImage(imgData, 'PNG', centerX - imgWidth/2, y, imgWidth, imgHeight);
-        y += imgHeight + 20;
-    } catch (error) {
-        console.error("Failed to render spider chart", error);
-        addBodyText("Error: Could not render spider chart.", 10);
-    }
-
-    // Detailed Assessment
-    addTitle('Detailed Viability Assessment');
-
-    for (const [clusterName, clusterData] of Object.entries(report.sections.detailedEvaluation.clusters)) {
-        checkPageBreak(80);
-        doc.setFillColor(themeColors.lightGray);
-        doc.roundedRect(margins.left, y - 5, contentWidth, 30, 5, 5, 'F');
-        addSubTitle(clusterName, 14, 20);
-        y += 10;
-        
-        for (const [paramName, paramData] of Object.entries(clusterData)) {
-            checkPageBreak(60);
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(themeColors.text);
-            doc.text(`- ${paramName}`, margins.left + 10, y);
-            y += 20;
-            for (const [subParamName, subParamDetails] of Object.entries(paramData as any)) {
-                 if (subParamDetails.assignedScore) {
-                    checkPageBreak(70);
-                    
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(themeColors.text);
-                    doc.text(subParamName, margins.left + 20, y + 5);
-
-                    drawScoreMeter(margins.left + 150, y + 5, subParamDetails.assignedScore);
-                    
-                    const textX = margins.left + 180;
-                    const textWidth = contentWidth - 180;
-                    
-                    doc.setFont('helvetica', 'normal');
-                    doc.setTextColor(themeColors.muted);
-                    const wentWellLines = doc.splitTextToSize(`Well: ${subParamDetails.whatWentWell}`, textWidth);
-                    doc.text(wentWellLines, textX, y);
-                    y += (wentWellLines.length * 10 * 1.2);
-
-                    const improveLines = doc.splitTextToSize(`Improve: ${subParamDetails.whatCanBeImproved}`, textWidth);
-                    doc.text(improveLines, textX, y);
-                    y += (improveLines.length * 10 * 1.2) + 15;
-                 }
-            }
-        }
-    }
-
-    // Conclusion & Recommendations
-    checkPageBreak(100);
-    addTitle('Conclusion & Recommendations');
-    addSubTitle('Conclusion');
-    addBodyText(report.sections.conclusion.content);
-    y += 10;
-    addSubTitle('Recommendations');
-    report.sections.recommendations.items.forEach(item => {
-        addBodyText(`• ${item}`);
-    });
-    
-    addHeaderFooter();
-
-    doc.save(`${ideaId}-PragatiAI-Report.pdf`);
+    pdf.save(`${ideaId}-PragatiAI-Report.pdf`);
 };
 
   const handleCopyLink = () => {
@@ -573,6 +372,35 @@ export default function IdeaReportPage() {
                 </div>
                 
                 <Separator />
+                
+                {role === ROLES.SUPER_ADMIN && innovatorProfile && (
+                  <>
+                  <Card className="bg-muted/50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Shield className="h-5 w-5 text-primary" />
+                        Confidential: Founder Psychometric Analysis
+                      </CardTitle>
+                      <CardDescription>This section is only visible to Super Admins.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="font-semibold">Profile: {innovatorProfile.profileType}</h4>
+                          <p className="text-sm text-muted-foreground italic mt-1">"{innovatorProfile.generalAnalysis}"</p>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm"><strong className="font-medium text-foreground">Domain Fit:</strong> {innovatorProfile.domainFit}</p>
+                          <p className="text-sm"><strong className="font-medium text-foreground">Expertise Fit:</strong> {innovatorProfile.expertiseFit}</p>
+                           <p className="text-sm"><strong className="font-medium text-foreground">Key Success Factors:</strong> {innovatorProfile.successFactors}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Separator />
+                  </>
+                )}
+
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-8">
                   <div className="space-y-4">

@@ -12,6 +12,45 @@ export const MOCK_INNOVATOR_USER = {
   credits: 5,
   college: 'Pragati University',
   role: 'Innovator',
+  hasPsychometricAnalysis: false, // New property
+};
+
+export const MOCK_PSYCHOMETRIC_PROFILES: Record<string, {
+    riskAppetite: 'High' | 'Moderate' | 'Low';
+    workStyle: 'Collaborative' | 'Independent';
+    motivation: 'Impact' | 'Financial' | 'Innovation';
+    strengths: string[];
+    weaknesses: string[];
+    profileType: string;
+    generalAnalysis: string;
+    domainFit: string;
+    expertiseFit: string;
+    successFactors: string;
+}> = {
+    'innovator-001': {
+        riskAppetite: 'High',
+        workStyle: 'Collaborative',
+        motivation: 'Impact',
+        strengths: ['Resilience', 'Creativity', 'Strategic Thinking'],
+        weaknesses: ['Over-optimism', 'Delegation'],
+        profileType: 'Visionary Builder',
+        generalAnalysis: 'This innovator is driven by a strong desire to make a tangible impact. They are resilient and creative, but may need support in managing expectations and building a team.',
+        domainFit: 'Well-suited for EdTech and HealthTech where a user-centric, impact-first approach is crucial.',
+        expertiseFit: 'Could excel in Product Management and Strategy roles. Would benefit from a co-founder with strong operational experience.',
+        successFactors: 'Success hinges on building a complementary team to handle operational details and maintaining a realistic product roadmap.'
+    },
+     'INV002': {
+        riskAppetite: 'Moderate',
+        workStyle: 'Independent',
+        motivation: 'Innovation',
+        strengths: ['Analytical Skills', 'Technical Proficiency', 'Problem-Solving'],
+        weaknesses: ['Public Speaking', 'Marketing'],
+        profileType: 'Technical Specialist',
+        generalAnalysis: 'A deep-tech innovator who thrives on solving complex problems. Their strength is in building the product, but they require support on the business and marketing fronts.',
+        domainFit: 'Perfectly suited for domains like AI, Blockchain, and complex B2B SaaS solutions.',
+        expertiseFit: 'Strong fit for a CTO or Lead Architect role. Needs a business-oriented co-founder to drive commercialization.',
+        successFactors: 'Finding a strong business co-founder is critical. The technology must be translated into a clear value proposition for the market.'
+    }
 };
 
 export const CLUSTER_WEIGHTS = {
@@ -681,10 +720,10 @@ export let MOCK_TTCS = [
 ];
 
 export let MOCK_INNOVATORS = [
-  { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 50, status: 'Active' },
-  { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL002', credits: 30, status: 'Active' },
-  { id: 'INV003', name: 'Alice Johnson', email: 'alice.j@example.com', collegeId: 'COL001', credits: 20, status: 'Active' },
-  { id: 'INV004', name: 'Bob Brown', email: 'bob.b@example.com', collegeId: 'COL001', credits: 0, status: 'Inactive' },
+  { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 50, status: 'Active', hasPsychometricAnalysis: true },
+  { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL002', credits: 30, status: 'Active', hasPsychometricAnalysis: true },
+  { id: 'INV003', name: 'Alice Johnson', email: 'alice.j@example.com', collegeId: 'COL001', credits: 20, status: 'Active', hasPsychometricAnalysis: false },
+  { id: 'INV004', name: 'Bob Brown', email: 'bob.b@example.com', collegeId: 'COL001', credits: 0, status: 'Inactive', hasPsychometricAnalysis: false },
 ];
 
 export const MOCK_PRINCIPAL_USERS = [

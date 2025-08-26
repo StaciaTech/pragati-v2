@@ -5,7 +5,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type FieldError } from 'react-hook-form';
 import { z } from 'zod';
-import { FileUp, BrainCircuit, ArrowRight, ArrowLeft, TriangleAlert } from 'lucide-react';
+import { FileUp, BrainCircuit, ArrowRight, ArrowLeft, TriangleAlert, UserCheck } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ import {
   useStepper,
 } from '@/components/ui/stepper';
 import { SpiderChart } from '@/components/spider-chart';
-import { INITIAL_CLUSTER_WEIGHTS } from '@/lib/mock-data';
+import { INITIAL_CLUSTER_WEIGHTS, MOCK_INNOVATOR_USER } from '@/lib/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -64,12 +64,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import Lottie from 'lottie-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const clusterKeys = Object.keys(INITIAL_CLUSTER_WEIGHTS);
 const weightageSchema = clusterKeys.reduce((acc, key) => {
     acc[key] = z.number().min(0).max(100);
     return acc;
 }, {} as Record<string, z.ZodNumber>);
+
+const founderAnalysisSchema = z.object({
+  riskAppetite: z.enum(['High', 'Moderate', 'Low'], { required_error: "Please select your risk appetite." }),
+  workStyle: z.enum(['Collaborative', 'Independent'], { required_error: "Please select your work style." }),
+  motivation: z.enum(['Impact', 'Financial', 'Innovation'], { required_error: "Please select your primary motivation." })
+});
 
 
 const submitIdeaSchema = z.object({
@@ -95,7 +102,7 @@ const submitIdeaSchema = z.object({
 }, {
     message: 'Please specify your domain',
     path: ['otherDomain'],
-});
+}).and(founderAnalysisSchema.partial()); // Make founder analysis fields optional initially
 
 type SubmitIdeaForm = z.infer<typeof submitIdeaSchema>;
 
@@ -313,7 +320,7 @@ function Step1({ form }: { form: any }) {
   );
 }
 
-const formFields: (keyof SubmitIdeaForm)[] = ['title', 'description', 'pptFile', 'domain'];
+const ideaDetailFields: (keyof SubmitIdeaForm)[] = ['title', 'description', 'pptFile', 'domain'];
 
 function Step2({ form }: { form: any }) {
     const { setActiveStep } = useStepper();
@@ -321,7 +328,7 @@ function Step2({ form }: { form: any }) {
     const domain = form.watch('domain');
 
     const handleNext = async () => {
-        const fieldToValidate = formFields[currentQuestion];
+        const fieldToValidate = ideaDetailFields[currentQuestion];
         let isValid = await form.trigger(fieldToValidate);
         
         if(fieldToValidate === 'domain' && form.getValues('domain') === 'Other') {
@@ -329,7 +336,7 @@ function Step2({ form }: { form: any }) {
         }
 
         if (isValid) {
-            if (currentQuestion < formFields.length - 1) {
+            if (currentQuestion < ideaDetailFields.length - 1) {
                 setCurrentQuestion(q => q + 1);
             } else {
                 setActiveStep(2);
@@ -431,7 +438,7 @@ function Step2({ form }: { form: any }) {
           <div className="flex justify-between">
               <Button variant="outline" onClick={handleBack}><ArrowLeft className="mr-2"/> Back</Button>
               <Button onClick={handleNext}>
-                {currentQuestion < formFields.length - 1 ? "Next" : "Review & Submit"}
+                Next
                 <ArrowRight className="ml-2"/>
               </Button>
           </div>
@@ -440,12 +447,96 @@ function Step2({ form }: { form: any }) {
     );
 }
 
-function Step3({ form, isSubmitting }: { form: any, isSubmitting: boolean }) {
+function Step3({ form }: { form: any }) {
+    const { setActiveStep } = useStepper();
+
+    const handleNext = async () => {
+        const isValid = await form.trigger(["riskAppetite", "workStyle", "motivation"]);
+        if (isValid) {
+            setActiveStep(3);
+        }
+    };
+    
+    // This is mock data. In a real app, you'd fetch this based on the logged-in user.
+    if (MOCK_INNOVATOR_USER.hasPsychometricAnalysis) {
+        return (
+            <StepperItem index={2}>
+                <StepperTrigger>
+                    <CardTitle>Founder Analysis</CardTitle>
+                    <CardDescription>Your psychometric profile is already on file.</CardDescription>
+                </StepperTrigger>
+                <StepperContent>
+                    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted rounded-lg my-6">
+                        <UserCheck className="w-16 h-16 text-green-500 mb-4" />
+                        <h3 className="text-lg font-semibold">We've Got You Covered!</h3>
+                        <p className="text-muted-foreground">Your analysis is already saved. You can proceed to the next step.</p>
+                    </div>
+                    <div className="flex justify-between">
+                        <StepperPrevious variant="outline" />
+                        <Button onClick={() => setActiveStep(3)}>Next</Button>
+                    </div>
+                </StepperContent>
+            </StepperItem>
+        );
+    }
+    
+    return (
+        <StepperItem index={2}>
+            <StepperTrigger>
+                <CardTitle>Founder Analysis</CardTitle>
+                <CardDescription>Help us understand your approach to innovation.</CardDescription>
+            </StepperTrigger>
+            <StepperContent>
+                <div className="space-y-8 py-6">
+                    <FormField control={form.control} name="riskAppetite" render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel className="text-base">When facing a critical decision with uncertain outcomes, you tend to:</FormLabel>
+                            <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="High" /></FormControl><FormLabel className="font-normal">Favor the high-risk, high-reward option.</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Moderate" /></FormControl><FormLabel className="font-normal">Seek a balance between risk and potential reward.</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Low" /></FormControl><FormLabel className="font-normal">Prefer the safer, more predictable path.</FormLabel></FormItem>
+                            </RadioGroup></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                     <FormField control={form.control} name="workStyle" render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel className="text-base">When developing a new project, you work best:</FormLabel>
+                            <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Collaborative" /></FormControl><FormLabel className="font-normal">By brainstorming and building with a team from the start.</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Independent" /></FormControl><FormLabel className="font-normal">By developing the initial concept alone before bringing in others.</FormLabel></FormItem>
+                            </RadioGroup></FormControl>
+                             <FormMessage />
+                        </FormItem>
+                    )} />
+                     <FormField control={form.control} name="motivation" render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel className="text-base">What is your primary driver as an innovator?</FormLabel>
+                            <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Impact" /></FormControl><FormLabel className="font-normal">Creating a solution that has a meaningful social or environmental impact.</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Financial" /></FormControl><FormLabel className="font-normal">Building a commercially successful and profitable venture.</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Innovation" /></FormControl><FormLabel className="font-normal">Pushing the boundaries of technology and creating something entirely new.</FormLabel></FormItem>
+                            </RadioGroup></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
+                 <div className="flex justify-between">
+                    <StepperPrevious variant="outline" />
+                    <Button onClick={handleNext}>Next</Button>
+                </div>
+            </StepperContent>
+        </StepperItem>
+    );
+}
+
+
+function Step4({ form, isSubmitting }: { form: any, isSubmitting: boolean }) {
     const allValues = form.getValues();
     const weights = clusters.reduce((acc, key) => ({...acc, [key]: allValues[key]}), {});
 
     return (
-         <StepperItem index={2}>
+         <StepperItem index={3}>
          <StepperTrigger>
           <CardTitle>Review and Submit</CardTitle>
           <CardDescription>Review your details before final submission.</CardDescription>
@@ -640,7 +731,8 @@ export default function SubmitIdeaPage() {
             <Stepper initialStep={0} orientation="vertical">
               <Step1 form={form} />
               <Step2 form={form} />
-              <Step3 form={form} isSubmitting={isSubmitting} />
+              <Step3 form={form} />
+              <Step4 form={form} isSubmitting={isSubmitting} />
             </Stepper>
           </form>
         </Form>

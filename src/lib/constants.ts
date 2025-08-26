@@ -1,5 +1,5 @@
 
-import { Home, LayoutGrid, Lightbulb, Settings, Users, Shield, FileText, PlusCircle, MessageSquare, CreditCard, LifeBuoy, BrainCircuit, Briefcase, BarChart3, Receipt, User, Bell, ListChecks, CalendarDays } from "lucide-react";
+import { Home, LayoutGrid, Lightbulb, Settings, Users, Shield, FileText, PlusCircle, MessageSquare, CreditCard, LifeBuoy, BrainCircuit, Briefcase, BarChart3, Receipt, User, Bell, ListChecks, CalendarDays, BarChart, FilePieChart } from "lucide-react";
 
 export const ROLES = {
   INNOVATOR: "Innovator",
@@ -141,6 +141,11 @@ export const NAV_LINKS: Record<
         title: "AI Engine Control",
         icon: BrainCircuit,
         href: `/dashboard/admin/ai-engine?role=${ROLES.SUPER_ADMIN}`,
+    },
+    {
+        title: "Innovator Insights",
+        icon: User,
+        href: `/dashboard/admin/innovator-insights?role=${ROLES.SUPER_ADMIN}`,
     },
     {
         title: "Advanced Analytics",
