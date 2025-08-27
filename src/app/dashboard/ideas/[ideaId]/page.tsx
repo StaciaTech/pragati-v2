@@ -1,6 +1,7 @@
 
 'use client';
 
+<<<<<<< HEAD
 import * as React from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -18,18 +19,21 @@ import { MOCK_IDEAS, STATUS_COLORS, MOCK_CONSULTATIONS, MOCK_TTCS, MOCK_PSYCHOME
 import type { ValidationReport } from '@/ai/schemas';
 import { ROLES } from '@/lib/constants';
 import { ArrowLeft, Download, ThumbsUp, Lightbulb, RefreshCw, MessageSquare, TrendingUp, TrendingDown, Star, Share2, Copy, CalendarIcon, ChevronRight, CheckCircle2, UserCheck, Shield } from 'lucide-react';
+=======
+import React, { useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import { cn } from '@/lib/utils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SpiderChart } from '@/components/spider-chart';
+import { MOCK_IDEAS } from '@/lib/mock-data';
+import { 
+  Check, X, Shield, Users, Clock, DollarSign, Target, Briefcase, TrendingUp, Search, Info, Loader2, Download, ArrowLeft,
+  FileText, Lightbulb, TrendingDown, Layers, Rocket, Factory, AlignJustify, Handshake, Sun, Globe, Zap, Award, Star, Activity, HardHat, GitFork, Link2, Sprout, Building, PieChart, BriefcaseMedical, Landmark, Leaf, User
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ROLES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import {
   Dialog,
   DialogContent,
@@ -141,181 +145,282 @@ export default function IdeaReportPage() {
     }
     
     pdf.save(`${ideaId}-PragatiAI-Report.pdf`);
+=======
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import type { ValidationReport } from '@/ai/schemas';
+
+
+// A generic section component for better structure and styling
+const Section = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon: React.ElementType }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-6 bg-white rounded-xl shadow-lg border border-gray-100"
+    >
+      <h2 className="flex items-center text-2xl font-bold mb-4 text-gray-800">
+        {Icon && <Icon className="mr-3 text-indigo-600" size={24} />}
+        {title}
+      </h2>
+      <div className="border-b-2 border-gray-100 mb-4"></div>
+      {children}
+    </motion.div>
+  );
+
+// Component to render the detailed scoring hierarchy
+const DetailedScoringBlock = ({ parameter }: { parameter: any }) => {
+    // Check if the current parameter has sub_parameters (nested structure)
+    if (parameter.sub_parameters) {
+      return (
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm mb-6">
+          <h4 className="flex items-center text-lg font-bold text-gray-800 mb-4">
+            {getIcon(parameter.icon)}
+            <span className="ml-2">{parameter.parameter_name}</span>
+          </h4>
+          <div className="pl-4 border-l border-gray-300 space-y-4">
+            {parameter.sub_parameters.map((subParam: any, index: number) => (
+              <DetailedScoringBlock key={index} parameter={subParam} />
+            ))}
+          </div>
+        </div>
+      );
+    } else {
+      // This is the final leaf node with a score and analysis
+      const userInput = parameter.user_input;
+      const isNotGiven = userInput && userInput.user_input === "not given";
+      
+      return (
+        <div className="p-4 bg-white rounded-lg border border-gray-200">
+          <h5 className="text-md font-bold text-gray-800 mb-2">{parameter.parameter_name}</h5>
+          
+          {userInput && (
+            <div className="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <h6 className="font-semibold text-yellow-800 mb-1">User Provided Data:</h6>
+                {isNotGiven ? (
+                <p className="text-sm text-yellow-700">Not given</p>
+                ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm text-yellow-700">
+                    {Object.entries(userInput).map(([key, value]: [string, any], i: number) => (
+                    <li key={i}>
+                        <span className="font-medium">{key.replace(/_/g, ' ').replace('user provided', '')}:</span> {value}
+                    </li>
+                    ))}
+                </ul>
+                )}
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <p className="text-sm font-semibold text-gray-600">Score:</p>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600 font-bold text-sm">
+                {parameter.score}
+              </div>
+            </div>
+            
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Inference:</p>
+              <p className="text-sm text-gray-700 mt-1">{parameter.inference}</p>
+            </div>
+            
+            {parameter.recommendations && parameter.recommendations.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold text-gray-600">AI's Suggestions:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 mt-1">
+                  {parameter.recommendations.map((rec: string, i: number) => (
+                    <li key={i}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {parameter.sourcesUsed && parameter.sourcesUsed.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-gray-600">Sources Used:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 mt-1">
+                  {parameter.sourcesUsed.map((source: any, i: number) => (
+                    <li key={i}>
+                      {source.url ? (
+                        <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {source.text}
+                        </a>
+                      ) : (
+                        source.text
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+  };
+
+const CompetitiveAnalysisTable = ({ competitors }: { competitors: any[] }) => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Competitor</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key Features</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Range</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Strengths</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weaknesses</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {competitors.map((comp, index) => (
+            <tr key={index}>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{comp.name}</td>
+              <td className="px-6 py-4 text-sm text-gray-500">{comp.features}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{comp.price_range}</td>
+              <td className="px-6 py-4 text-sm text-green-600">{comp.strengths}</td>
+              <td className="px-6 py-4 text-sm text-red-600">{comp.weaknesses}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+);
+
+const ActionPlanCategory = ({ title, items }: { title: string, items: string[] }) => (
+    <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+      <h4 className="text-lg font-semibold text-gray-700 mb-2">{title}</h4>
+      <ul className="list-disc list-inside space-y-2 text-gray-600">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </div>
+);
+
+const iconMap: { [key: string]: React.ElementType } = {
+  Lightbulb,
+  Briefcase,
+  Rocket,
+  DollarSign,
+  Users,
+  FileText,
+  TrendingDown,
+  Shield,
+  Handshake,
+  Layers,
+  Award,
+  Zap,
+  Globe,
+  Info,
+  Check,
+  X,
+  Search,
+  TrendingUp,
+  Factory,
+  Leaf,
+  User,
+  BriefcaseMedical,
+  Landmark,
+  GitFork,
+  Link2,
+  Sprout,
+  Building,
+  PieChart,
+  Star,
+  Activity,
+  HardHat
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
 };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-        title: "Link Copied!",
-        description: "The report link has been copied to your clipboard.",
-    });
-  };
+const getIcon = (iconName: string) => {
+  const Icon = iconMap[iconName];
+  return Icon ? <Icon className="text-indigo-600" size={24} /> : null;
+};
 
-  const handleResubmit = () => {
-    const ideaData = {
-      title: idea?.title,
-      description: idea?.description,
-      domain: idea?.domain,
-      weights: idea?.clusterWeights,
-    };
-    const newSearchParams = new URLSearchParams();
-    newSearchParams.set('idea', JSON.stringify(ideaData));
-    const role = searchParams.get('role');
-    if (role) {
-      newSearchParams.set('role', role);
-    }
-    router.push(`/dashboard/submit?${newSearchParams.toString()}`);
-  }
 
-  const handleRequestConsultationSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    toast({
-        title: "Request Submitted",
-        description: "Your consultation request has been sent to the TTC Coordinator.",
-    });
-    setIsRequestConsultationOpen(false);
-  };
-  
-  const { topPerformers, bottomPerformers, avgClusterScores, parameterSummaries } = React.useMemo<ReportMetrics>(() => {
-    if (!report) return { topPerformers: [], bottomPerformers: [], avgClusterScores: {}, parameterSummaries: {} };
+const ReportPage = ({ idea }: { idea: (typeof MOCK_IDEAS)[0] }) => {
+  const { toast } = useToast();
+  const reportRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-    const allSubParams: { name: string; score: number; clusterName: string; paramName: string }[] = [];
-    const clusterScores: Record<string, number[]> = {};
-    const parameterSummaries: Record<string, Record<string, ParameterSummary>> = {};
-
-    Object.entries(report.sections.detailedEvaluation.clusters).forEach(([clusterName, clusterData]) => {
-      clusterScores[clusterName] = [];
-      parameterSummaries[clusterName] = {};
-      Object.entries(clusterData).forEach(([paramName, paramData]) => {
-        const subParams = Object.entries(paramData);
-        if (subParams.length === 0) return;
-
-        let totalScore = 0;
-        let bestWell = { score: -1, text: 'No specific strengths noted.' };
-        let worstImproved = { score: 101, text: 'No specific improvement areas noted.' };
-
-        subParams.forEach(([subParamName, subParamDetails]: [string, any]) => {
-          if (subParamDetails.assignedScore) {
-            const score = subParamDetails.assignedScore;
-            totalScore += score;
-            allSubParams.push({ name: subParamName, score, clusterName, paramName });
-            clusterScores[clusterName].push(score);
-
-            if (score > bestWell.score) {
-              bestWell = { score, text: subParamDetails.whatWentWell };
-            }
-            if (score < worstImproved.score) {
-              worstImproved = { score, text: subParamDetails.whatCanBeImproved };
-            }
-          }
-        });
-        
-        const avgScore = subParams.length > 0 ? totalScore / subParams.length : 0;
-        parameterSummaries[clusterName][paramName] = {
-            avgScore,
-            strongestPoint: bestWell.text,
-            improvementPoint: worstImproved.text,
-        };
-      });
-    });
-    
-    const sortedSubParams = allSubParams.sort((a, b) => b.score - a.score);
-    const avgClusterScores = Object.entries(clusterScores).reduce((acc, [key, scores]) => {
-        const avg = scores.reduce((sum, s) => sum + s, 0) / (scores.length || 1);
-        acc[key] = avg;
-        return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      topPerformers: sortedSubParams.slice(0, 3),
-      bottomPerformers: sortedSubParams.slice(-3).reverse(),
-      avgClusterScores,
-      parameterSummaries
-    };
-  }, [report]);
-
-  const handleHighlightClick = (clusterName: string, paramName: string, subParamName: string) => {
-    requestAnimationFrame(() => {
-      const elementId = `sub-param-${subParamName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      const element = document.getElementById(elementId);
-      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  };
-
-  const actionPoints = React.useMemo(() => {
-    if (!report) return [];
-    const points = [];
-    const hasIPRisk = bottomPerformers.some(p => p.name.includes("Intellectual Property"));
-    const hasMarketRisk = bottomPerformers.some(p => p.name.includes("Market Risk"));
-    const hasOperationalRisk = bottomPerformers.some(p => p.name.includes("Operational Risk"));
-
-    if (hasIPRisk) {
-        points.push({
-            title: "Strengthen Defensibility Strategy",
-            todos: [
-                "Consult with a legal expert on patentability of core algorithms.",
-                "Research alternative 'moats' like proprietary data sets or network effects.",
-                "Document trade secrets and internal know-how securely.",
-            ]
-        });
-    }
-     if (hasMarketRisk) {
-        points.push({
-            title: "Refine Market Entry Plan",
-            todos: [
-                "Conduct surveys with at least 50 potential customers to validate willingness-to-pay.",
-                "Develop a detailed competitor analysis matrix.",
-                "Create a phased go-to-market strategy, starting with a niche segment.",
-            ]
-        });
-    }
-     if (hasOperationalRisk) {
-        points.push({
-            title: "Develop Operational Mitigation Plan",
-            todos: [
-                "Identify potential data pipeline bottlenecks and solutions.",
-                "Outline a farmer support system (e.g., chatbot, FAQ, local reps).",
-                "Create a budget for initial operational costs for the first year.",
-            ]
-        });
-    }
-    if (points.length === 0 && bottomPerformers.length > 0) {
-        points.push({
-            title: `Address Lowest Score: ${bottomPerformers[0].name}`,
-            todos: [
-                `Review the feedback for '${bottomPerformers[0].name}' in the detailed assessment.`,
-                `Brainstorm 3-5 ways to directly improve this aspect.`,
-                `Update your pitch deck to reflect these improvements.`
-            ]
-        })
-    }
-    return points;
-  }, [report, bottomPerformers]);
-
-  if (!idea) {
+  if (!idea || !idea.report) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-bold">Idea Not Found</h2>
-        <p className="text-muted-foreground">The idea you are looking for does not exist.</p>
-        <Button asChild className="mt-4">
-          <Link href={`/dashboard/ideas?role=${role || ROLES.INNOVATOR}`}>Go to My Ideas</Link>
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Generating Report...</h2>
+        <p className="text-muted-foreground">
+            The report for this idea is not yet available. Please check back shortly.
+        </p>
+         <Button asChild className="mt-6">
+            <Link href={`/dashboard/ideas?role=${ROLES.INNOVATOR}`}>Go to My Ideas</Link>
         </Button>
       </div>
     );
   }
+
+  const report = idea.report;
   
-  const status = report?.validationOutcome || idea.status;
-  const score = report?.overallScore ?? null;
-  
-  const getScoreColor = (score: number | null) => {
-    if (score === null) return 'text-muted-foreground';
-    if (score >= 85) return 'text-green-600';
-    if (score >= 50) return 'text-orange-600';
-    return 'text-red-600';
+  const scoreColor = report.overallScore > 8 ? 'text-green-500' : report.overallScore > 6 ? 'text-yellow-500' : 'text-red-500';
+
+  const handleDownloadPdf = () => {
+    const input = reportRef.current;
+    if (!input) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not find the report content to download.',
+        });
+        return;
+    }
+
+    toast({
+        title: 'Generating PDF...',
+        description: 'This may take a moment. Please wait.',
+    });
+
+    html2canvas(input, {
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: window.getComputedStyle(document.body).backgroundColor,
+    }).then((canvas) => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        let imgHeight = pdfWidth / ratio;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+        
+        pdf.save(`${report.ideaName.replace(/\s+/g, '_')}_Report.pdf`);
+        toast({
+            title: 'Download Complete',
+            description: 'Your PDF report has been downloaded.',
+        });
+    }).catch(err => {
+        toast({
+            variant: 'destructive',
+            title: 'PDF Generation Failed',
+            description: 'An error occurred while generating the PDF.',
+        });
+        console.error(err);
+    });
   };
-  
-  const shareUrl = idea ? encodeURIComponent(`${window.location.origin}/dashboard/ideas/${idea.id}?role=${ROLES.INNOVATOR}`) : '';
-  const shareText = idea ? encodeURIComponent(`Check out my idea report for "${idea.title}" on PragatiAI!`) : '';
+
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('') || '';
@@ -327,45 +432,37 @@ export default function IdeaReportPage() {
   );
 
   return (
-    <>
-    <div className="space-y-6">
-        <div className="flex justify-between items-center flex-wrap gap-2">
-             <Button variant="outline" asChild>
-                <Link href={getBackLink(role)}>
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen font-sans antialiased text-gray-900">
+        <div className="max-w-7xl mx-auto space-y-8">
+            <div className="flex justify-between items-center mb-4">
+                <Button variant="outline" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
-                </Link>
-            </Button>
-             <div className="flex gap-2">
-                {(status === "Moderate" || status === "Rejected") && (
-                    <Button onClick={handleResubmit}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Resubmit Idea
-                    </Button>
-                )}
-                 {status === "Approved" && (
-                    <Button onClick={() => setIsRequestConsultationOpen(true)}>
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Request Consultation
-                    </Button>
-                )}
-                <Button variant="outline" onClick={() => setIsShareDialogOpen(true)}>
-                  <Share2 className="mr-2 h-4 w-4" /> Share
                 </Button>
-             </div>
-        </div>
-
-        <div ref={reportRef} className="p-4 bg-background">
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row items-start justify-between gap-6">
-              <div>
-                <CardTitle className="text-2xl">{idea.title}</CardTitle>
-                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground pt-2">
-                  <span>ID: {idea.id}</span>
-                  <span>Version: {idea.version}</span>
-                  <span>Submitted: {idea.dateSubmitted}</span>
-                  <span>Status: <Badge className={cn(STATUS_COLORS[status])}>{status}</Badge></span>
+                <Button onClick={handleDownloadPdf}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export as PDF
+                </Button>
+            </div>
+            <div ref={reportRef} className="bg-gray-50 p-4 md:p-8 space-y-12">
+            <motion.header
+                className="text-center py-8 bg-white rounded-xl shadow-md border border-gray-200"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                >
+                <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 leading-tight mb-2">
+                    AI-Powered Idea Validation Report
+                </h1>
+                <p className="text-xl text-gray-600 font-medium">{report.ideaName}</p>
+                <p className="text-sm text-gray-400 mt-2">Prepared for {report.preparedFor} on {report.date}</p>
+                <div className="mt-6">
+                    <span className={`text-5xl md:text-6xl font-extrabold ${scoreColor}`}>
+                    {report.overallScore.toFixed(1)}
+                    </span>
+                    <span className="text-2xl text-gray-500">/10</span>
                 </div>
+<<<<<<< HEAD
               </div>
               {report && (
                 <ScoreDisplay score={score} status={status} />
@@ -431,96 +528,19 @@ export default function IdeaReportPage() {
                   </>
                 )}
 
+=======
+            </motion.header>
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-8">
-                  <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Cluster Performance</h3>
-                      <p className="text-sm text-muted-foreground">Average scores across the main evaluation clusters.</p>
-                      <div ref={spiderChartRef} className="h-[350px] flex items-center justify-center">
-                         <SpiderChart data={avgClusterScores} maxScore={100} size={400} />
-                      </div>
-                  </div>
-
-                  <Separator orientation="vertical" className="hidden lg:block" />
-                  
-                  <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Highlights & Lowlights</h3>
-                      <p className="text-sm text-muted-foreground">Top and bottom performing sub-parameters.</p>
-                      <div className="mt-4 space-y-4">
-                        <div>
-                          <h4 className="font-semibold text-green-600 flex items-center gap-2"><TrendingUp /> Top Performers</h4>
-                          <ul className="mt-2 space-y-1 text-sm">
-                            {topPerformers.map((item, i) => (
-                              <li key={i}>
-                                 <button
-                                    onClick={() => handleHighlightClick(item.clusterName, item.paramName, item.name)}
-                                    className="flex justify-between w-full hover:bg-muted p-1 rounded-md transition-colors text-left"
-                                 >
-                                    <span className="text-muted-foreground">{item.name}</span>
-                                    <span className="font-bold text-green-600">{item.score}</span>
-                                 </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        <Separator />
-                        <div>
-                          <h4 className="font-semibold text-red-600 flex items-center gap-2"><TrendingDown /> Areas for Improvement</h4>
-                           <ul className="mt-2 space-y-1 text-sm">
-                            {bottomPerformers.map((item, i) => (
-                               <li key={i}>
-                                 <button
-                                     onClick={() => handleHighlightClick(item.clusterName, item.paramName, item.name)}
-                                     className="flex justify-between w-full hover:bg-muted p-1 rounded-md transition-colors text-left"
-                                 >
-                                    <span className="text-muted-foreground">{item.name}</span>
-                                    <span className="font-bold text-red-600">{item.score}</span>
-                                  </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                {actionPoints.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold">Next Steps</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Actionable steps to improve your idea based on the evaluation. Select an action point to see the to-do list.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                        <div className="flex flex-col gap-2">
-                            {actionPoints.map((point, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setActiveActionPoint(i)}
-                                    className={cn(
-                                        "p-3 rounded-md text-left transition-colors border-l-4",
-                                        i === activeActionPoint 
-                                            ? "bg-muted border-primary" 
-                                            : "bg-transparent hover:bg-muted/50 border-transparent"
-                                    )}
-                                >
-                                    <p className="font-semibold">{point.title}</p>
-                                </button>
-                            ))}
-                        </div>
-                        <div className="bg-muted/50 p-4 rounded-lg">
-                           <h4 className="font-semibold mb-3">To-Do List:</h4>
-                           <ul className="space-y-3">
-                                {actionPoints[activeActionPoint]?.todos.map((todo, j) => (
-                                    <li key={j} className="flex items-start gap-3 text-sm text-muted-foreground">
-                                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0"/>
-                                        <span>{todo}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+            {report.input && (
+                <Section title="1. Input & AI Understanding" icon={Lightbulb}>
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                        <p className="font-semibold text-blue-800 mb-2">User's Idea:</p>
+                        <p className="text-gray-700 mb-4 whitespace-pre-wrap">"{report.input.user_idea}"</p>
+                        <p className="font-semibold text-blue-800 mb-2">AI's Understanding:</p>
+                        <p className="text-gray-700 whitespace-pre-wrap">{report.input.ai_understanding}</p>
                     </div>
+<<<<<<< HEAD
                   </div>
                 )}
                 
@@ -632,172 +652,201 @@ export default function IdeaReportPage() {
                         <p className="text-muted-foreground">Report is being generated or is not available. Status: {idea.status}</p>
                     </div>
                 </CardContent>
+=======
+                </Section>
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
             )}
-          </Card>
-          
-          {pastConsultations.length > 0 && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Consultation History</CardTitle>
-                <CardDescription>
-                  Review of past consultations for this idea.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Mentor</TableHead>
-                      <TableHead>Remarks</TableHead>
-                      <TableHead>Attachments</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pastConsultations.map((consultation) => (
-                      <TableRow 
-                        key={consultation.id} 
-                        className="cursor-pointer" 
-                        onClick={() => router.push(`/dashboard/consultations?role=${role}`)}
-                      >
-                        <TableCell>{consultation.date}</TableCell>
-                        <TableCell>{consultation.mentor}</TableCell>
-                        <TableCell>
-                          {consultation.milestones.join(', ')}
-                        </TableCell>
-                        <TableCell>
-                          {consultation.files.map((file, index) => (
-                            <Button key={index} variant="link" asChild size="sm" onClick={(e) => e.stopPropagation()}>
-                              <a href="#" download>
-                                {file}
-                              </a>
-                            </Button>
-                          ))}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
 
+            <Section title="2. Executive Summary" icon={AlignJustify}>
+            <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8">
+                <div className="w-full md:w-1/3 text-center p-6 bg-blue-50 rounded-xl">
+                <p className="text-6xl font-extrabold text-blue-600">{report.overallScore}</p>
+                <p className="mt-2 text-lg font-semibold text-blue-800">Overall Score</p>
+                </div>
+                <div className="w-full md:w-2/3">
+                <p className="text-lg font-semibold text-gray-800 mb-2">Outcome:</p>
+                <p className="text-base leading-relaxed text-gray-600">{report.executiveSummary.outcome}</p>
+                <p className="mt-4 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{report.executiveSummary.summary}</p>
+                </div>
+            </div>
+            </Section>
+            
+            <Section title="3. Key Strengths & Weaknesses" icon={Award}>
+            <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                <h3 className="flex items-center text-xl font-bold mb-4 text-green-700"><Check className="mr-2" /> Key Strengths</h3>
+                <div className="space-y-6">
+                    {report.keyStrengthsWeaknesses.strengths.map((s, i) => (
+                    <div key={i} className="p-4 rounded-lg bg-green-50 shadow-sm">
+                        <p className="font-semibold text-green-800">{s.title}</p>
+                        <p className="text-sm text-green-700 mt-1">{s.description}</p>
+                    </div>
+                    ))}
+                </div>
+                </div>
+                <div>
+                <h3 className="flex items-center text-xl font-bold mb-4 text-red-700"><X className="mr-2" /> Key Weaknesses</h3>
+                <div className="space-y-6">
+                    {report.keyStrengthsWeaknesses.weaknesses.map((w, i) => (
+                    <div key={i} className="p-4 rounded-lg bg-red-50 shadow-sm">
+                        <p className="font-semibold text-red-800">{w.title}</p>
+                        <p className="text-sm text-red-700 mt-1">{w.description}</p>
+                    </div>
+                    ))}
+                </div>
+                </div>
+            </div>
+            </Section>
+
+            {report.criticalRisksAndMitigation && Array.isArray(report.criticalRisksAndMitigation) && (
+                <Section title="4. Critical Risks & Mitigation Strategies" icon={Shield}>
+                <div className="space-y-6">
+                    {report.criticalRisksAndMitigation.map((item, index) => (
+                    <div key={index} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="font-bold text-red-700 text-lg mb-2">Risk: {item.risk}</p>
+                        <p className="text-gray-700 mb-2">Description: {item.description}</p>
+                        <p className="text-gray-700 mb-2"><span className="font-semibold">Impact:</span> {item.impact}</p>
+                        <p className="text-gray-700"><span className="font-semibold">Mitigation:</span> {item.mitigation}</p>
+                    </div>
+                    ))}
+                </div>
+                </Section>
+            )}
+            
+            <Section title="5. Competitive Analysis" icon={Handshake}>
+            <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg mb-6">
+                <h5 className="font-semibold text-yellow-800 mb-2">User Provided Competitors:</h5>
+                <p className="text-gray-700 whitespace-pre-wrap">{report.competitiveAnalysis.user_provided_competitors}</p>
+            </div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">AI's Inference:</p>
+            <p className="text-gray-700 mb-4">{report.competitiveAnalysis.ai_inference}</p>
+            <CompetitiveAnalysisTable competitors={report.competitiveAnalysis.competitors} />
+            {report.competitiveAnalysis.recommendations.length > 0 && (
+                <div className="mt-4">
+                <p className="font-semibold text-gray-700">AI Recommendations:</p>
+                <ul className="list-disc list-inside text-gray-600">
+                    {report.competitiveAnalysis.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                </ul>
+                </div>
+            )}
+            </Section>
+
+            <Section title="6. Detailed Pricing & Financials" icon={DollarSign}>
+            <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg mb-6">
+                <h5 className="font-semibold text-yellow-800 mb-2">User Provided Financials:</h5>
+                <ul className="list-disc list-inside space-y-1 text-sm text-yellow-700">
+                <li><span className="font-medium">Pricing Model:</span> {report.detailedPricingAndFinancials.user_provided_pricing_model}</li>
+                <li><span className="font-medium">Estimated Price:</span> {report.detailedPricingAndFinancials.user_provided_estimated_price}</li>
+                </ul>
+            </div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">AI's Analysis:</p>
+            <p className="text-gray-700 mb-4">{report.detailedPricingAndFinancials.ai_pricing_inference}</p>
+            <div className="grid md:grid-cols-2 gap-4 text-gray-700 mb-6">
+                <div>
+                <p><span className="font-semibold">Recommended Pricing Model:</span> {report.detailedPricingAndFinancials.recommended_pricing_model}</p>
+                <p><span className="font-semibold">Estimated Premium Price:</span> ₹{report.detailedPricingAndFinancials.estimated_premium_price}</p>
+                <p><span className="font-semibold">Estimated COGS/User:</span> ₹{report.detailedPricingAndFinancials.estimated_cogs_per_user}</p>
+                </div>
+                <div>
+                <p className="font-semibold">Cost Breakdown:</p>
+                <ul className="list-disc list-inside">
+                    {report.detailedPricingAndFinancials.cost_breakdown.map((item, i) => (
+                    <li key={i}>{item.item}: ₹{item.cost}</li>
+                    ))}
+                </ul>
+                </div>
+            </div>
+            <p className="font-semibold text-gray-700">AI's Suggestions:</p>
+            <ul className="list-disc list-inside text-gray-600">
+                {report.detailedPricingAndFinancials.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+            </Section>
+            
+            <Section title="7. Prioritized Next Steps / Action Plan" icon={Rocket}>
+            <div className="space-y-6">
+                <ActionPlanCategory title="Urgent (Next 1-3 Months)" items={report.actionPlan.urgent} />
+                <ActionPlanCategory title="High Priority (Next 3-6 Months)" items={report.actionPlan.highPriority} />
+                <ActionPlanCategory title="Mid Priority (Next 6-12 Months)" items={report.actionPlan.midPriority} />
+            </div>
+            </Section>
+
+            <Section title="8. Detailed Idea Validation & Scoring" icon={Search}>
+            <div className="space-y-10">
+                {report.detailedIdeaValidationAndScoring.map((param, index) => (
+                <DetailedScoringBlock key={index} parameter={param} />
+                ))}
+            </div>
+            </Section>
+            
+            <Section title="9. AI Research Agent Findings" icon={Zap}>
+            <p className="text-gray-700 mb-4">{report.aiResearchAgentFindings.summary}</p>
+            <ul className="list-disc list-inside space-y-2 text-gray-700">
+                {report.aiResearchAgentFindings.findings.map((item, index) => (
+                <li key={index}>{item.finding}</li>
+                ))}
+            </ul>
+            </Section>
+            
+            <Section title="10. IP & Research Paper Analysis" icon={Layers}>
+            <p className="text-gray-700 mb-4">{report.ipAndResearchPaperAnalysis.summary}</p>
+            <p className="font-semibold text-gray-700">Relevant Research Papers:</p>
+            <ul className="list-disc list-inside space-y-2 text-gray-700">
+                {report.ipAndResearchPaperAnalysis.papers.map((paper, index) => (
+                <li key={index}>
+                    <a href={paper.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {paper.title}
+                    </a>
+                </li>
+                ))}
+            </ul>
+            </Section>
+
+            <Section title="11. Consolidated Sources of Information" icon={Globe}>
+            <ul className="list-disc list-inside space-y-2 text-gray-700">
+                {report.sources.map((source, index) => (
+                <li key={index}>
+                    {source.url ? (
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {source.text}
+                    </a>
+                    ) : (
+                    <p>{source.text}</p>
+                    )}
+                </li>
+                ))}
+            </ul>
+            </Section>
+
+            <Section title="12. Professional Disclaimer" icon={Info}>
+            <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-wrap">{report.disclaimer}</p>
+            </Section>
+        </div>
         </div>
     </div>
-
-    <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Report: {idea?.title}</DialogTitle>
-            <DialogDescription>
-              Share your idea report with others via link or PDF.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center space-x-2">
-              <Input
-                id="link"
-                value={`${window.location.origin}/dashboard/ideas/${idea?.id}?role=${ROLES.INNOVATOR}`}
-                readOnly
-              />
-              <Button type="button" size="sm" className="px-3" onClick={handleCopyLink}>
-                <span className="sr-only">Copy</span>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Anyone with this link will be able to view the report.
-            </p>
-            <Separator />
-            <div className="space-y-2">
-                <p className="text-sm font-medium text-center text-muted-foreground">Quick Share</p>
-                 <div className="flex justify-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={`https://api.whatsapp.com/send?text=${shareText} ${shareUrl}`} target="_blank" rel="noopener noreferrer"><WhatsAppIcon className="h-5 w-5" /></a></Button></TooltipTrigger><TooltipContent>WhatsApp</TooltipContent></Tooltip>
-                      <Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`} target="_blank" rel="noopener noreferrer"><TwitterIcon className="h-5 w-5" /></a></Button></TooltipTrigger><TooltipContent>X / Twitter</TooltipContent></Tooltip>
-                      <Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer"><FacebookIcon className="h-5 w-5" /></a></Button></TooltipTrigger><TooltipContent>Facebook</TooltipContent></Tooltip>
-                      <Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${encodeURIComponent(idea?.title || '')}&summary=${shareText}`} target="_blank" rel="noopener noreferrer"><LinkedInIcon className="h-5 w-5" /></a></Button></TooltipTrigger><TooltipContent>LinkedIn</TooltipContent></Tooltip>
-                      <Tooltip><TooltipTrigger asChild><Button asChild variant="outline" size="icon"><a href={`mailto:?subject=${encodeURIComponent(idea?.title || '')}&body=${shareText} ${shareUrl}`}><MailIcon className="h-5 w-5" /></a></Button></TooltipTrigger><TooltipContent>Email</TooltipContent></Tooltip>
-                    </TooltipProvider>
-                 </div>
-            </div>
-          </div>
-          <DialogFooter className="sm:justify-between flex-col sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleDownload}
-            >
-              <Download className="mr-2" />
-              Export as PDF
-            </Button>
-             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Close
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    
-    <Dialog open={isRequestConsultationOpen} onOpenChange={setIsRequestConsultationOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Request a New Consultation</DialogTitle>
-                <DialogDescription>
-                    Fill out the details below to request a meeting with a mentor for your idea: "{idea.title}".
-                </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleRequestConsultationSubmit}>
-                <div className="grid gap-4 py-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="mentor">Preferred Mentor</Label>
-                         <Select required>
-                            <SelectTrigger id="mentor"><SelectValue placeholder="Select a mentor" /></SelectTrigger>
-                            <SelectContent>
-                                {MOCK_TTCS.map(ttc => (
-                                    <SelectItem key={ttc.id} value={ttc.id}>{ttc.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="date">Preferred Date</Label>
-                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !selectedDate && "text-muted-foreground"
-                                )}
-                                >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={selectedDate}
-                                    onSelect={setSelectedDate}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="questions">Questions / Topics</Label>
-                        <Textarea id="questions" placeholder="What would you like to discuss? e.g., 'Market entry strategy', 'Technical feasibility concerns'." required />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                    <Button type="submit">Submit Request</Button>
-                </DialogFooter>
-            </form>
-        </DialogContent>
-      </Dialog>
-    </>
   );
+};
+
+
+export default function IdeaReportPageWrapper() {
+  const { ideaId } = useParams() as { ideaId: string };
+  const idea = MOCK_IDEAS.find((i) => i.id === ideaId);
+
+  if (!idea) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Finding Idea...</h2>
+        <p className="text-muted-foreground">
+            The requested idea could not be found. It may have been removed or the ID is incorrect.
+        </p>
+        <Button asChild className="mt-6">
+            <Link href={`/dashboard/ideas?role=${ROLES.INNOVATOR}`}>Go to My Ideas</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return <ReportPage idea={idea} />;
 }
+
+    

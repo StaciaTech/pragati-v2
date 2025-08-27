@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview This file defines the shared Zod schemas and TypeScript types for AI flows.
  * Separating schemas into their own file avoids Next.js server action export errors.
@@ -66,68 +67,93 @@ export const DetailedEvaluationClustersSchema = z.object({
 });
 export type DetailedEvaluationClusters = z.infer<typeof DetailedEvaluationClustersSchema>;
 
+const CriticalRiskSchema = z.object({
+    title: z.string(),
+    description: z.string(),
+    mitigation: z.string(),
+});
+
+const CompetitorSchema = z.object({
+    competitor: z.string(),
+    products: z.string(),
+    features: z.string(),
+    priceRange: z.string(),
+    strengths: z.string(),
+    weaknesses: z.string(),
+});
+
+const CogsItemSchema = z.object({
+    item: z.string(),
+    cost: z.string(),
+});
+
+const DetailedPricingSchema = z.object({
+    cogsBreakdown: z.array(CogsItemSchema),
+    manufacturingAndAssembly: z.string(),
+    estimatedCogs: z.string(),
+    retailPricingStrategy: z.string(),
+});
+
+const ActionPlanSchema = z.object({
+    urgent: z.array(z.string()),
+    highPriority: z.array(z.string()),
+    midPriority: z.array(z.string()),
+});
+
+const AIAgentFindingSchema = z.object({
+    title: z.string(),
+    details: z.string(),
+    type: z.string(),
+});
+
+const AIAgentAnalysisSchema = z.object({
+    introduction: z.string(),
+    findings: z.array(AIAgentFindingSchema),
+});
+
+const DetailedValidationParameterSchema = z.object({
+    parameter: z.string(),
+    description: z.string(),
+    inference: z.string(),
+    score: z.string(),
+    justification: z.string(),
+    suggestions: z.string().nullable(),
+});
+
+const DetailedValidationAndScoringSchema = z.object({
+    "Core Idea & Product": z.array(DetailedValidationParameterSchema),
+    "Market & Customers": z.array(DetailedValidationParameterSchema),
+    "Execution": z.array(DetailedValidationParameterSchema),
+    "Business Model": z.array(DetailedValidationParameterSchema),
+    "Team": z.array(DetailedValidationParameterSchema),
+    "Compliance": z.array(DetailedValidationParameterSchema),
+    "Risk & Strategy": z.array(DetailedValidationParameterSchema),
+});
+
+const SourceSchema = z.object({
+    text: z.string(),
+    url: z.string(),
+});
+
 
 // Main Report Output Schema
 export const ValidationReportSchema = z.object({
-  ideaId: z.string(),
-  validationId: z.string(),
-  reportId: z.string(),
   ideaName: z.string(),
-  ideaConcept: z.string(),
+  preparedFor: z.string(),
+  date: z.string(),
   overallScore: z.number(),
-  validationOutcome: z.string(),
-  recommendationText: z.string(),
-  submissionDate: z.string(),
-  pptUrl: z.string().optional(),
-  sections: z.object({
-    executiveSummary: z.object({
-      ideaName: z.string(),
-      concept: z.string(),
-      overallScore: z.number(),
-      validationOutcome: z.string(),
-      recommendation: z.string(),
-      reportGeneratedOn: z.string(),
-    }),
-    pragatiAIServiceProcess: z.object({
-      title: z.string(),
-      description: z.string(),
-      sections: z.array(z.object({ heading: z.string(), content: z.string() })),
-    }),
-    competitiveLandscape: z.object({
-      title: z.string(),
-      description: z.string(),
-      sections: z.array(z.object({ heading: z.string(), content: z.string() })),
-    }),
-    projectEvaluationFramework: z.object({
-      title: z.string(),
-      description: z.string(),
-      sections: z.array(
-        z.object({
-          heading: z.string(),
-          content: z.string().optional(),
-          subsections: z.array(z.object({ subheading: z.string(), content: z.string() })).optional(),
-        })
-      ),
-    }),
-    detailedEvaluation: z.object({
-      title: z.string(),
-      description: z.string(),
-      clusters: DetailedEvaluationClustersSchema,
-    }),
-    conclusion: z.object({
-      title: z.string(),
-      content: z.string(),
-    }),
-    recommendations: z.object({
-      title: z.string(),
-      description: z.string(),
-      items: z.array(z.string()),
-    }),
-    appendix: z.object({
-      title: z.string(),
-      items: z.array(z.string()),
-    }),
-  }),
+  outcome: z.string(),
+  executiveSummary: z.string(),
+  keyStrengths: z.array(z.string()),
+  keyWeaknesses: z.array(z.string()),
+  criticalRisks: z.array(CriticalRiskSchema),
+  competitiveAnalysis: z.array(CompetitorSchema),
+  detailedPricing: DetailedPricingSchema,
+  actionPlan: ActionPlanSchema,
+  detailedValidationAndScoring: DetailedValidationAndScoringSchema,
+  aiAgentAnalysis: AIAgentAnalysisSchema,
+  sources: z.array(SourceSchema),
+  disclaimer: z.string(),
 });
 export type ValidationReport = z.infer<typeof ValidationReportSchema>;
 
@@ -152,4 +178,4 @@ export const GenerateEvaluationInputSchema = GenerateValidationReportInputSchema
 export type GenerateEvaluationInput = z.infer<typeof GenerateEvaluationInputSchema>;
 
 export const GenerateEvaluationOutputSchema = z.record(z.any());
-export type GenerateEvaluationOutput = z.infer<typeof GenerateEvaluationOutputSchema>;
+export type GenerateEvaluationOutput = z.infer<typeof GenerateEvaluation

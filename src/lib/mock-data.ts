@@ -9,7 +9,7 @@ export const MOCK_INNOVATOR_USER = {
   password: 'innovatorpass',
   isEmailVerified: true,
   isAccountLocked: false,
-  credits: 5,
+  credits: 50,
   college: 'Pragati University',
   role: 'Innovator',
   hasPsychometricAnalysis: false, // New property
@@ -52,6 +52,157 @@ export const MOCK_PSYCHOMETRIC_PROFILES: Record<string, {
         successFactors: 'Finding a strong business co-founder is critical. The technology must be translated into a clear value proposition for the market.'
     }
 };
+
+export const MOCK_PRINCIPAL_USERS = [
+  {
+    id: 'principal-001',
+    name: 'Dr. Evelyn Reed',
+    email: 'principal.pit@pragati.com',
+    collegeId: 'COL001',
+    role: 'College Principal Admin',
+  }
+];
+
+
+export const MOCK_COLLEGES = [
+    {
+        id: 'COL001',
+        name: 'Pragati Institute of Technology',
+        principalEmail: 'principal.pit@pragati.com',
+        status: 'Active',
+        creditsAvailable: 100,
+        ttcLimit: 5,
+        currentPlanId: 'PLAN002-M'
+    },
+    {
+        id: 'COL002',
+        name: 'Vanguard College of Engineering',
+        principalEmail: 'principal.vanguard@example.com',
+        status: 'Active',
+        creditsAvailable: 250,
+        ttcLimit: 10,
+        currentPlanId: 'PLAN003-Y'
+    },
+     {
+        id: 'COL003',
+        name: 'Apex University for the Arts',
+        principalEmail: 'principal.apex@example.com',
+        status: 'Inactive',
+        creditsAvailable: 0,
+        ttcLimit: 2,
+        currentPlanId: 'PLAN001-M'
+    }
+];
+
+export const MOCK_TTCS = [
+    {
+        id: 'TTC001',
+        name: 'Dr. Emily White',
+        email: 'emily.white@example.com',
+        collegeId: 'COL001',
+        expertise: ['HealthTech', 'AI/ML'],
+        status: 'Active'
+    },
+    {
+        id: 'TTC002',
+        name: 'Dr. Raj Patel',
+        email: 'raj.patel@example.com',
+        collegeId: 'COL001',
+        expertise: ['FinTech', 'Blockchain'],
+        status: 'Active'
+    },
+    {
+        id: 'TTC003',
+        name: 'Dr. Priya Sharma',
+        email: 'priya.sharma@pragati.com',
+        collegeId: 'COL002',
+        expertise: ['EdTech', 'SaaS'],
+        status: 'Inactive'
+    }
+];
+
+export const MOCK_INNOVATORS = [
+    { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 50, status: 'Active' },
+    { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL001', credits: 20, status: 'Active' },
+    { id: 'INV003', name: 'Alisha Khan', email: 'alisha.khan@example.com', collegeId: 'COL002', credits: 75, status: 'Active' },
+    { id: 'INV004', name: 'Mike Johnson', email: 'mike.johnson@example.com', collegeId: 'COL001', credits: 10, status: 'Inactive' },
+];
+
+
+export const MOCK_PLANS = [
+    { id: 'PLAN001-M', name: 'Innovator Monthly', interval: 'monthly', pricePerCredit: 1000, minCredits: 10, totalAmount: 10000, features: ['10 credits/month', 'Basic support'], enabled: true },
+    { id: 'PLAN002-M', name: 'Institution Monthly', interval: 'monthly', pricePerCredit: 800, minCredits: 50, totalAmount: 40000, features: ['50 credits/month', 'Priority support', 'TTC module'], enabled: true },
+    { id: 'PLAN003-M', name: 'Enterprises Monthly', interval: 'monthly', pricePerCredit: 0, minCredits: 0, totalAmount: 0, features: ['Unlimited credits', 'Dedicated support', 'All modules'], enabled: false },
+    { id: 'PLAN001-Y', name: 'Innovator Yearly', interval: 'yearly', pricePerCredit: 850, minCredits: 120, totalAmount: 102000, features: ['120 credits/year', 'Basic support'], enabled: true },
+    { id: 'PLAN002-Y', name: 'Institution Yearly', interval: 'yearly', pricePerCredit: 650, minCredits: 600, totalAmount: 390000, features: ['600 credits/year', 'Priority support', 'TTC module'], enabled: true },
+    { id: 'PLAN003-Y', name: 'Enterprises Yearly', interval: 'yearly', pricePerCredit: 0, minCredits: 0, totalAmount: 0, features: ['Unlimited credits', 'Dedicated support', 'All modules'], enabled: true },
+];
+
+
+export const MOCK_CREDIT_REQUESTS = [
+    { id: 'CR-TTC-001', requesterType: 'TTC' as const, requesterId: 'TTC002', requesterName: 'Dr. Raj Patel', amount: 50, status: 'Pending' as const, date: '2024-07-28', purpose: 'Need more credits for the upcoming hackathon.' },
+    { id: 'CR-INV-001', requesterType: 'Innovator' as const, requesterId: 'INV002', requesterName: 'John Smith', amount: 10, status: 'Pending' as const, date: '2024-07-29', purpose: 'To resubmit my idea after making improvements.' },
+    { id: 'CR-TTC-002', requesterType: 'TTC' as const, requesterId: 'TTC001', requesterName: 'Dr. Emily White', amount: 20, status: 'Approved' as const, date: '2024-07-25', purpose: 'Credits for new innovators.' },
+    { id: 'CR-INV-002', requesterType: 'Innovator' as const, requesterId: 'INV003', requesterName: 'Alisha Khan', amount: 5, status: 'Rejected' as const, date: '2024-07-22', purpose: 'New idea submission.' },
+];
+
+export const MOCK_CREDIT_ASSIGNMENT_HISTORY = [
+    { id: 'CA-001', ttcId: 'TTC001', innovatorId: 'INV001', amount: 10, date: '2024-07-20', action: 'Assigned' },
+    { id: 'CA-002', ttcId: 'TTC001', innovatorId: 'INV002', amount: 5, date: '2024-07-21', action: 'Assigned' },
+];
+
+export const MOCK_TTC_AUDIT_TRAIL = [
+    { id: 'AT-001', ttc: 'Dr. Emily White', timestamp: '2024-07-20 10:00 AM', action: 'Logged In' },
+    { id: 'AT-002', ttc: 'Dr. Emily White', timestamp: '2024-07-20 10:05 AM', action: 'Assigned 10 credits to INV001' },
+    { id: 'AT-003', ttc: 'Dr. Raj Patel', timestamp: '2024-07-21 11:00 AM', action: 'Viewed report for IDEA-002' },
+];
+
+export const MOCK_PRINCIPAL_AUDIT_TRAIL = [
+    { id: 'PAT-001', actor: 'Dr. Evelyn Reed', timestamp: '2024-07-28 09:00 AM', action: 'Logged In' },
+    { id: 'PAT-002', actor: 'Dr. Evelyn Reed', timestamp: '2024-07-28 09:05 AM', action: 'Approved credit request for Dr. Emily White' },
+];
+
+export const MOCK_CONSULTATIONS = [
+    {
+      id: 'CONS001',
+      ideaId: 'IDEA-001',
+      title: 'AI-Powered Crop Disease Detection',
+      innovatorId: 'INV001',
+      ttcId: 'TTC001',
+      mentor: 'Dr. Emily White',
+      date: '2024-08-15',
+      time: '11:00 AM',
+      status: 'Scheduled',
+      milestones: ['Finalize MVP features', 'Develop go-to-market strategy'],
+      files: ['Pitch_Deck_v2.pptx', 'Market_Analysis.pdf'],
+    },
+    {
+      id: 'CONS002',
+      ideaId: 'IDEA-002',
+      title: 'Blockchain-Based Voting System',
+      innovatorId: 'INV002',
+      ttcId: 'TTC002',
+      mentor: 'Dr. Raj Patel',
+      date: '2024-08-20',
+      time: '02:00 PM',
+      status: 'Scheduled',
+      milestones: ['Validate technical architecture', 'Review security protocols'],
+      files: ['Technical_Whitepaper.pdf'],
+    },
+    {
+      id: 'CONS003',
+      ideaId: 'IDEA-003',
+      title: 'Gamified Language Learning App',
+      innovatorId: 'INV003',
+      ttcId: 'TTC003',
+      mentor: 'Dr. Priya Sharma',
+      date: '2024-07-25',
+      time: '10:00 AM',
+      status: 'Completed',
+      milestones: ['Initial concept discussion'],
+      files: ['Concept_Note.docx'],
+    },
+];
 
 export const CLUSTER_WEIGHTS = {
   "Core Idea & Innovation": 0.20,
@@ -286,211 +437,38 @@ export const INITIAL_CLUSTER_WEIGHTS = {
   "Risk & Future Outlook": 5,
 };
 
-const MOCK_SAMPLE_REPORT: ValidationReport = {
-  ideaId: 'IDEA-001',
-  validationId: 'VALID-001-001',
-  reportId: 'REPID-001-001-20240721',
-  ideaName: 'AI-Powered Smart Farming',
-  ideaConcept: 'An intelligent system using AI to optimize crop yield and detect diseases early.',
-  overallScore: 76,
-  validationOutcome: 'Moderate',
-  recommendationText: 'Diamond in the Rough! There\'s solid potential here. Polish it up with the feedback and resubmit.',
-  submissionDate: '2024-07-21',
-  pptUrl: 'https://placehold.co/400x200/A0C4FF/1E2A38?text=Mock+PPT',
-  sections: {
-    executiveSummary: {
-      ideaName: 'AI-Powered Smart Farming',
-      concept: 'An intelligent system using AI to optimize crop yield and detect diseases early.',
-      overallScore: 76,
-      validationOutcome: 'Moderate',
-      recommendation: 'Diamond in the Rough! There\'s solid potential here. Polish it up with the feedback and resubmit.',
-      reportGeneratedOn: '2024-07-21',
-    },
-    pragatiAIServiceProcess: {
-      title: '2.0 Pragati AI Service Process',
-      description: 'The Pragati AI service is designed as a seamless, intuitive, and iterative journey for its users, leveraging AI at every critical juncture.',
-      sections: [
-        {
-          heading: '2.1 User Journey & AI Integration:',
-          content: 'The user journey begins with onboarding, where the AI uses NLP to refine the initial problem statement. It then synthesizes data for insights, offers personalized guidance, and learns from user feedback. A human-in-the-loop system allows for escalation on complex queries, ensuring quality and trust.'
-        }
-      ]
-    },
-    competitiveLandscape: {
-      title: '3.0 Competitive Landscape',
-      description: 'The market for academic and innovation support is diverse, comprising both traditional and emerging players. Pragati AI aims to carve a unique niche by blending AI\'s scalability with the depth of consultancy.',
-      sections: [
-        {
-          heading: '3.1 Key Competitor Categories:',
-          content: 'Key competitors include Traditional Human Consultancies (high cost, not scalable), Generic AI Tools (lack domain specificity), and Specialized EdTech Platforms (often focus on content, not personalized guidance). Pragati AI\'s advantage lies in its targeted, scalable, and data-driven consultancy model for the Indian context.'
-        },
-        {
-          heading: '3.2 Pragati AI\'s Competitive Advantage:',
-          content: 'The primary competitive advantage is the AI-driven, India-centric, holistic, and scalable approach that provides affordable, high-quality guidance on demand.'
-        }
-      ]
-    },
-    projectEvaluationFramework: {
-      title: '4.0 Project Evaluation Framework & Viability Assessment',
-      description: 'Our evaluation of AI-Powered Smart Farming employs a rigorous, multi-faceted scoring system to provide a comprehensive and quantifiable assessment of its viability.',
-      sections: [
-        {
-          heading: '4.1 Scoring Rubric',
-          content: 'Each sub-parameter is scored on a scale of 1 to 100.'
-        },
-        {
-          heading: '4.2 Weightage Structure',
-          subsections: [
-            {
-              subheading: 'A. Cluster Weightage (Total 100%)',
-              content: 'Cluster weights are assigned based on their strategic importance. For instance, Market & Commercial Opportunity holds the highest weightage at 25% because market validation is critical for success.'
-            },
-            {
-              subheading: 'B. Parameter Weightage',
-              content: 'Within each cluster, parameters are weighted. For example, in Core Idea & Innovation, Problem-Solution Fit is weighted highest at 45%.'
-            },
-            {
-              subheading: 'C. Sub-Parameter Weightage',
-              content: 'Each parameter is further broken down into weighted sub-parameters to allow for granular analysis.'
-            }
-          ]
-        },
-        {
-          heading: '4.3 Scoring Calculation Flow (Weighted Average)',
-          content: 'The overall viability score is a weighted average of all sub-parameter scores, scaled to a final 1-100 score, providing a holistic assessment.'
-        },
-        {
-          heading: '4.4 Validation Thresholds',
-          content: 'Scores from 85-100 are Approved, 50-84 are Moderate, and 0-49 are Rejected, each with a corresponding action plan.'
-        }
-      ]
-    },
-    detailedEvaluation: {
-      title: 'Detailed Viability Assessment',
-      description: 'Here is the granular breakdown of the scores for each sub-parameter.',
-      clusters: {
-        "Core Idea & Innovation": {
-          "Novelty & Uniqueness": {
-            "Originality": { assignedScore: 80, whatWentWell: "The use of AI for early disease detection is not entirely new, but the proposed model for Indian crop types shows significant improvement over existing generic solutions.", whatCanBeImproved: "Further clarify the unique aspects of the AI model compared to competitors.", assumptions: ["The AI model can be trained effectively on diverse Indian agricultural data."] },
-            "Differentiation": { assignedScore: 60, whatWentWell: "The scalability of the solution is a good differentiator.", whatCanBeImproved: "The key differentiator will be the accuracy and accessibility of the AI, which needs more emphasis.", assumptions: ["The service can be delivered at a cost-effective price point for Indian farmers."] }
-          },
-          "Problem-Solution Fit & Market Need": {
-            "Problem Clarity & Severity": { assignedScore: 90, whatWentWell: "Crop loss due to disease is a severe and well-documented problem in India, causing significant financial distress to farmers.", whatCanBeImproved: "No major improvements needed.", assumptions: [] },
-            "Target Audience Identification & Definition": { assignedScore: 80, whatWentWell: "The target audience (small to medium-scale farmers in specific regions) is well-defined.", whatCanBeImproved: "A more detailed go-to-market strategy for reaching them would be beneficial.", assumptions: ["Digital literacy among the target audience is sufficient for app usage."] },
-            "Customer Pain Points Validation": { assignedScore: 80, whatWentWell: "The pain points are clearly validated by numerous agricultural reports. The solution directly addresses the need for timely and accurate information.", whatCanBeImproved: "No major improvements needed.", assumptions: [] },
-            "Solution Efficacy": { assignedScore: 65, whatWentWell: "The potential efficacy is high.", whatCanBeImproved: "It depends heavily on the AI model's real-world accuracy, which is yet to be proven at scale.", assumptions: ["Sufficient high-quality, labeled image data is available for training."] },
-            "Customer Willingness to Pay": { assignedScore: 60, whatWentWell: "A subscription model is proposed.", whatCanBeImproved: "Farmers are traditionally price-sensitive. A freemium or subscription model needs to demonstrate clear ROI to gain traction.", assumptions: ["The economic benefits of using the app will outweigh its cost."] },
-            "Jobs-to-Be-Done (JTBD) Alignment": { assignedScore: 80, whatWentWell: "The solution aligns well with the farmer's core 'job' of protecting their yield and maximizing income.", whatCanBeImproved: "No major improvements needed.", assumptions: [] }
-          },
-          "User Experience (UX) & Usability Potential": {
-            "Intuitive Design": { assignedScore: 80, whatWentWell: "A simple, image-based interface has high potential for intuitive use, even with varying literacy levels.", whatCanBeImproved: "Consider offline capabilities.", assumptions: ["The app will be available in multiple regional languages."] },
-            "Accessibility Compliance": { assignedScore: 60, whatWentWell: "The concept is inclusive.", whatCanBeImproved: "Accessibility for users with disabilities has not been explicitly addressed but is a crucial consideration for a wide-reaching public service.", assumptions: [] }
-          }
-        },
-        "Market & Commercial Opportunity": {
-          "Market Validation": {
-            "Market Size (TAM)": { "assignedScore": 95, "whatWentWell": "The Indian agriculture market is vast, with millions of farmers. The Total Addressable Market is exceptionally large.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "Competitive Intensity": { "assignedScore": 60, "whatWentWell": "The submission acknowledges competitors.", "whatCanBeImproved": "The agritech space has several well-funded players and government initiatives, making the competitive landscape moderately intense. A clearer strategy to outperform them is needed.", "assumptions": [] }
-          },
-          "Geographic Specificity (India)": {
-            "Regulatory Landscape": { "assignedScore": 80, "whatWentWell": "Government policies are generally supportive of agritech.", "whatCanBeImproved": "There are no major regulatory hurdles, but data privacy laws for farmer data must be followed closely.", "assumptions": [] },
-            "Infrastructure Readiness": { "assignedScore": 65, "whatWentWell": "Smartphone penetration is high.", "whatCanBeImproved": "Rural internet connectivity can be inconsistent, which might affect real-time AI analysis. An offline strategy is important.", "assumptions": ["The app can function in low-bandwidth or offline modes."] }
-          },
-          "Product-Market Fit": {
-            "User Engagement": { "assignedScore": 80, "whatWentWell": "If the AI provides accurate and timely advice, engagement potential is high as farming is a daily activity.", "whatCanBeImproved": "Gamification or community features could boost engagement further.", "assumptions": ["The app provides tangible, recurring value."] },
-            "Retention Potential": { "assignedScore": 80, "whatWentWell": "Retention will be high if the service proves reliable and leads to increased crop yield and income.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          }
-        },
-        "Execution & Operations": {
-          "Technical Feasibility": {
-            "Technology Maturity": { "assignedScore": 80, "whatWentWell": "Image recognition and machine learning are mature technologies.", "whatCanBeImproved": "The primary challenge is adapting them to specific Indian agricultural contexts.", "assumptions": ["The team has access to the required AI/ML expertise."] },
-            "Scalability & Performance": { "assignedScore": 80, "whatWentWell": "The cloud-based architecture is inherently scalable, capable of serving millions of users with proper design.", "whatCanBeImproved": "Cost management at scale needs to be considered.", "assumptions": ["Cloud infrastructure costs are managed effectively."] }
-          },
-          "Operational Viability": {
-            "Resource Availability": { "assignedScore": 60, "whatWentWell": "The plan acknowledges the need for data.", "whatCanBeImproved": "Access to high-quality, localized agricultural data for training is a significant challenge and a critical resource. A clear data acquisition strategy is needed.", "assumptions": ["Partnerships with agricultural research institutes can be formed."] },
-            "Process Efficiency": { "assignedScore": 90, "whatWentWell": "The AI-driven process is vastly more efficient than manual inspection or traditional extension services.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          },
-          "Scalability Potential": {
-            "Business Model Scalability": { "assignedScore": 80, "whatWentWell": "The business model is highly scalable, as serving an additional user has a low marginal cost.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "Market Expansion Potential": { "assignedScore": 90, "whatWentWell": "The model can be expanded to different crops, regions, and even other countries with similar agricultural profiles.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          }
-        },
-        "Business Model & Strategy": {
-          "Financial Viability": {
-            "Revenue Stream Diversity": { "assignedScore": 65, "whatWentWell": "A subscription model is proposed.", "whatCanBeImproved": "The model relies primarily on a subscription model. Diversifying with data analytics for institutions or a marketplace for supplies could strengthen it.", "assumptions": [] },
-            "Profitability & Margins": { "assignedScore": 60, "whatWentWell": "The long-term vision is profitable.", "whatCanBeImproved": "Profitability depends on achieving a large scale of paid users to cover the initial R&D and ongoing cloud costs. Financial projections are needed.", "assumptions": [] }
-          },
-          "Defensibility": {
-            "Intellectual Property (IP)": { "assignedScore": 40, "whatWentWell": "N/A", "whatCanBeImproved": "The core AI algorithms may be hard to patent. Defensibility will likely come from proprietary data and brand trust rather than IP.", "assumptions": [] },
-            "Network Effects": { "assignedScore": 80, "whatWentWell": "Strong network effects are possible: more user data improves the AI, which attracts more users, creating a virtuous cycle.", "whatCanBeImproved": "No major improvements needed.", "assumptions": ["Users consent to their anonymized data being used for model improvement."] }
-          }
-        },
-        "Team & Organizational Health": {
-          "Founder-Fit": {
-            "Relevant Experience": { "assignedScore": 75, "whatWentWell": "The team's background in technology is strong.", "whatCanBeImproved": "More deep-domain agricultural expertise would be beneficial.", "assumptions": ["The team can hire or partner with agricultural experts."] },
-            "Complementary Skills": { "assignedScore": 60, "whatWentWell": "The team has strong tech skills.", "whatCanBeImproved": "The team is tech-heavy and would benefit from adding skills in rural marketing, sales, and agricultural policy.", "assumptions": [] }
-          },
-          "Culture/Values": {
-            "Mission Alignment": { "assignedScore": 90, "whatWentWell": "The team shows strong alignment with a mission to use technology for social good and empower farmers.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "Diversity & Inclusion": { "assignedScore": 60, "whatWentWell": "This is acknowledged as important.", "whatCanBeImproved": "Ensuring the AI model is trained on data that is inclusive of all regions and farming communities is a critical challenge to address.", "assumptions": [] }
-          }
-        },
-        "External Environment & Compliance": {
-          "Regulatory (India)": {
-            "Data Privacy Compliance": { "assignedScore": 65, "whatWentWell": "Awareness of data privacy is mentioned.", "whatCanBeImproved": "Adherence to India's data privacy laws (DPDP Act) is crucial and requires careful implementation for handling farmer data.", "assumptions": ["Legal counsel will be sought for compliance."] },
-            "Sector-Specific Compliance": { "assignedScore": 80, "whatWentWell": "There are no major sector-specific regulations that would block this idea. Alignment with government digital agriculture initiatives is a plus.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          },
-          "Sustainability (ESG)": {
-            "Environmental Impact": { "assignedScore": 90, "whatWentWell": "The idea has a strong positive environmental impact by promoting targeted pesticide use and improving resource management.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "Social Impact (SDGs)": { "assignedScore": 90, "whatWentWell": "Directly aligns with SDGs for Zero Hunger (SDG 2), and Industry, Innovation, and Infrastructure (SDG 9).", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          },
-          "Ecosystem Support (India)": {
-            "Government & Institutional Support": { "assignedScore": 80, "whatWentWell": "High potential for support from government initiatives like Startup India and agritech incubators.", "whatCanBeImproved": "No major improvements needed.", "assumptions": ["The team will actively seek this support."] },
-            "Investor & Partner Landscape": { "assignedScore": 80, "whatWentWell": "The Indian agritech sector is attracting significant investor interest, making the funding landscape favorable.", "whatCanBeImproved": "No major improvements needed.", "assumptions": ["The business model is attractive to VCs."] }
-          }
-        },
-        "Risk & Future Outlook": {
-          "Risk Assessment": {
-            "Technical Risks": { "assignedScore": 65, "whatWentWell": "Risks are identified.", "whatCanBeImproved": "The primary technical risk is the AI's accuracy and reliability across diverse real-world conditions. A mitigation plan is needed.", "assumptions": [] },
-            "Market Risks": { "assignedScore": 60, "whatWentWell": "Risks are identified.", "whatCanBeImproved": "Market risk includes user adoption challenges due to digital literacy and trust, and competition from other agritech players. A mitigation plan is needed.", "assumptions": [] },
-            "Operational Risks": { "assignedScore": 50, "whatWentWell": "Risks are identified.", "whatCanBeImproved": "Operational risks involve building a robust data pipeline and a support system for farmers. A mitigation plan is needed.", "assumptions": [] }
-          },
-          "Investor Attractiveness": {
-            "ROI Potential": { "assignedScore": 80, "whatWentWell": "High ROI potential if the model can achieve scale, given the large market size and scalable tech.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "Exit Strategy Feasibility": { "assignedScore": 80, "whatWentWell": "A clear exit path exists through acquisition by larger agritech or agriculture input companies.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          },
-          "Academic/National Alignment": {
-            "Research Synergy": { "assignedScore": 85, "whatWentWell": "Strong potential for collaboration with agricultural universities for research and data.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] },
-            "National Priority Alignment": { "assignedScore": 90, "whatWentWell": "The idea aligns perfectly with national priorities of increasing agricultural productivity and farmer income.", "whatCanBeImproved": "No major improvements needed.", "assumptions": [] }
-          }
-        }
-      }
-    },
-    conclusion: {
-      title: '5.0 Conclusion',
-      content: 'AI-Powered Smart Farming presents a compelling vision for leveraging AI to serve the critical needs of India\'s agricultural sector. Its core idea demonstrates good originality and targets clear problems within a vast market. However, the project currently stands at a "MODERATE" viability level due to challenges in data acquisition, competitive intensity, and ensuring real-world AI efficacy. With a focused pilot program and strategic partnerships, it has strong potential to become a highly viable and impactful venture.'
-    },
-    recommendations: {
-      title: '6.0 Recommendations',
-      description: 'To elevate the project\'s viability, the following strategic recommendations are crucial:',
-      items: [
-        'Initiate a pilot program in partnership with a local agricultural university to gather high-quality, localized training data and validate the AI model\'s efficacy in a controlled environment.',
-        'Develop a tiered business model (e.g., freemium) to build a large user base while offering premium, value-added services to larger farms or FPOs to ensure financial sustainability.',
-        'Focus on building a strong brand and community around the app to create a moat, as the core technology may be difficult to defend with patents alone.'
-      ]
-    },
-    appendix: {
-      title: '7.0 Appendix / Glossary',
-      items: [
-        'TAM: Total Addressable Market',
-        'SDG: Sustainable Development Goals',
-        'FPO: Farmer Producer Organisation'
-      ]
-    }
-  }
+export const MOCK_SCORING_PRESETS = {
+  "Balanced": {
+    "Core Idea & Innovation": 20,
+    "Market & Commercial Opportunity": 25,
+    "Execution & Operations": 15,
+    "Business Model & Strategy": 15,
+    "Team & Organizational Health": 10,
+    "External Environment & Compliance": 10,
+    "Risk & Future Outlook": 5,
+  },
+  "Research-Focused": {
+    "Core Idea & Innovation": 30,
+    "Market & Commercial Opportunity": 10,
+    "Execution & Operations": 20,
+    "Business Model & Strategy": 10,
+    "Team & Organizational Health": 10,
+    "External Environment & Compliance": 10,
+    "Risk & Future Outlook": 10
+  },
+  "Commercialization-Focused": {
+    "Core Idea & Innovation": 10,
+    "Market & Commercial Opportunity": 30,
+    "Execution & Operations": 15,
+    "Business Model & Strategy": 20,
+    "Team & Organizational Health": 10,
+    "External Environment & Compliance": 5,
+    "Risk & Future Outlook": 10
+  },
 };
 
 
+<<<<<<< HEAD
 export let MOCK_IDEAS: Array<{
   id: string;
   validationId: string;
@@ -514,72 +492,837 @@ export let MOCK_IDEAS: Array<{
   ttcAssigned: string | null;
   teamId?: string;
 }> = [
+=======
+export const STATUS_COLORS: Record<string, string> = {
+  'Approved': 'bg-green-500 text-white',
+  'Exemplary': 'bg-green-500 text-white',
+  'High Potential': 'bg-green-500 text-white',
+  'Moderate': 'bg-yellow-500 text-white',
+  'Developing': 'bg-yellow-500 text-white',
+  'Rejected': 'bg-red-500 text-white',
+  'Needs Refinement': 'bg-red-500 text-white',
+  'Scheduled': 'bg-blue-500 text-white',
+  'Pending': 'bg-gray-500 text-white',
+  'Completed': 'bg-green-700 text-white',
+  'Cancelled': 'bg-red-700 text-white',
+  'Active': 'bg-green-500 text-white',
+  'Inactive': 'bg-gray-500 text-white',
+};
+
+export const MOCK_NOTIFICATIONS = {
+  [ROLES.INNOVATOR]: [
+    { id: '1', title: 'Report Ready!', description: 'Your report for "AI Crop Health Monitor" is complete.', read: false },
+    { id: '2', title: 'Consultation Confirmed', description: 'Your meeting with Dr. White is set for Aug 15.', read: true },
+  ],
+  [ROLES.COORDINATOR]: [
+    { id: '3', title: 'New Consultation Request', description: 'Jane Doe requested a consultation for "AI Crop Health".', read: false },
+  ],
+  [ROLES.PRINCIPAL]: [
+    { id: '4', title: 'Credit Request', description: 'Dr. Patel has requested 50 credits for a hackathon.', read: false },
+  ],
+  [ROLES.SUPER_ADMIN]: [
+    { id: '5', title: 'New Institution Onboarded', description: 'Vanguard College has joined PragatiAI.', read: true },
+  ],
+};
+
+const MOCK_SAMPLE_REPORT: ValidationReport = {
+    ideaName: "Economical AI Project Management Tool",
+    preparedFor: "Innovator Name",
+    date: "August 4, 2025",
+    overallScore: 87,
+    validationOutcome: "High Potential",
+    input: {
+        user_idea: "Ai project management tools for startup at economical cost with AI feature.",
+        ai_understanding: "The user's core idea is to develop a B2B SaaS platform specifically for startups. The key value propositions are its affordable price point ('economical') and the integration of artificial intelligence features to differentiate it from existing solutions."
+    },
+    executiveSummary: {
+        outcome: "High Potential. The idea has a strong, defensible niche in a large and growing market. Success hinges on a robust execution strategy, particularly in a highly competitive landscape.",
+        summary: "The 'Economical AI Project Management Tool' addresses a critical gap in the market for startups and small businesses. By leveraging AI for automation and insights at an accessible price point, it creates a differentiated offering that moves beyond basic task management. The overall viability score of 8.7/10 indicates high potential. Key opportunities lie in a massive, underserved target market, while the primary challenges involve competing with established players and maintaining profitability with a low-cost model. A key risk is the operational cost of providing powerful AI features at a low price. The path to success requires a clear focus on a stellar user experience and a highly scalable, automated operational model."
+    },
+    keyStrengthsWeaknesses: {
+        strengths: [
+        { title: "Strong Value Proposition", description: "The combination of affordability and AI features fills a clear market gap." },
+        { title: "Scalable SaaS Model", description: "The business model allows for rapid growth with controlled costs." },
+        { title: "Target Market Growth", description: "The global and Indian startup ecosystems are expanding rapidly, providing a large customer base." }
+        ],
+        weaknesses: [
+        { title: "High Competition", description: "The market is crowded with well-funded and established players like Jira and Asana." },
+        { title: "Operational Costs", description: "Maintaining powerful AI features at a low price point poses a significant challenge to profitability." },
+        { title: "Brand Recognition", description: "As a new entrant, building trust and brand loyalty will be a key hurdle." }
+        ]
+    },
+    criticalRisksAndMitigation: [
+        {
+        risk: "Intense Competition",
+        description: "The project management software market is mature and saturated with well-established players.",
+        impact: "Medium to High",
+        mitigation: "Focus on a niche (e.g., startups), differentiate with a unique 'economical + AI' value proposition, and build a strong community to create brand loyalty."
+        },
+        {
+        risk: "Operational Costs of AI",
+        description: "Providing powerful AI features at a low price point can lead to high operational costs (e.g., GPU usage, API licenses) that erode profitability.",
+        impact: "High",
+        mitigation: "Optimize AI models for efficiency, use cost-effective cloud solutions, and carefully manage usage-based costs. Consider a tiered AI feature model where advanced features are exclusive to higher-priced plans."
+        },
+        {
+        risk: "User Experience Debt",
+        description: "The pressure to ship quickly to compete can lead to a subpar user experience and technical debt.",
+        impact: "Medium",
+        mitigation: "Adopt an MVP-first strategy with a clear focus on core, high-value features. Implement continuous user feedback loops and allocate dedicated time for refactoring and bug fixes in every sprint."
+        }
+    ],
+    competitiveAnalysis: {
+        user_provided_competitors: "Jira, Asana, Trello.",
+        ai_inference: "The user's identified competitors (Jira, Asana, Trello) are accurate and represent the primary threats. The AI's analysis confirms that the user's proposed 'economical and AI-driven' USP is a valid strategy to compete against these established players.",
+        competitors: [
+        {
+            name: "Jira",
+            products: "Jira Software, Jira Service Management",
+            features: "Task tracking, agile project management, workflow automation.",
+            price_range: "Starts free, then ~$700/user/month.",
+            strengths: "Market leader for software development teams, highly customizable, strong integrations.",
+            weaknesses: "Can be complex and expensive for startups, steep learning curve."
+        },
+        {
+            name: "Asana",
+            products: "Asana Basic, Asana Premium, Asana Business",
+            features: "Project tracking, goal setting, visual timelines, workflow builder.",
+            price_range: "Starts free, then ~$900/user/month.",
+            strengths: "Excellent user interface, flexible for various team types, strong collaboration features.",
+            weaknesses: "Expensive premium tiers, lacks deep AI automation compared to future-proof tools."
+        },
+        {
+            name: "Trello",
+            products: "Trello Free, Trello Standard, Trello Premium",
+            features: "Kanban boards, checklists, integrations.",
+            price_range: "Starts free, then ~$450/user/month.",
+            strengths: "Intuitive and simple to use, great for visual thinkers and small projects.",
+            weaknesses: "Lacks advanced features for scaling teams, not AI-focused."
+        }
+        ],
+        recommendations: [
+        "Beyond just price, clearly articulate how the AI features provide a superior experience compared to the competitors.",
+        "Build a comparison table on the website to highlight the value proposition against competitors."
+        ]
+    },
+    detailedPricingAndFinancials: {
+        user_provided_pricing_model: "Freemium with a tiered subscription model.",
+        user_provided_estimated_price: "₹500 per user/month for the premium tier.",
+        ai_pricing_inference: "The user's suggested freemium model with a tiered subscription is a viable strategy. Our analysis confirms a price point around ₹700/month is competitive and allows for a healthy gross margin. The user's provided price of ₹500 is a good starting point but may need to be slightly adjusted to ensure profitability.",
+        recommended_pricing_model: "Freemium with a Tiered Subscription for premium features.",
+        estimated_premium_price: 699.00,
+        estimated_cogs_per_user: 275,
+        cost_breakdown: [
+        { item: "AI Compute & GPU usage", cost: 150 },
+        { item: "Cloud Hosting & Storage", cost: 75 },
+        { item: "Third-party APIs & Licenses", cost: 50 },
+        ],
+        suggestions: [
+        "Test different pricing models early to find the optimal balance between user acquisition and revenue generation.",
+        "Carefully analyze customer acquisition cost (CAC) and lifetime value (LTV) to ensure the business model is profitable at scale."
+        ]
+    },
+    actionPlan: {
+        urgent: [
+        "Conduct a detailed market segmentation study to pinpoint the most lucrative sub-niche of startups.",
+        "Develop a minimum viable product (MVP) with a core set of AI features for a closed beta with 10-20 startups.",
+        "Define key performance indicators (KPIs) and a clear go-to-market strategy for the initial launch."
+        ],
+        highPriority: [
+        "Finalize the pricing tiers and model based on beta test feedback and competitor analysis.",
+        "Begin building a brand identity and content marketing strategy targeting the startup community.",
+        "Explore partnerships with startup incubators and accelerators to gain early access to customers."
+        ],
+        midPriority: [
+        "Scale the marketing and sales efforts to reach a broader audience.",
+        "Develop a robust customer support and feedback loop system.",
+        "Begin planning for international expansion based on early traction."
+        ]
+    },
+    detailedIdeaValidationAndScoring: [
+      {
+        parameter_name: "1. Core Idea",
+        icon: "Lightbulb",
+        sub_parameters: [
+          {
+            parameter_name: "1.1. Novelty & Uniqueness",
+            sub_parameters: [
+              {
+                parameter_name: "1.1.1. Originality",
+                score: 8.5,
+                inference: "The core idea is not entirely new, but the combination of 'economical' pricing and 'AI-powered' features is a strong, original value proposition that sets it apart.",
+                recommendations: [
+                  "Focus marketing on this unique combination.",
+                  "Highlight the AI's smart features over competitors' basic task automation.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "1.1.2. Differentiation",
+                score: 9.0,
+                inference: "The product is highly differentiated from expensive enterprise tools and free, basic tools. This gives it a clear 'blue ocean' strategy in a crowded market.",
+                recommendations: [
+                  "Build a public-facing comparison matrix on the website to show differentiation.",
+                  "Gather testimonials from users who have switched from competitors.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [
+                  { text: "Analysis of the project management software market." },
+                ],
+              },
+            ],
+          },
+          {
+            parameter_name: "1.2. Problem-Solution Fit",
+            sub_parameters: [
+              {
+                parameter_name: "1.2.1. Problem Severity",
+                score: 9.5,
+                inference: "Startups have a severe problem finding powerful and affordable project management tools. The pain point is high, which is a great foundation for a product.",
+                recommendations: [
+                  "Conduct user interviews to deeply understand the pain points.",
+                  "Validate the problem with a landing page and email sign-ups.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [
+                  { text: "AI-driven market research on startup pain points." },
+                ],
+              },
+              {
+                parameter_name: "1.2.2. Solution Effectiveness",
+                score: 9.0,
+                inference: "The proposed AI features (e.g., automated reporting, resource allocation) directly address the core problems faced by time and resource-constrained startups.",
+                recommendations: [
+                  "Develop a proof-of-concept for the most critical AI feature.",
+                  "Run a small closed beta to test the solution's effectiveness.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "1.3. UX/Usability Potential",
+            sub_parameters: [
+              {
+                parameter_name: "1.3.1. Intuitive Design",
+                score: 8.5,
+                inference: "A simple, clean UI is crucial for startups. The design should be intuitive and require minimal onboarding, a key differentiator from complex enterprise tools.",
+                recommendations: [
+                  "Hire an experienced UX/UI designer with a focus on SaaS products.",
+                  "Conduct user testing with low-fidelity prototypes before writing any code.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "1.3.2. Accessibility Compliance",
+                score: 8.0,
+                inference: "Accessibility is a key consideration for a modern SaaS product, though often overlooked. It broadens the market and demonstrates a commitment to inclusive design.",
+                recommendations: [
+                  "Ensure the UI is built with WCAG 2.1 guidelines in mind.",
+                  "Perform an accessibility audit before the public launch.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "2. Market Opportunity",
+        icon: "Briefcase",
+        sub_parameters: [
+          {
+            parameter_name: "2.1. Market Validation (TAM)",
+            sub_parameters: [
+              {
+                parameter_name: "2.1.1. Market Size (TAM)",
+                score: 9.5,
+                inference: "The Total Addressable Market for project management software is vast, estimated at over $6.5 billion globally, growing at a CAGR of 11.2%. The user's input on Indian market size is a good proxy.",
+                recommendations: [
+                  "Focus on the Serviceable Obtainable Market (SOM) first.",
+                  "Use the TAM to attract investors and show long-term vision.",
+                ],
+                user_input: {
+                  user_provided_market_size:
+                    "Indian SaaS market is expected to reach $13-15 billion by 2025.",
+                },
+                sourcesUsed: [
+                  {
+                    text: "Statista Report: Project Management Software Market Size",
+                    url: "https://www.statista.com/outlook/dmo/enterprise-software/project-management-software/worldwide",
+                  },
+                ],
+              },
+              {
+                parameter_name: "2.1.2. Competitive Intensity",
+                score: 7.0,
+                inference: "The market is highly competitive with many established players. This is a significant risk that must be addressed through a strong value proposition.",
+                recommendations: [
+                  "Clearly define and communicate the product's unique selling points.",
+                  "Target a sub-niche (e.g., early-stage tech startups) to reduce initial competition.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "2.2. Geographic Specificity (India)",
+            sub_parameters: [
+              {
+                parameter_name: "2.2.1. Regulatory Landscape",
+                score: 8.5,
+                inference: "The regulatory environment in India for SaaS is generally favorable, with government initiatives supporting startups. Data privacy laws are a key consideration.",
+                recommendations: [
+                  "Ensure compliance with India's data privacy laws.",
+                  "Consult with a legal expert on specific regulations.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [
+                  {
+                    text: "Indian Ministry of Electronics and Information Technology (MeitY) guidelines",
+                  },
+                ],
+              },
+              {
+                parameter_name: "2.2.2. Infrastructure Readiness",
+                score: 9.0,
+                inference: "India has a robust digital infrastructure with high internet penetration and a large base of tech-savvy users, making it an ideal market for a SaaS product.",
+                recommendations: [
+                  "Optimize the product for both desktop and mobile use.",
+                  "Leverage local cloud providers to reduce latency.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "2.3. Product-Market Fit",
+            sub_parameters: [
+              {
+                parameter_name: "2.3.1. User Engagement",
+                score: 8.5,
+                inference: "The AI features are designed to increase user engagement by making tasks easier and providing valuable insights. This is a strong hypothesis that needs validation.",
+                recommendations: [
+                  "Implement detailed analytics to track user engagement with key AI features.",
+                  "Conduct usability studies to identify friction points.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "2.3.2. Retention Potential",
+                score: 8.0,
+                inference: "The product's 'stickiness' will come from its AI learning over time. As the AI gets smarter, the product becomes more valuable, increasing retention.",
+                recommendations: [
+                  "Introduce a 'retention' metric in the early stages.",
+                  "Continuously improve AI models based on user feedback to drive long-term value.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "3. Execution",
+        icon: "Rocket",
+        sub_parameters: [
+          {
+            parameter_name: "3.1. Technical Feasibility",
+            sub_parameters: [
+              {
+                parameter_name: "3.1.1. Technology Maturity",
+                score: 8.5,
+                inference: "The underlying technologies for a modern SaaS product (cloud, microservices, front-end frameworks) are mature and well-understood. The AI component is the primary technical challenge.",
+                recommendations: [
+                  "Choose a robust tech stack that can support AI integrations.",
+                  "Build a dedicated R&D team for the AI features.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "3.1.2. Scalability & Performance",
+                score: 8.0,
+                inference: "A SaaS product needs to scale horizontally to support millions of users. The AI models must also be optimized for both performance and cost.",
+                recommendations: [
+                  "Design a scalable architecture from day one.",
+                  "Use serverless functions for computationally expensive tasks.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "3.2. Operational Viability",
+            sub_parameters: [
+              {
+                parameter_name: "3.2.1. Resource Availability",
+                score: 8.5,
+                inference: "India has a large talent pool of engineers and AI experts, making it feasible to build and operate the product locally.",
+                recommendations: [
+                  "Partner with local universities to hire top talent.",
+                  "Build a strong company culture to attract and retain employees.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "3.2.2. Process Efficiency",
+                score: 9.0,
+                inference: "Automation is a core part of the business. The goal is to have highly efficient internal processes to keep costs down.",
+                recommendations: [
+                  "Automate all possible internal workflows (e.g., marketing, sales, support).",
+                  "Use a modern CI/CD pipeline to ensure fast, reliable deployments.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "3.3. Scalability Potential",
+            sub_parameters: [
+              {
+                parameter_name: "3.3.1. Business Model Scalability",
+                score: 9.0,
+                inference: "The SaaS subscription model is highly scalable. The key is to manage the cost of AI as the user base grows.",
+                recommendations: [
+                  "Implement a usage-based pricing model for AI-intensive features.",
+                  "Regularly review and optimize the cost of goods sold (COGS).",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "3.3.2. Market Expansion Potential",
+                score: 8.5,
+                inference: "The product can easily expand to new markets beyond India and to different industry verticals with minor modifications.",
+                recommendations: [
+                  "Plan for internationalization and localization from the beginning.",
+                  "Start with one market and perfect the product before expanding.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "4. Business Model",
+        icon: "DollarSign",
+        sub_parameters: [
+          {
+            parameter_name: "4.1. Financial Viability",
+            sub_parameters: [
+              {
+                parameter_name: "4.1.1. Revenue Stream Diversity",
+                score: 8.0,
+                inference: "The primary revenue stream is subscriptions. Other potential streams could include marketplace integrations or premium AI consulting services.",
+                recommendations: [
+                  "Explore partnerships with other SaaS tools to create a marketplace.",
+                  "Offer add-on services for high-value customers.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "4.1.2. Profitability & Margins",
+                score: 7.5,
+                inference: "The low price point and high AI costs are a risk to profitability. Careful management of COGS and a clear path to scale are essential.",
+                recommendations: [
+                  "Maintain high gross margins by controlling operational costs.",
+                  "Focus on customer lifetime value (LTV) over short-term revenue.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "4.2. Defensibility",
+            sub_parameters: [
+              {
+                parameter_name: "4.2.1. Intellectual Property (IP)",
+                score: 8.5,
+                inference: "Proprietary AI models and algorithms can be a strong moat. While not a complete barrier, it makes it difficult for competitors to replicate the core value.",
+                recommendations: [
+                  "File for patents for unique algorithms.",
+                  "Protect the brand with strong trademarks.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [
+                  { text: "Patent analysis for AI in project management." },
+                ],
+              },
+              {
+                parameter_name: "4.2.2. Network Effects",
+                score: 8.0,
+                inference: "The value of the tool increases as more team members and collaborators use it. This creates a natural network effect that increases user stickiness.",
+                recommendations: [
+                  "Build strong collaboration features into the product.",
+                  "Encourage team-based sign-ups and referrals.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "5. Team",
+        icon: "Users",
+        sub_parameters: [
+          {
+            parameter_name: "5.1. Founder-Fit",
+            sub_parameters: [
+              {
+                parameter_name: "5.1.1. Relevant Experience",
+                score: 9.0,
+                inference: "Founders with experience in AI, SaaS, and project management would be an ideal fit. Their domain expertise is critical for success.",
+                recommendations: [
+                  "If the founder lacks experience, bring on an experienced advisor or co-founder.",
+                  "Highlight the team's expertise in marketing materials.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "5.1.2. Complementary Skills",
+                score: 9.0,
+                inference: "An effective team needs a mix of technical, business, and design skills to build a successful product.",
+                recommendations: [
+                  "Ensure the team has a clear founder-fit in all key areas.",
+                  "Use the team's complementary skills as a selling point to investors.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "5.2. Culture/Values",
+            sub_parameters: [
+              {
+                parameter_name: "5.2.1. Mission Alignment",
+                score: 9.5,
+                inference: "A strong, mission-driven culture will be essential to attract and retain talent in a competitive market.",
+                recommendations: [
+                  "Clearly define the company's mission and values from day one.",
+                  "Ensure all hiring decisions are aligned with the company culture.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "5.2.2. Diversity & Inclusion",
+                score: 9.0,
+                inference: "Building a diverse team will lead to better products and a broader perspective. This is a crucial factor for long-term success.",
+                recommendations: [
+                  "Implement a clear diversity and inclusion policy.",
+                  "Focus on building an inclusive culture where all voices are heard.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "6. Compliance",
+        icon: "FileText",
+        sub_parameters: [
+          {
+            parameter_name: "6.1. Regulatory (India)",
+            sub_parameters: [
+              {
+                parameter_name: "6.1.1. Data Privacy Compliance",
+                score: 8.5,
+                inference: "Compliance with local data privacy laws (e.g., India's PDP Bill) is non-negotiable. This is a key risk area that requires attention.",
+                recommendations: [
+                  "Engage a legal consultant to review the product's data handling.",
+                  "Implement a robust data privacy policy and get it audited.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "6.1.2. Sector-Specific Compliance",
+                score: 8.0,
+                inference: "Depending on the target industry (e.g., healthcare, finance), additional compliance measures may be required.",
+                recommendations: [
+                  "Identify target industry verticals and their compliance requirements.",
+                  "Build the product to be configurable for different compliance needs.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "6.2. Sustainability (ESG)",
+            sub_parameters: [
+              {
+                parameter_name: "6.2.1. Environmental Impact",
+                score: 8.0,
+                inference: "The product's carbon footprint (from cloud computing and AI training) is a key consideration. This can be a selling point to eco-conscious companies.",
+                recommendations: [
+                  "Use energy-efficient cloud providers.",
+                  "Publish an annual sustainability report.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "6.2.2. Social Impact (SDGs)",
+                score: 9.0,
+                inference: "The product can contribute to UN Sustainable Development Goals (SDGs) by improving productivity and supporting small businesses.",
+                recommendations: [
+                  "Align the company's mission with relevant SDGs.",
+                  "Highlight the social impact in marketing materials.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "6.3. Ecosystem Support (India)",
+            sub_parameters: [
+              {
+                parameter_name: "6.3.1. Government & Institutional Support",
+                score: 9.5,
+                inference: "Government initiatives like 'Startup India' and various institutional support programs offer a significant advantage for a product built and launched in India.",
+                recommendations: [
+                  "Apply for government grants and startup programs.",
+                  "Leverage institutional partnerships for marketing and sales.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [
+                  {
+                    text: "Startup India: Official Government of India Initiative",
+                    url: "https://www.startupindia.gov.in/",
+                  },
+                ],
+              },
+              {
+                parameter_name: "6.3.2. Investor & Partner Landscape",
+                score: 9.0,
+                inference: "India has a vibrant VC and angel investor ecosystem, with a high appetite for SaaS and AI startups.",
+                recommendations: [
+                  "Build a strong investor deck that highlights the Indian market opportunity.",
+                  "Network with key investors and partners in the Indian ecosystem.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        parameter_name: "7. Risk & Strategy",
+        icon: "TrendingDown",
+        sub_parameters: [
+          {
+            parameter_name: "7.1. Risk Assessment",
+            sub_parameters: [
+              {
+                parameter_name: "7.1.1. Technical Risks",
+                score: 7.5,
+                inference: "The main technical risks are related to the performance and cost of the AI models. These require careful management and continuous optimization.",
+                recommendations: [
+                  "Use a multi-cloud strategy to mitigate single-provider risk.",
+                  "Build a robust monitoring and alerting system for technical issues.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "7.1.2. Market Risks",
+                score: 8.0,
+                inference: "The main market risks are intense competition and the possibility of a downturn in the startup ecosystem. A strong product and clear messaging can mitigate these risks.",
+                recommendations: [
+                  "Stay agile and adapt the product to market changes.",
+                  "Diversify the customer base to reduce dependency on a single market segment.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "7.2. Investor Attractiveness",
+            sub_parameters: [
+              {
+                parameter_name: "7.2.1. ROI Potential",
+                score: 8.5,
+                inference: "The product has a strong valuation potential due to the high-growth SaaS model and the AI component. Early traction will be key to unlocking this potential.",
+                recommendations: [
+                  "Focus on early user growth and retention metrics.",
+                  "Develop a clear financial model and a path to profitability.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "7.2.2. Exit Strategy Feasibility",
+                score: 8.0,
+                inference: "The product has multiple potential exit opportunities, including acquisition by a larger enterprise software company or a later-stage VC firm.",
+                recommendations: [
+                  "Identify potential acquirers early in the process.",
+                  "Build a defensible business with strong IP and customer loyalty.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+          {
+            parameter_name: "7.3. Academic/National Alignment",
+            sub_parameters: [
+              {
+                parameter_name: "7.3.1. Research Synergy",
+                score: 8.5,
+                inference: "The product's AI components could lead to new research papers and academic contributions, which can enhance the brand's reputation and attract talent.",
+                recommendations: [
+                  "Publish research papers on the AI models used in the product.",
+                  "Partner with academic institutions on R&D projects.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+              {
+                parameter_name: "7.3.2. National Priority Alignment",
+                score: 9.5,
+                inference: "The product aligns well with national policies for a 'digital India' and a 'self-reliant India' (Atmanirbhar Bharat), which can provide significant institutional support.",
+                recommendations: [
+                  "Explicitly mention alignment with national policies in the business plan.",
+                  "Leverage government programs and funding opportunities.",
+                ],
+                user_input: { user_input: "not given" },
+                sourcesUsed: [{ text: "Not provided in this analysis." }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    aiResearchAgentFindings: {
+        summary: "The AI research agent found a significant number of articles and studies related to the challenges startups face with project management, confirming the problem's validity. There's a clear trend towards AI adoption in business processes, which supports the product's core value proposition.",
+        findings: [
+        { finding: "A 2023 survey found that 65% of startups cite 'inefficient project management' as a key operational challenge." },
+        { finding: "The market for AI-powered business tools is projected to grow by 25% annually through 2028." },
+        { finding: "Startups are highly price-sensitive, with over 70% choosing free or low-cost tools over feature-rich but expensive alternatives." }
+        ]
+    },
+    ipAndResearchPaperAnalysis: {
+        summary: "There are no direct patents that would block the development of this product. However, there are numerous patents for specific AI-driven features in project management. The research landscape is active, with many papers exploring AI's role in optimizing team productivity and resource allocation.",
+        papers: [
+        { title: "A survey of AI in software engineering project management", url: "https://example.com/paper1" },
+        { title: "Predictive models for startup success using machine learning", url: "https://example.com/paper2" }
+        ]
+    },
+    sources: [
+        { text: "Statista: Project Management Software Market Report", url: "https://www.statista.com" },
+        { text: "NASSCOM: Indian Tech Start-up Ecosystem Report", url: "https://nasscom.in" }
+    ],
+    disclaimer: "This report is generated by an AI model and is intended for informational purposes only. It should not be considered as financial or legal advice. The scores and recommendations are based on the data provided and a set of predefined parameters. Users are advised to conduct their own due diligence and consult with human experts before making any business decisions."
+};
+
+export const MOCK_IDEAS = [
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
   {
     id: 'IDEA-001',
     validationId: 'VALID-001-001',
-    title: 'AI-Powered Smart Farming',
-    description: 'An intelligent system using AI to optimize crop yield and detect diseases early.',
+    title: 'AI-Powered Crop Disease Detection',
+    description: 'An app that uses drone imagery and AI to detect crop diseases early.',
     collegeId: 'COL001',
     collegeName: 'Pragati Institute of Technology',
     domain: 'Agriculture',
     innovatorId: 'INV001',
     innovatorName: 'Jane Doe',
     innovatorEmail: 'jane.doe@example.com',
-    status: 'Approved',
-    dateSubmitted: '2024-01-15',
+    status: 'High Potential',
+    dateSubmitted: '2024-07-15',
     version: 'V1.0',
-    report: {...MOCK_SAMPLE_REPORT, ideaName: 'AI-Powered Smart Farming', overallScore: 88, validationOutcome: 'Approved', recommendationText: "Rocket Fuel! This idea is cleared for launch. Let's make it happen!"},
+    report: MOCK_SAMPLE_REPORT,
     clusterWeights: INITIAL_CLUSTER_WEIGHTS,
     feedback: null,
     consultationStatus: 'Scheduled',
+<<<<<<< HEAD
     consultationDate: '2024-07-20',
     consultationTime: '10:00',
     ttcAssigned: 'TTC_001',
     teamId: 'TEAM-001',
+=======
+    consultationDate: '2024-08-15',
+    consultationTime: '11:00 AM',
+    ttcAssigned: 'TTC001',
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
   },
   {
     id: 'IDEA-002',
     validationId: 'VALID-002-001',
-    title: 'Decentralized Education Platform',
-    description: 'A blockchain-based platform for peer-to-peer learning with verified credentials.',
-    collegeId: 'COL002',
-    collegeName: 'Global School of Innovation',
-    domain: 'EdTech',
+    title: 'Blockchain-Based Voting System',
+    description: 'A secure and transparent voting system using blockchain technology.',
+    collegeId: 'COL001',
+    collegeName: 'Pragati Institute of Technology',
+    domain: 'FinTech',
     innovatorId: 'INV002',
     innovatorName: 'John Smith',
     innovatorEmail: 'john.smith@example.com',
     status: 'Moderate',
-    dateSubmitted: '2024-02-20',
-    version: 'V1.0',
-    report: {...MOCK_SAMPLE_REPORT, ideaId: 'IDEA-002', validationId: 'VALID-002-001', reportId: 'REPID-002-001-20240722', ideaName: 'Decentralized Education Platform', overallScore: 62 },
+    dateSubmitted: '2024-06-20',
+    version: 'V1.2',
+    report: { ...MOCK_SAMPLE_REPORT, ideaName: 'Blockchain-Based Voting System', overallScore: 72, validationOutcome: 'Moderate' },
     clusterWeights: INITIAL_CLUSTER_WEIGHTS,
     feedback: null,
+<<<<<<< HEAD
     consultationStatus: 'Pending',
     consultationDate: null,
     consultationTime: null,
     ttcAssigned: null,
     teamId: 'TEAM-002',
+=======
+    consultationStatus: 'Completed',
+    consultationDate: '2024-07-10',
+    consultationTime: '03:00 PM',
+    ttcAssigned: 'TTC002',
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
   },
-   {
+  {
     id: 'IDEA-003',
     validationId: 'VALID-003-001',
-    title: 'HealthTech Wearable for Seniors',
-    description: 'A wearable device that monitors vital signs for elderly individuals and alerts caregivers.',
-    collegeId: 'COL001',
-    collegeName: 'Pragati Institute of Technology',
-    domain: 'HealthTech',
-    innovatorId: 'INV001',
-    innovatorName: 'Jane Doe',
-    innovatorEmail: 'jane.doe@example.com',
-    status: 'Rejected',
-    dateSubmitted: '2024-03-10',
-    version: 'V1.0',
-    report: {...MOCK_SAMPLE_REPORT, ideaId: 'IDEA-003', validationId: 'VALID-003-001', reportId: 'REPID-003-001-20240723', ideaName: 'HealthTech Wearable for Seniors', overallScore: 42, validationOutcome: 'Rejected', recommendationText: "Back to the Lab! A great learning opportunity. Rethink the core concept and come back stronger."},
+    title: 'Gamified Language Learning App',
+    description: 'A mobile app that makes learning new languages fun and interactive.',
+    collegeId: 'COL002',
+    collegeName: 'Vanguard College of Engineering',
+    domain: 'EdTech',
+    innovatorId: 'INV003',
+    innovatorName: 'Alisha Khan',
+    innovatorEmail: 'alisha.khan@example.com',
+    status: 'Needs Refinement',
+    dateSubmitted: '2024-07-01',
+    version: 'V0.9',
+    report: { ...MOCK_SAMPLE_REPORT, ideaName: 'Gamified Language Learning App', overallScore: 45, validationOutcome: 'Needs Refinement' },
     clusterWeights: INITIAL_CLUSTER_WEIGHTS,
     feedback: null,
     consultationStatus: 'Not Requested',
     consultationDate: null,
     consultationTime: null,
+<<<<<<< HEAD
     ttcAssigned: null,
     teamId: 'TEAM-001',
   },
@@ -605,21 +1348,25 @@ export let MOCK_IDEAS: Array<{
     consultationTime: '11:00',
     ttcAssigned: 'TTC_002',
     teamId: 'TEAM-003',
+=======
+    ttcAssigned: 'TTC003',
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
   },
    {
-    id: 'IDEA-005',
-    validationId: 'VALID-005-001',
+    id: 'IDEA-004',
+    validationId: 'VALID-004-001',
     title: 'Personalized Financial Advisor Bot',
-    description: 'A FinTech chatbot that provides personalized investment advice based on user goals.',
+    description: 'An AI chatbot that provides personalized financial advice to millennials.',
     collegeId: 'COL001',
     collegeName: 'Pragati Institute of Technology',
     domain: 'FinTech',
     innovatorId: 'INV001',
     innovatorName: 'Jane Doe',
     innovatorEmail: 'jane.doe@example.com',
-    status: 'Approved',
-    dateSubmitted: '2024-05-22',
+    status: 'High Potential',
+    dateSubmitted: '2024-05-10',
     version: 'V1.0',
+<<<<<<< HEAD
     report: {...MOCK_SAMPLE_REPORT, ideaId: 'IDEA-005', validationId: 'VALID-005-001', reportId: 'REPID-005-001-20240725', ideaName: 'Financial Advisor Bot', overallScore: 80, validationOutcome: 'Moderate'},
     clusterWeights: INITIAL_CLUSTER_WEIGHTS,
     feedback: null,
@@ -644,11 +1391,15 @@ export let MOCK_IDEAS: Array<{
     dateSubmitted: '2024-06-30',
     version: 'V1.0',
     report: {...MOCK_SAMPLE_REPORT, ideaId: 'IDEA-006', validationId: 'VALID-006-001', reportId: 'REPID-006-001-20240726', ideaName: 'Grid Optimizer', overallScore: 70, validationOutcome: 'Moderate'},
+=======
+    report: { ...MOCK_SAMPLE_REPORT, ideaName: 'Personalized Financial Advisor Bot', overallScore: 92, validationOutcome: 'High Potential' },
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
     clusterWeights: INITIAL_CLUSTER_WEIGHTS,
     feedback: null,
     consultationStatus: 'Not Requested',
     consultationDate: null,
     consultationTime: null,
+<<<<<<< HEAD
     ttcAssigned: null,
     teamId: 'TEAM-002',
   },
@@ -811,4 +1562,10 @@ export const STATUS_COLORS: { [key: string]: 'default' | 'destructive' | 'second
   ],
 };
 
+=======
+    ttcAssigned: 'TTC002',
+  },
+];
+
+>>>>>>> 5faf3aa18a1eb274513c8bf2e6da66f417e7bc8e
     

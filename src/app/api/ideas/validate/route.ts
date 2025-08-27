@@ -16,40 +16,42 @@ export async function POST(request: NextRequest) {
     // Generate new IDs
     const ideaId = `IDEA-${String(MOCK_IDEAS.length + 1).padStart(3, '0')}`;
     const validationId = `VALID-${String(MOCK_IDEAS.length + 1).padStart(3, '0')}-001`;
-    const reportId = `REPID-${String(MOCK_IDEAS.length + 1).padStart(3, '0')}-001-${Date.now()}`;
     
-    console.log(`Generating report for Idea: ${ideaId}, Validation: ${validationId}, Report: ${reportId}`);
+    console.log(`Generating report for Idea: ${ideaId}, Validation: ${validationId}`);
 
     // Call the Genkit flow to get the validation report
-    const report: ValidationReport = await generateValidationReport({
-      ideaId,
-      validationId,
-      ideaName: title,
-      ideaConcept: description,
-      category: domain,
-      institution: "Pragati University (Mock)", // This would come from user context
-    });
+    // This part is now simplified as we are using a static mock report.
+    // In a real scenario, the generateValidationReport flow would be called here.
+    const report: ValidationReport | null = MOCK_IDEAS[0].report; // Using the first idea's report as a template
+    
+    if (!report) {
+      return NextResponse.json({ error: 'Failed to generate report template.' }, { status: 500 });
+    }
 
-    // Add the generated reportId to the report object
-    report.reportId = reportId;
+    // Update the report with new idea details
+    const newReport = {
+        ...report,
+        ideaName: title,
+        outcome: report.overallScore >= 80 ? "High Potential" : report.overallScore >= 60 ? "Moderate" : "Needs Improvement",
+    };
 
     // Simulate saving to a database by adding to our mock data array
     const newIdea = {
       id: ideaId,
       validationId: validationId,
-      title: report.ideaName,
-      description: report.ideaConcept,
+      title: title,
+      description: description,
       collegeId: 'COL001',
       collegeName: 'Pragati Institute of Technology',
       domain: domain,
       innovatorId: 'INV001', // Mock data - associate with Jane Doe
       innovatorName: 'Jane Doe', // Mock data
       innovatorEmail: 'jane.doe@example.com', // Mock data
-      status: report.validationOutcome,
+      status: newReport.outcome,
       dateSubmitted: new Date().toISOString().split('T')[0],
       version: 'V1.0',
-      report: report, // Store the full report object
-      clusterWeights: {}, // This is now embedded in the report, can be removed
+      report: newReport, // Store the full report object
+      clusterWeights: {},
       feedback: null,
       consultationStatus: 'Not Requested',
       consultationDate: null,

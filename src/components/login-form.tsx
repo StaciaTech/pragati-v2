@@ -18,6 +18,7 @@ import { ROLES, type Role } from '@/lib/constants';
 import { MOCK_INNOVATOR_USER, MOCK_TTCS, MOCK_PRINCIPAL_USERS } from '@/lib/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 
 const getDashboardLink = (role: Role) => {
@@ -47,11 +48,11 @@ export function LoginForm() {
     
     let userRole: Role | null = null;
 
-    if (email === 'admin@pragati.ai') {
+    if (email.toLowerCase() === 'admin@pragati.ai') {
       userRole = ROLES.SUPER_ADMIN;
-    } else if (MOCK_PRINCIPAL_USERS.some(p => p.email === email)) {
+    } else if (MOCK_PRINCIPAL_USERS.some(p => p.email.toLowerCase() === email.toLowerCase())) {
       userRole = ROLES.PRINCIPAL;
-    } else if (MOCK_TTCS.some(t => t.email === email)) {
+    } else if (MOCK_TTCS.some(t => t.email.toLowerCase() === email.toLowerCase())) {
         userRole = ROLES.COORDINATOR;
     } else if (MOCK_INNOVATOR_USER.email.toLowerCase() === email.toLowerCase()) {
         userRole = ROLES.INNOVATOR;
@@ -71,6 +72,20 @@ export function LoginForm() {
       });
     }
   };
+
+  const handleForgotPassword = () => {
+    toast({
+        title: "Forgot Password",
+        description: "Password recovery feature is not yet implemented in this demo.",
+    });
+  }
+  
+  const handleForgotUsername = () => {
+     toast({
+        title: "Forgot Username",
+        description: "Username recovery feature is not yet implemented in this demo.",
+    });
+  }
 
   return (
     <Card className="w-full">
@@ -102,13 +117,22 @@ export function LoginForm() {
               />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col items-center gap-4">
           <Button type="submit" className="w-full">
             <span>Login</span>
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
+           <div className="text-sm text-center">
+              <button type="button" onClick={handleForgotUsername} className="underline underline-offset-4 text-muted-foreground hover:text-primary">
+                  Forgot Username?
+              </button>
+              <span className="mx-1 text-muted-foreground">·</span>
+              <button type="button" onClick={handleForgotPassword} className="underline underline-offset-4 text-muted-foreground hover:text-primary">
+                  Forgot Password?
+              </button>
+            </div>
         </CardFooter>
       </form>
     </Card>
-  )
+  );
 }
