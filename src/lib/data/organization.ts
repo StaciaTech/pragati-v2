@@ -1,0 +1,21 @@
+
+export let MOCK_COLLEGES = [
+  { id: 'COL001', name: 'Pragati Institute of Technology', principalEmail: 'principal.pit@pragati.com', ttcLimit: 5, creditsAvailable: 500, currentPlanId: 'PLAN001-M', status: 'Active', termsUrl: '/legal/terms/COL001', privacyUrl: '/legal/privacy/COL001' },
+  { id: 'COL002', name: 'Global School of Innovation', principalEmail: 'principal.gsi@pragati.com', ttcLimit: 3, creditsAvailable: 300, currentPlanId: 'PLAN001-M', status: 'Active', termsUrl: '/legal/terms/COL002', privacyUrl: '/legal/privacy/COL002' },
+  { id: 'COL003', name: 'Tech University Chennai', principalEmail: 'principal.tuc@pragati.com', ttcLimit: 7, creditsAvailable: 800, currentPlanId: 'PLAN002-Y', status: 'Inactive', termsUrl: '/legal/terms/COL003', privacyUrl: '/legal/privacy/COL003' },
+];
+
+export let MOCK_TTCS = [
+  { id: 'TTC_001', name: 'Dr. Priya Sharma', email: 'priya.sharma@pragati.com', collegeId: 'COL001', expertise: ['AI', 'Machine Learning'], maxConsultations: 3, currentConsultations: 1, status: 'Active', password: 'ttcpass' },
+  { id: 'TTC_002', name: 'Mr. Rahul Verma', email: 'rahul.verma@pragati.com', collegeId: 'COL001', expertise: ['Blockchain', 'FinTech'], maxConsultations: 2, currentConsultations: 0, status: 'Active', password: 'ttcpass' },
+  { id: 'TTC_003', name: 'Ms. Sneha Reddy', email: 'sneha.reddy@pragati.com', collegeId: 'COL002', expertise: ['Robotics', 'IoT'], maxConsultations: 4, currentConsultations: 0, status: 'Inactive', password: 'ttcpass' },
+];
+
+export let MOCK_INNOVATORS = [
+  { id: 'INV001', name: 'Jane Doe', email: 'jane.doe@example.com', collegeId: 'COL001', credits: 100, status: 'Active', hasPsychometricAnalysis: true },
+  { id: 'INV002', name: 'John Smith', email: 'john.smith@example.com', collegeId: 'COL002', credits: 100, status: 'Active', hasPsychometricAnalysis: true },
+  { id: 'INV003', name: 'Alice Johnson', email: 'alice.j@example.com', collegeId: 'COL001', credits: 100, status: 'Active', hasPsychometricAnalysis: false },
+  { id: 'INV004', name: 'Bob Brown', email: 'bob.b@example.com', collegeId: 'COL001', credits: 100, status: 'Inactive', hasPsychometricAnalysis: false },
+  { id: 'MENTOR_001', name: 'Dr. Anjali Rao', email: 'anjali.rao@mentor.com', collegeId: 'N/A', credits: 100, status: 'Active', hasPsychometricAnalysis: true },
+  { id: 'MENTOR_002', name: 'Mr. Vikram Singh', email: 'vikram.singh@mentor.com', collegeId: 'N/A', credits: 100, status: 'Active', hasPsychometricAnalysis: false },
+];
