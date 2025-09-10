@@ -87,6 +87,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  useAssignMentor,
+  useDraft,
+  useInviteTeam,
+  useSaveDraft,
+  useSubmitDraft,
+  useUploadPpt,
+} from "@/hooks/useIdeaApis";
+import { useMentors } from "@/hooks/useMentors";
+import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 
 // --- SCHEMA & PRESETS ---
 const clusterKeys = Object.keys(INITIAL_CLUSTER_WEIGHTS);
@@ -102,7 +112,7 @@ const submitIdeaSchema = z
     title: z.string().min(1, "Title is required."),
     coreTeam: z.string().optional(),
     invitedTeam: z.array(z.string()).optional(),
-    mentor: z.string().min(1, "A mentor must be selected."),
+    mentorId: z.string().min(1, "A mentor must be selected."),
     domain: z.string().min(1, "Project domain is required."),
     subDomain: z.string().optional(),
     otherDomain: z.string().optional(),
@@ -169,7 +179,7 @@ const defaultValues: Partial<SubmitIdeaForm> = {
   title: "",
   coreTeam: "",
   invitedTeam: [],
-  mentor: "",
+  mentorId: "",
   domain: "",
   subDomain: "",
   otherDomain: "",
@@ -299,6 +309,7 @@ function SubmitIdeaForm({
   isSubmitting: boolean;
 }) {
   const stepper = useStepper();
+  const { toast } = useToast();
 
   const handleSaveDraft = () => {
     const formData = form.getValues();
@@ -513,6 +524,22 @@ const Step1Content = ({
       : (email.charAt(0) || "").toUpperCase();
   };
 
+  const handleNextClick = async () => {
+    const email = form.getValues("coreTeam")?.trim();
+    if (email) {
+      toast({
+        variant: "destructive",
+        title: "Pending invite",
+        description: "Press Invite first or clear the e-mail field.",
+      });
+      return;
+    }
+    if (await form.trigger(["title"])) {
+      handleSaveDraft(); // auto-save
+      next();
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 py-6">
@@ -571,7 +598,7 @@ const Step1Content = ({
                         <div className="flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-medium">
                           <Avatar className="h-6 w-6 text-xs">
                             <AvatarImage
-                              src={`https://avatar.vercel.sh/${email}.png`}
+                              src={`https://avatar.vercel.sh/  ${email}.png`}
                               alt={email}
                             />
                             <AvatarFallback>
@@ -618,12 +645,7 @@ const Step1Content = ({
         <Button type="button" variant="secondary" onClick={handleSaveDraft}>
           Save as Draft
         </Button>
-        <Button
-          type="button"
-          onClick={async () => {
-            if (await form.trigger(["title"])) next();
-          }}
-        >
+        <Button type="button" onClick={handleNextClick}>
           Next
         </Button>
       </div>
@@ -665,12 +687,19 @@ const Step2Content = ({
     }, 2000);
   };
 
+  const handleNextClick = async () => {
+    if (await form.trigger(["mentorId"])) {
+      handleSaveDraft();
+      next();
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 py-6">
         <FormField
           control={form.control}
-          name="mentor"
+          name="mentorId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Internal Mentor (Required)</FormLabel>
@@ -682,7 +711,7 @@ const Step2Content = ({
                 </FormControl>
                 <SelectContent>
                   {MOCK_TTCS.map((ttc) => (
-                    <SelectItem key={ttc.id} value={ttc.name}>
+                    <SelectItem key={ttc.id} value={ttc.id}>
                       {ttc.name} - ({ttc.expertise.join(", ")})
                     </SelectItem>
                   ))}
@@ -696,18 +725,13 @@ const Step2Content = ({
           type="button"
           onClick={handleRequestApproval}
           disabled={
-            isRequesting || mentorApproved || form.watch("mentor") === ""
+            isRequesting || mentorApproved || form.watch("mentorId") === ""
           }
         >
           {isRequesting ? (
             <>
               <History className="mr-2 h-4 w-4 animate-spin" />
               Awaiting Approval...
-            </>
-          ) : mentorApproved ? (
-            <>
-              <Check className="mr-2 h-4 w-4" />
-              Mentor Approved
             </>
           ) : (
             <>
@@ -730,9 +754,7 @@ const Step2Content = ({
           </Button>
           <Button
             type="button"
-            onClick={async () => {
-              if (await form.trigger(["mentor"])) next();
-            }}
+            onClick={handleNextClick}
             disabled={!mentorApproved}
           >
             Next
@@ -754,46 +776,30 @@ const Step3Content = ({
   prev: () => void;
   handleSaveDraft: () => void;
 }) => {
-  const { toast } = useToast();
-  const preset = form.watch("preset");
-  const totalWeight = clusters.reduce(
-    (acc, cluster) => acc + Math.round(form.getValues(cluster) || 0),
-    0
-  );
+  const { control, watch, setValue } = form;
+  const preset = watch("preset");
+  const total = clusters.reduce((s, k) => s + (watch(k) || 0), 0);
 
-  const handlePresetChange = (presetKey: keyof typeof presets | "Manual") => {
-    form.setValue("preset", presetKey);
-    if (presetKey !== "Manual") {
-      const presetValues = presets[presetKey as keyof typeof presets];
-      Object.entries(presetValues).forEach(([key, value]) => {
-        form.setValue(key, value);
-      });
+  const applyPreset = (p: string) => {
+    setValue("preset", p);
+    if (p !== "Manual") {
+      Object.entries(presets[p as keyof typeof presets]).forEach(([k, v]) =>
+        setValue(k, v)
+      );
     }
-  };
-
-  const handleNext = () => {
-    if (preset === "Manual" && totalWeight !== 100) {
-      toast({
-        variant: "destructive",
-        title: "Weightage Error",
-        description: `Total weightage must be 100%. Current: ${totalWeight}%`,
-      });
-      return;
-    }
-    next();
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
-        <div className="w-full space-y-6">
+    <div className="space-y-6 py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
           <div className="flex flex-wrap gap-2 justify-center">
             {Object.keys(presets).map((p) => (
               <Button
                 key={p}
                 size="sm"
                 variant={preset === p ? "default" : "outline"}
-                onClick={() => handlePresetChange(p as keyof typeof presets)}
+                onClick={() => applyPreset(p)}
               >
                 {p}
               </Button>
@@ -801,18 +807,15 @@ const Step3Content = ({
             <Button
               size="sm"
               variant={preset === "Manual" ? "default" : "outline"}
-              onClick={() => handlePresetChange("Manual")}
+              onClick={() => applyPreset("Manual")}
             >
               Manual 🛠️
             </Button>
           </div>
           {preset === "Manual" && (
-            <Alert
-              variant="default"
-              className="border-orange-500/50 text-orange-700 dark:text-orange-300"
-            >
-              <TriangleAlert className="h-4 w-4 !text-orange-600" />
-              <AlertTitle>Expert Mode Activated</AlertTitle>
+            <Alert className="border-orange-500/50 text-orange-700 dark:text-orange-300">
+              <TriangleAlert className="h-4 w-4" />
+              <AlertTitle>Expert Mode</AlertTitle>
               <AlertDescription>
                 You are in full control. Adjust sliders to set weights.
               </AlertDescription>
@@ -822,7 +825,7 @@ const Step3Content = ({
             {clusters.map((key) => (
               <FormField
                 key={key}
-                control={form.control}
+                control={control}
                 name={key}
                 render={({ field }) => (
                   <FormItem>
@@ -841,10 +844,10 @@ const Step3Content = ({
                           className="w-20 text-center"
                           value={Math.round(field.value || 0)}
                           onChange={(e) =>
-                            field.onChange(parseInt(e.target.value, 10) || 0)
+                            field.onChange(parseInt(e.target.value) || 0)
                           }
-                          min="0"
-                          max="100"
+                          min={0}
+                          max={100}
                           disabled={preset !== "Manual"}
                         />
                       </div>
@@ -857,15 +860,15 @@ const Step3Content = ({
           <div
             className={cn(
               "relative text-sm font-medium p-3 border rounded-lg flex justify-between items-center",
-              totalWeight === 100 ? "border-green-500" : "border-red-500"
+              total === 100 ? "border-green-500" : "border-red-500"
             )}
           >
             <span>Total Weight:</span>
-            <span className="font-bold text-xl">{totalWeight}%</span>
+            <span className="font-bold text-xl">{total}%</span>
           </div>
         </div>
         <div className="w-full h-[500px] bg-background rounded-lg p-4 flex items-center justify-center">
-          <SpiderChart data={form.getValues()} size={500} />
+          <SpiderChart data={watch()} size={500} />
         </div>
       </div>
       <div className="flex justify-between">
@@ -876,12 +879,12 @@ const Step3Content = ({
           <Button type="button" variant="secondary" onClick={handleSaveDraft}>
             Save as Draft
           </Button>
-          <Button type="button" onClick={handleNext}>
+          <Button type="button" onClick={next}>
             Next
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -896,217 +899,210 @@ const Step4Content = ({
   prev: () => void;
   handleSaveDraft: () => void;
 }) => {
-  const domain = form.watch("domain");
-  const cityOrVillage = form.watch("cityOrVillage");
-  const selectedDomainData = MOCK_DOMAINS_WITH_SUBDOMAINS.find(
-    (d) => d.name === domain
-  );
-  React.useEffect(() => {
-    form.setValue("subDomain", "");
-  }, [domain, form]);
+  const { control, watch, setValue } = form;
+  const domain = watch("domain");
+  const selected = MOCK_DOMAINS_WITH_SUBDOMAINS.find((d) => d.name === domain);
+
+  React.useEffect(() => setValue("subDomain", ""), [domain, setValue]);
 
   return (
-    <>
-      <div className="space-y-6 py-6">
+    <div className="space-y-6 py-6">
+      <FormField
+        control={control}
+        name="domain"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Domain of Project</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a domain" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {MOCK_DOMAINS_WITH_SUBDOMAINS.map((d) => (
+                  <SelectItem key={d.name} value={d.name}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      {selected && selected.subDomains.length > 0 && (
         <FormField
-          control={form.control}
-          name="domain"
+          control={control}
+          name="subDomain"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Domain of Project</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormLabel>Sub Domain of Project</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a domain" />
+                    <SelectValue placeholder="Select a sub-domain" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {MOCK_DOMAINS_WITH_SUBDOMAINS.map((domainData) => (
-                    <SelectItem key={domainData.name} value={domainData.name}>
-                      {domainData.name}
+                  {selected.subDomains.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
                     </SelectItem>
                   ))}
-                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
           )}
         />
-        {selectedDomainData && selectedDomainData.subDomains.length > 0 && (
+      )}
+      {domain === "Other" && (
+        <FormField
+          control={control}
+          name="otherDomain"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Please specify the domain</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Sustainable Fashion" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+      {domain === "Retail" && (
+        <>
           <FormField
-            control={form.control}
-            name="subDomain"
+            control={control}
+            name="cityOrVillage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Sub Domain of Project</FormLabel>
+                <FormLabel>City or village</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  value={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a sub-domain" />
+                      <SelectValue placeholder="Select a city or village" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {selectedDomainData.subDomains.map((subDomain) => (
-                      <SelectItem key={subDomain} value={subDomain}>
-                        {subDomain}
-                      </SelectItem>
-                    ))}
+                    {["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata"].map(
+                      (c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
-        {domain === "Other" && (
-          <FormField
-            control={form.control}
-            name="otherDomain"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Please specify the domain</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Sustainable Fashion" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        {domain === "Retail" && (
-          <>
+          {watch("cityOrVillage") && (
             <FormField
-              control={form.control}
-              name="cityOrVillage"
+              control={control}
+              name="locality"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City or village</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a city or village" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Mumbai">Mumbai</SelectItem>
-                      <SelectItem value="Delhi">Delhi</SelectItem>
-                      <SelectItem value="Bangalore">Bangalore</SelectItem>
-                      <SelectItem value="Chennai">Chennai</SelectItem>
-                      <SelectItem value="Kolkata">Kolkata</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Locality</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Bandra West, Connaught Place"
+                      {...field}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {cityOrVillage && (
-              <FormField
-                control={form.control}
-                name="locality"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Locality</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., Bandra West, Connaught Place"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+          )}
+        </>
+      )}
+      <FormField
+        control={control}
+        name="concept"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Core Concept</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Briefly describe the problem, solution, and target audience."
+                {...field}
               />
-            )}
-          </>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
         )}
-        <FormField
-          control={form.control}
-          name="concept"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Core Concept</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Briefly describe the problem, solution, and target audience."
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="trl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Current TRL (Technology Readiness Level)</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="flex flex-col gap-1"
-                >
-                  <Accordion type="single" collapsible className="w-full">
-                    {trlLevels.map((phase) => (
-                      <AccordionItem value={phase.phase} key={phase.phase}>
-                        <AccordionTrigger>{phase.phase}</AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-4 pl-4">
-                            {phase.levels.map((level) => (
-                              <FormItem
-                                key={level.value}
-                                className="flex items-start space-x-3 space-y-0"
-                              >
-                                <FormControl>
-                                  <RadioGroupItem value={level.value} />
-                                </FormControl>
-                                <div className="space-y-1">
-                                  <FormLabel className="font-normal">
-                                    {level.title}
-                                  </FormLabel>
-                                  <FormDescription>
-                                    {level.description}
-                                  </FormDescription>
-                                </div>
-                              </FormItem>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="background"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Background Validation</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="How did your personal background, skills, or experiences inspire this specific idea?"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+      />
+      <FormField
+        control={control}
+        name="trl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Current TRL (Technology Readiness Level)</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                className="flex flex-col gap-1"
+              >
+                <Accordion type="single" collapsible className="w-full">
+                  {trlLevels.map((phase) => (
+                    <AccordionItem value={phase.phase} key={phase.phase}>
+                      <AccordionTrigger>{phase.phase}</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4 pl-4">
+                          {phase.levels.map((level) => (
+                            <FormItem
+                              key={level.value}
+                              className="flex items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <RadioGroupItem value={level.value} />
+                              </FormControl>
+                              <div className="space-y-1">
+                                <FormLabel className="font-normal">
+                                  {level.title}
+                                </FormLabel>
+                                <FormDescription>
+                                  {level.description}
+                                </FormDescription>
+                              </div>
+                            </FormItem>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={control}
+        name="background"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Background Validation</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="How did your personal background, skills, or experiences inspire this specific idea?"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={prev}>
           Back
@@ -1115,27 +1111,12 @@ const Step4Content = ({
           <Button type="button" variant="secondary" onClick={handleSaveDraft}>
             Save as Draft
           </Button>
-          <Button
-            type="button"
-            onClick={async () => {
-              if (
-                await form.trigger([
-                  "domain",
-                  "subDomain",
-                  "concept",
-                  "trl",
-                  "background",
-                  "cityOrVillage",
-                ])
-              )
-                next();
-            }}
-          >
+          <Button type="button" onClick={next}>
             Next
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -1191,7 +1172,10 @@ const Step5Content = ({
           <Button
             type="button"
             onClick={async () => {
-              if (await form.trigger(["pptFile"])) next();
+              if (await form.trigger(["pptFile"])) {
+                handleSaveDraft();
+                next();
+              }
             }}
           >
             Next
@@ -1226,7 +1210,8 @@ const Step6Content = ({
     (acc, key) => ({ ...acc, [key]: allValues[key] }),
     {}
   );
-  const canSubmit = founderReady && teamReady && mentorApproved;
+  const canSubmit =
+    founderReady && teamReady && mentorApproved && !!allValues.pptFile;
 
   return (
     <>
@@ -1269,7 +1254,7 @@ const Step6Content = ({
             </p>
             <p>
               <span className="font-medium text-muted-foreground">Mentor:</span>{" "}
-              {allValues.mentor}
+              {allValues.mentorId}
             </p>
             <p>
               <span className="font-medium text-muted-foreground">Domain:</span>{" "}
@@ -1376,20 +1361,33 @@ export default function SubmitIdeaPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [mentorApproved, setMentorApproved] = React.useState(false);
   const [animationData, setAnimationData] = React.useState(null);
+  const [draftId, setDraftId] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     fetch(
-      "https://lottie.host/e2c73365-2a29-4720-a845-a436940b3b4f/QfUPpEkD0F.json"
+      "https://lottie.host/e2c73365-2a29-4720-a845-a436940b3b4f/QfUPpEkD0F.json  "
     )
       .then((res) => res.json())
       .then((data) => setAnimationData(data));
   }, []);
 
+  // ---------- react-query ----------
+  const { data: draft } = useDraft(draftId);
+  const { mutate: saveDraft } = useSaveDraft();
+  const { mutate: inviteTeam } = useInviteTeam();
+  const { mutate: assignMentor } = useAssignMentor();
+  const { mutate: uploadPpt } = useUploadPpt();
+  const { mutate: submitDraft } = useSubmitDraft();
+  const { data: mentorsResp } = useMentors();
+  const mentors = mentorsResp?.data || [];
+
+  // ---------- form ----------
   const form = useForm<SubmitIdeaForm>({
     resolver: zodResolver(submitIdeaSchema),
     defaultValues,
   });
 
+  // seed from URL or localStorage
   React.useEffect(() => {
     const savedDraft = localStorage.getItem("ideaDraft");
     const ideaParam = searchParams.get("idea");
@@ -1424,42 +1422,111 @@ export default function SubmitIdeaPage() {
     }
   }, [form, toast, searchParams]);
 
-  const onSubmit = async (data: SubmitIdeaForm) => {
+  // when real draft loads, overwrite form
+  React.useEffect(() => {
+    if (draft) form.reset(draft);
+  }, [draft, form]);
+
+  // ---------- handlers ----------
+  const handleSaveDraft = () => {
+    const payload = { ...form.getValues(), draftId };
+    saveDraft(payload, {
+      onSuccess: (res) => {
+        if (!draftId) setDraftId(res.draftId);
+        localStorage.setItem("ideaDraft", JSON.stringify(form.getValues()));
+        toast({
+          title: "Draft Saved! 💾",
+          description: "Progress saved to server.",
+        });
+      },
+    });
+  };
+
+  const handleInvite = () => {
+    const email = form.getValues("coreTeam");
+    if (!email) return;
+    if (!draftId) {
+      toast({ variant: "destructive", title: "Save draft first" });
+      return;
+    }
+    inviteTeam(
+      { draftId, email },
+      {
+        onSuccess: () => {
+          form.setValue("coreTeam", "");
+          toast({
+            title: "Invite Sent!",
+            description: `An invitation has been sent to ${email}.`,
+          });
+        },
+      }
+    );
+  };
+
+  const handleAssignMentor = (mentorId: string) => {
+    if (!draftId) {
+      toast({ variant: "destructive", title: "Save draft first" });
+      return;
+    }
+    assignMentor(
+      { draftId, mentorId },
+      {
+        onSuccess: () =>
+          toast({
+            title: "Mentor Assigned",
+            description: "Approval request sent.",
+          }),
+      }
+    );
+  };
+
+  const handleUploadPpt = (file: File) => {
+    if (!draftId) {
+      toast({ variant: "destructive", title: "Save draft first" });
+      return;
+    }
+    uploadPpt(
+      { draftId, file },
+      {
+        onSuccess: () =>
+          toast({ title: "File Uploaded", description: "Pitch deck saved." }),
+      }
+    );
+  };
+
+  const onSubmit = async (vals: SubmitIdeaForm) => {
+    if (!draftId) {
+      toast({ variant: "destructive", title: "Save draft first" });
+      return;
+    }
     setIsSubmitting(true);
     toast({
       title: "Submitting Idea...",
-      description: "The AI is validating your idea. This may take a moment.",
+      description: "AI is validating your idea.",
     });
-    const finalDomain =
-      data.domain === "Other" ? data.otherDomain : data.domain;
+    // optional: upload ppt if user changed it in last step
+    if (vals.pptFile?.[0]) await handleUploadPpt(vals.pptFile[0]);
 
-    try {
-      const response = await fetch("/api/ideas/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: data.title,
-          description: data.concept,
-          domain: finalDomain,
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to validate idea");
-      const result = await response.json();
-      toast({
-        title: "Validation Complete!",
-        description: `Your idea "${data.title}" has been evaluated.`,
-      });
-      localStorage.removeItem("ideaDraft");
-      router.push(`/dashboard/ideas/${result.idea.id}?role=${ROLES.INNOVATOR}`);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Submission Failed",
-        description: "There was an error.",
-      });
-      setIsSubmitting(false);
-    }
+    submitDraft(draftId, {
+      onSuccess: (res) => {
+        localStorage.removeItem("ideaDraft");
+        router.push(`/dashboard/ideas/${res.ideaId}?role=${ROLES.INNOVATOR}`);
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: "Submission Failed" });
+        setIsSubmitting(false);
+      },
+    });
   };
+
+  // ---------- UI ----------
+  const invitedTeamEmails = form.watch("invitedTeam") || [];
+  const founder = {
+    email: "founder@example.com",
+    name: "You",
+    hasPsychometricAnalysis: true,
+  }; // fetch via useMe() later
+  const teamReady = true; // later: check all coreTeamIds in draft have status==="active"
 
   return (
     <Card className="relative">
