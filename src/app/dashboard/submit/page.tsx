@@ -4,6 +4,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import axios from "axios";
 import {
   FileUp,
   BrainCircuit,
@@ -70,6 +71,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -96,7 +98,6 @@ import {
   useUploadPpt,
 } from "@/hooks/useIdeaApis";
 import { useMentors } from "@/hooks/useMentors";
-import { AlertDialogTrigger } from "@radix-ui/react-alert-dialog";
 
 // --- SCHEMA & PRESETS ---
 const clusterKeys = Object.keys(INITIAL_CLUSTER_WEIGHTS);
@@ -188,7 +189,7 @@ const defaultValues: Partial<SubmitIdeaForm> = {
   concept: "",
   trl: "",
   background: "",
-  pptFile: undefined,
+  pptFile: null,
 };
 
 const presets = {
@@ -302,11 +303,17 @@ function SubmitIdeaForm({
   setMentorApproved,
   mentorApproved,
   isSubmitting,
+  founderReady,
+  teamReady,
+  pendingMembers,
 }: {
   form: any;
   setMentorApproved: (isApproved: boolean) => void;
   mentorApproved: boolean;
   isSubmitting: boolean;
+  founderReady: boolean;
+  teamReady: boolean;
+  pendingMembers: string[];
 }) {
   const stepper = useStepper();
   const { toast } = useToast();
@@ -319,16 +326,6 @@ function SubmitIdeaForm({
       description: "Your idea progress has been saved locally.",
     });
   };
-
-  const founder = MOCK_INNOVATOR_USER;
-  const invitedTeamEmails = form.watch("invitedTeam") || [];
-  const founderReady = founder.hasPsychometricAnalysis;
-  const pendingMembers = invitedTeamEmails
-    .map((email: string) => MOCK_INNOVATORS.find((u) => u.email === email))
-    .filter((user: any) => user && !user.hasPsychometricAnalysis)
-    .map((user: any) => user.name);
-
-  const teamReady = pendingMembers.length === 0;
 
   return (
     <>
@@ -433,6 +430,12 @@ function SubmitIdeaForm({
             founderReady={founderReady}
             teamReady={teamReady}
             pendingMembers={pendingMembers}
+            onSubmitClick={() => {
+              const formElement = document.querySelector("form");
+              if (formElement) {
+                formElement.requestSubmit();
+              }
+            }}
           />
         </StepperContent>
       </StepperItem>
@@ -535,7 +538,7 @@ const Step1Content = ({
       return;
     }
     if (await form.trigger(["title"])) {
-      handleSaveDraft(); // auto-save
+      handleSaveDraft();
       next();
     }
   };
@@ -584,7 +587,7 @@ const Step1Content = ({
             </FormItem>
           )}
         />
-        {(invitedTeamEmails.length > 0 || founder) && (
+        {/* {(invitedTeamEmails.length > 0 || founder) && (
           <div className="space-y-2">
             <FormLabel>Current Team</FormLabel>
             <div className="flex flex-wrap gap-2">
@@ -598,7 +601,7 @@ const Step1Content = ({
                         <div className="flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-medium">
                           <Avatar className="h-6 w-6 text-xs">
                             <AvatarImage
-                              src={`https://avatar.vercel.sh/  ${email}.png`}
+                              src={`https://avatar.vercel.sh/${email}.png`}
                               alt={email}
                             />
                             <AvatarFallback>
@@ -639,7 +642,7 @@ const Step1Content = ({
               })}
             </div>
           </div>
-        )}
+        )} */}
       </div>
       <div className="flex justify-between items-center">
         <Button type="button" variant="secondary" onClick={handleSaveDraft}>
@@ -653,7 +656,7 @@ const Step1Content = ({
   );
 };
 
-const Step2Content = ({
+function Step2Content({
   form,
   next,
   prev,
@@ -667,103 +670,137 @@ const Step2Content = ({
   setMentorApproved: (isApproved: boolean) => void;
   mentorApproved: boolean;
   handleSaveDraft: () => void;
-}) => {
+}) {
   const { toast } = useToast();
-  const [isRequesting, setIsRequesting] = React.useState(false);
+
+  const staticMentor = {
+    uid: "Staciacorp",
+    name: "Staciacorp",
+    expertise: "Innovation & Technology Consulting",
+    email: "contact@staciacorp.com",
+    avatar: "/avatars/staciacorp.png",
+  };
 
   const handleRequestApproval = () => {
-    setIsRequesting(true);
     toast({
-      title: "Request Sent!",
-      description: "An approval request has been sent to your selected mentor.",
+      title: "Request Sent",
+      description: `Approval request sent to ${staticMentor.name}.`,
     });
     setTimeout(() => {
       setMentorApproved(true);
-      setIsRequesting(false);
       toast({
         title: "Mentor Approved!",
-        description: "Your mentor has approved the idea. You can now proceed.",
+        description: `${staticMentor.name} has approved your request.`,
       });
     }, 2000);
   };
 
-  const handleNextClick = async () => {
-    if (await form.trigger(["mentorId"])) {
-      handleSaveDraft();
-      next();
+  const handleNext = () => {
+    if (!mentorApproved) {
+      toast({
+        variant: "destructive",
+        title: "Mentor Approval Required",
+        description: "Please get mentor approval before proceeding.",
+      });
+      return;
     }
+    handleSaveDraft();
+    next();
   };
 
   return (
-    <>
-      <div className="space-y-6 py-6">
-        <FormField
-          control={form.control}
-          name="mentorId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Internal Mentor (Required)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a mentor from the database" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {MOCK_TTCS.map((ttc) => (
-                    <SelectItem key={ttc.id} value={ttc.id}>
-                      {ttc.name} - ({ttc.expertise.join(", ")})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <div className="space-y-6">
+      <FormField
+        control={form.control}
+        name="mentorId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Select Internal Mentor</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="space-y-3"
+              >
+                <div
+                  className={cn(
+                    "flex items-center space-x-3 rounded-lg border p-4 transition-all",
+                    field.value === staticMentor.uid
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  )}
+                >
+                  <RadioGroupItem
+                    value={staticMentor.uid}
+                    id={staticMentor.uid}
+                  />
+                  <label
+                    htmlFor={staticMentor.uid}
+                    className="flex flex-1 cursor-pointer items-center gap-4"
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage
+                        src={staticMentor.avatar}
+                        alt={staticMentor.name}
+                      />
+                      <AvatarFallback>
+                        {staticMentor.name
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-semibold">{staticMentor.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {staticMentor.expertise}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {staticMentor.email}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {mentorApproved && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <Check className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-600">Approved</AlertTitle>
+          <AlertDescription className="text-green-600">
+            {staticMentor.name} has approved your mentor request.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex gap-3">
+        <Button type="button" onClick={prev} variant="outline">
+          Back
+        </Button>
         <Button
           type="button"
           onClick={handleRequestApproval}
-          disabled={
-            isRequesting || mentorApproved || form.watch("mentorId") === ""
-          }
+          variant="secondary"
+          disabled={mentorApproved}
         >
-          {isRequesting ? (
-            <>
-              <History className="mr-2 h-4 w-4 animate-spin" />
-              Awaiting Approval...
-            </>
-          ) : (
-            <>
-              <Send className="mr-2 h-4 w-4" />
-              Request Mentor Approval
-            </>
-          )}
+          {mentorApproved ? "Approved" : "Request Approval"}
         </Button>
-        <FormDescription>
-          The "Next" button will be enabled once your mentor approves.
-        </FormDescription>
-      </div>
-      <div className="flex justify-between items-center">
-        <Button type="button" variant="outline" onClick={prev}>
-          Back
+        <Button type="button" onClick={handleNext} disabled={!mentorApproved}>
+          Next
         </Button>
-        <div className="flex items-center gap-4">
-          <Button type="button" variant="secondary" onClick={handleSaveDraft}>
-            Save as Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={handleNextClick}
-            disabled={!mentorApproved}
-          >
-            Next
-          </Button>
-        </div>
+        <Button type="button" variant="outline" onClick={handleSaveDraft}>
+          <History className="mr-2 h-4 w-4" />
+          Save Draft
+        </Button>
       </div>
-    </>
+    </div>
   );
-};
+}
 
 const Step3Content = ({
   form,
@@ -1131,27 +1168,42 @@ const Step5Content = ({
   prev: () => void;
   handleSaveDraft: () => void;
 }) => {
+  const [fileName, setFileName] = React.useState<string>("");
+
   return (
     <>
       <div className="space-y-6 py-6">
         <FormField
           control={form.control}
           name="pptFile"
-          render={({ field: { onChange, ...rest } }) => (
+          render={({ field: { value, onChange, ...fieldProps } }) => (
             <FormItem>
               <FormLabel>Pitch Deck Upload</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <FileUp className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <FileUp className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
                   <Input
                     type="file"
                     className="pl-10"
-                    accept=".ppt, .pptx"
-                    onChange={(e) => onChange(e.target.files)}
-                    {...rest}
+                    accept=".ppt,.pptx"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      onChange(files);
+                      if (files && files[0]) {
+                        setFileName(files[0].name);
+                      } else {
+                        setFileName("");
+                      }
+                    }}
+                    {...fieldProps}
                   />
                 </div>
               </FormControl>
+              {fileName && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {fileName}
+                </p>
+              )}
               <FormDescription>
                 Sample template provided 📑.{" "}
                 <Link href="#">Download here.</Link>
@@ -1195,6 +1247,7 @@ const Step6Content = ({
   founderReady,
   teamReady,
   pendingMembers,
+  onSubmitClick,
 }: {
   form: any;
   prev: () => void;
@@ -1204,6 +1257,7 @@ const Step6Content = ({
   founderReady: boolean;
   teamReady: boolean;
   pendingMembers: string[];
+  onSubmitClick: () => void;
 }) => {
   const allValues = form.getValues();
   const weights = clusters.reduce(
@@ -1336,8 +1390,8 @@ const Step6Content = ({
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                  <Button type="submit">Yes, Submit Idea</Button>
+                <AlertDialogAction onClick={onSubmitClick}>
+                  Yes, Submit Idea
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -1362,16 +1416,72 @@ export default function SubmitIdeaPage() {
   const [mentorApproved, setMentorApproved] = React.useState(false);
   const [animationData, setAnimationData] = React.useState(null);
   const [draftId, setDraftId] = React.useState<string | undefined>(undefined);
+  const [founderReady, setFounderReady] = React.useState(false);
+  const [teamReady, setTeamReady] = React.useState(true);
+  const [pendingMembers, setPendingMembers] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     fetch(
-      "https://lottie.host/e2c73365-2a29-4720-a845-a436940b3b4f/QfUPpEkD0F.json  "
+      "https://lottie.host/e2c73365-2a29-4720-a845-a436940b3b4f/QfUPpEkD0F.json"
     )
       .then((res) => res.json())
       .then((data) => setAnimationData(data));
   }, []);
 
-  // ---------- react-query ----------
+  // ✅ CHECK PSYCHOMETRIC STATUS ON MOUNT
+  React.useEffect(() => {
+    const checkPsychometricStatus = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        if (!token) return;
+
+        // ✅ DECODE JWT TO GET USER ID
+        const base64Url = token.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+
+        const decoded = JSON.parse(jsonPayload);
+        const userId = decoded.uid || decoded.sub || decoded.user_id;
+
+        console.log("Checking psychometric for user:", userId);
+
+        if (!userId) {
+          console.error("No user ID found in token");
+          return;
+        }
+
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/status/${userId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        console.log("Psychometric status response:", response.data);
+
+        if (response.data.success) {
+          setFounderReady(response.data.isPsychometricAnalysisDone);
+          console.log(
+            "Founder ready:",
+            response.data.isPsychometricAnalysisDone
+          );
+        }
+      } catch (error) {
+        console.error("Error checking psychometric status:", error);
+      }
+    };
+
+    checkPsychometricStatus();
+  }, []);
+
   const { data: draft } = useDraft(draftId);
   const { mutate: saveDraft } = useSaveDraft();
   const { mutate: inviteTeam } = useInviteTeam();
@@ -1381,13 +1491,11 @@ export default function SubmitIdeaPage() {
   const { data: mentorsResp } = useMentors();
   const mentors = mentorsResp?.data || [];
 
-  // ---------- form ----------
   const form = useForm<SubmitIdeaForm>({
     resolver: zodResolver(submitIdeaSchema),
     defaultValues,
   });
 
-  // seed from URL or localStorage
   React.useEffect(() => {
     const savedDraft = localStorage.getItem("ideaDraft");
     const ideaParam = searchParams.get("idea");
@@ -1422,12 +1530,10 @@ export default function SubmitIdeaPage() {
     }
   }, [form, toast, searchParams]);
 
-  // when real draft loads, overwrite form
   React.useEffect(() => {
     if (draft) form.reset(draft);
   }, [draft, form]);
 
-  // ---------- handlers ----------
   const handleSaveDraft = () => {
     const payload = { ...form.getValues(), draftId };
     saveDraft(payload, {
@@ -1495,38 +1601,134 @@ export default function SubmitIdeaPage() {
   };
 
   const onSubmit = async (vals: SubmitIdeaForm) => {
-    if (!draftId) {
-      toast({ variant: "destructive", title: "Save draft first" });
-      return;
-    }
-    setIsSubmitting(true);
-    toast({
-      title: "Submitting Idea...",
-      description: "AI is validating your idea.",
-    });
-    // optional: upload ppt if user changed it in last step
-    if (vals.pptFile?.[0]) await handleUploadPpt(vals.pptFile[0]);
+    try {
+      setIsSubmitting(true);
+      console.log("=== STARTING SUBMISSION ===");
 
-    submitDraft(draftId, {
-      onSuccess: (res) => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      let currentDraftId = draftId;
+
+      // STEP 1: Ensure draft exists
+      if (!currentDraftId) {
+        console.log("Creating new draft...");
+        const formData = form.getValues();
+        const { pptFile, ...dataToSave } = formData;
+
+        const draftResponse = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft`,
+          dataToSave,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        console.log("Draft response:", draftResponse.data);
+        currentDraftId = draftResponse.data?.draftId;
+
+        if (!currentDraftId) {
+          throw new Error("Failed to create draft - no draftId returned");
+        }
+
+        setDraftId(currentDraftId);
+        console.log("Draft created with ID:", currentDraftId);
+      }
+
+      // STEP 2: Upload PPT
+      if (vals.pptFile?.[0]) {
+        console.log("Uploading PPT...");
+        toast({
+          title: "Uploading File...",
+          description: "Please wait while we upload your pitch deck.",
+        });
+
+        const formData = new FormData();
+        formData.append("pptFile", vals.pptFile[0]);
+        formData.append("draftId", currentDraftId);
+
+        const uploadResponse = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft/upload`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        console.log("Upload response:", uploadResponse.data);
+
+        if (uploadResponse.data?.error) {
+          throw new Error(uploadResponse.data.error);
+        }
+      }
+
+      // STEP 3: Submit for AI validation (THIS MOVES DATA TO ideas COLLECTION)
+      console.log("Submitting draft for validation...");
+      console.log("Draft ID:", currentDraftId);
+
+      toast({
+        title: "Submitting Idea...",
+        description: "AI is validating your idea. This may take a few seconds.",
+      });
+
+      const submitResponse = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft/submit`,
+        { draftId: currentDraftId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Submit response:", submitResponse.data);
+
+      if (submitResponse.data.success) {
         localStorage.removeItem("ideaDraft");
-        router.push(`/dashboard/ideas/${res.ideaId}?role=${ROLES.INNOVATOR}`);
-      },
-      onError: () => {
-        toast({ variant: "destructive", title: "Submission Failed" });
-        setIsSubmitting(false);
-      },
-    });
+
+        toast({
+          title: "Success! 🎉",
+          description: `Your idea has been validated. Score: ${submitResponse.data.score}`,
+          duration: 5000,
+        });
+
+        router.push(`/dashboard?role=${ROLES.INNOVATOR}`);
+      } else {
+        throw new Error(submitResponse.data.message || "Submission failed");
+      }
+    } catch (error: any) {
+      console.error("=== SUBMISSION ERROR ===");
+      console.error("Error:", error);
+      console.error("Response:", error?.response?.data);
+
+      const errorMessage =
+        error?.response?.data?.error || error.message || "Please try again.";
+
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: errorMessage,
+        duration: 5000,
+      });
+
+      setIsSubmitting(false);
+    }
   };
 
-  // ---------- UI ----------
   const invitedTeamEmails = form.watch("invitedTeam") || [];
   const founder = {
     email: "founder@example.com",
     name: "You",
-    hasPsychometricAnalysis: true,
-  }; // fetch via useMe() later
-  const teamReady = true; // later: check all coreTeamIds in draft have status==="active"
+    hasPsychometricAnalysis: founderReady,
+  };
 
   return (
     <Card className="relative">
@@ -1545,6 +1747,9 @@ export default function SubmitIdeaPage() {
                 setMentorApproved={setMentorApproved}
                 mentorApproved={mentorApproved}
                 isSubmitting={isSubmitting}
+                founderReady={founderReady}
+                teamReady={teamReady}
+                pendingMembers={pendingMembers}
               />
             </Stepper>
           </form>

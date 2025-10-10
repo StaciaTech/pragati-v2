@@ -63,6 +63,7 @@ import { useAllInnovators } from "@/hooks/useAllInnovators";
 import { useTtcs } from "@/hooks/useTtcs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUpdateUser } from "@/hooks/useUpdateUser";
+import axios from "axios";
 
 type Ttc = (typeof MOCK_TTCS)[0];
 
@@ -165,32 +166,34 @@ export default function TTCManagementPage() {
   /* ---- ADD / EDIT TTC ---- */
   const saveTtcMutation = useMutation({
     mutationFn: async (payload: {
-      id?: string; // undefined ⇒ “add”
+      id?: string;
       name: string;
       email: string;
-      expertise: string[];
+      expertise: string[]; // <-- still typed as array internally
     }) => {
       const token = getToken();
       if (!token) throw new Error("No token");
+
       const body = {
         name: payload.name,
         email: payload.email,
-        expertise: payload.expertise.join(","),
+        expertise: payload.expertise.join(","), // <-- fix: send CSV
       };
+
       if (!payload.id) {
-        // add
+        // ADD
         return axios.post(`${apiUrl}/api/principal/create-coordinator`, body, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      // edit
+      // EDIT (PUT /api/users/:id)
       return axios.put(`${apiUrl}/api/users/${payload.id}`, body, {
         headers: { Authorization: `Bearer ${token}` },
       });
     },
-    // inside saveTtcMutation & toggleStatusMutation
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-ttcs", collegeId] });
+      toast({ title: `TTC ${modalType === "add" ? "added" : "updated"}` });
     },
     onError: (err: any) =>
       toast({
@@ -198,6 +201,7 @@ export default function TTCManagementPage() {
         description: err?.response?.data?.error || "Unexpected error",
       }),
   });
+
   const updateUser = useUpdateUser();
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -213,17 +217,19 @@ export default function TTCManagementPage() {
     };
 
     if (modalType === "edit" && currentTtc?._id) {
-      updateUser.mutate({
-        uid: currentTtc._id,
-        data: payload,
-        queryKey: ["all-ttcs", collegeId],
-      });
+      updateUser.mutate(
+        {
+          uid: currentTtc._id,
+          data: payload,
+          queryKey: ["all-ttcs", collegeId],
+        },
+        { onSuccess: () => setIsEditModalOpen(false) }
+      );
     } else {
-      // This was missing
-      saveTtcMutation.mutate(payload);
+      saveTtcMutation.mutate(payload, {
+        onSuccess: () => setIsEditModalOpen(false),
+      });
     }
-
-    setIsModalOpen(false);
   };
 
   /* ---- TOGGLE STATUS ---- */

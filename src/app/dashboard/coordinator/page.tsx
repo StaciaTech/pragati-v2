@@ -1,185 +1,343 @@
-
-'use client';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+"use client";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_TTCS, MOCK_INNOVATORS, MOCK_COLLEGES } from "@/lib/data/organization";
-import { MOCK_IDEAS } from '@/lib/data/ideas';
-import { STATUS_COLORS } from '@/lib/data/platform';
 import { Lightbulb, ListChecks, Users, MessageSquare } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ROLES } from "@/lib/constants";
+import { useAllInnovators } from "@/hooks/useAllInnovators";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import React from "react";
+import { STATUS_COLORS } from "@/lib/data/platform";
+import { useUserIdeas } from "@/hooks/useUserIdeas";
 
+console.log("fdsa");
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("token") : "";
+
+/* ---------- HELPERS ---------- */
+const avg = (arr: number[]) =>
+  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
 export default function CoordinatorDashboardPage() {
-    // This is a mock implementation. In a real app, you'd get the logged-in user's ID.
-    const userTTC = MOCK_TTCS[0]; 
-    const college = MOCK_COLLEGES.find(c => c.id === userTTC.collegeId);
-    const router = useRouter();
+  const router = useRouter();
+  const { data: profile } = useUserProfile(); // /api/users/me
+  const { data: allInnovators = [] } = useAllInnovators(); // /api/innovators (already filtered by caller)
+  const token = getToken();
+  console.log(allInnovators);
 
-    const assignedIdeas = MOCK_IDEAS.filter(idea => idea.ttcAssigned === userTTC.id);
-    const pendingEvaluations = assignedIdeas.filter(idea => idea.status === 'Pending' || !idea.report);
-    const scheduledConsultations = assignedIdeas.filter(idea => idea.consultationStatus === 'Scheduled');
-    const collegeInnovators = MOCK_INNOVATORS.filter(inv => inv.collegeId === userTTC.collegeId);
+  const innovators = React.useMemo(
+    () =>
+      allInnovators.filter((inv: any) => inv.ttcCoordinatorId === profile?.uid),
+    [allInnovators, profile?.uid]
+  );
+  const uid = localStorage.getItem("UserId");
+  /* ------------- FETCH REAL IDEAS -------------- */
+  const { data: ideas = [] } = useUserIdeas();
+  //   console.log(ideas);
 
-    const ideaStatusCounts = assignedIdeas.reduce((acc, idea) => {
-        const status = idea.report?.validationOutcome || idea.status;
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
+  //   const innovatorIds = React.useMemo(
+  //     () => innovators.map((i: any) => i._id),
+  //     [innovators]
+  //   );
 
-    const ideaStatusData = [
-        { name: 'Approved', value: ideaStatusCounts.Approved || 0, fill: 'hsl(var(--color-approved))' },
-        { name: 'Moderate', value: ideaStatusCounts.Moderate || 0, fill: 'hsl(var(--color-moderate))' },
-        { name: 'Rejected', value: ideaStatusCounts.Rejected || 0, fill: 'hsl(var(--color-rejected))' },
-    ];
-    
-    const topInnovators = collegeInnovators
-        .map(innovator => {
-            const innovatorIdeas = assignedIdeas.filter(idea => idea.innovatorEmail === innovator.email && idea.report);
-            if (innovatorIdeas.length === 0) return null;
-            const avgScore = innovatorIdeas.reduce((sum, idea) => sum + (idea.report?.overallScore || 0), 0) / innovatorIdeas.length;
-            return {
-                name: innovator.name,
-                score: avgScore,
-            }
-        })
-        .filter(Boolean)
-        .sort((a, b) => b!.score - a!.score)
-        .slice(0, 5) as { name: string, score: number }[];
+  //   const ideas = React.useMemo(
+  //     () => rawIdeas.filter((idea: any) => innovatorIds.includes(idea.userId)),
+  //     [rawIdeas, innovatorIds]
+  //   );
 
+  /* ------------- DERIVED NUMBERS --------------- */
+  const assignedIdeas = ideas;
+  const pendingEvaluations = ideas.filter((i: any) => i.status === "pending");
+  const scheduledConsultations: any[] = []; // not stored yet → keep empty
 
+  /* ------------- CHART: STATUS DISTRIBUTION ---- */
+  const statusCounts = ideas.reduce((acc: any, i: any) => {
+    const s = i.status || "pending";
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {});
+  const pieData = ["approved", "improvise", "rejected", "pending"].map((s) => ({
+    name: s.charAt(0).toUpperCase() + s.slice(1),
+    value: statusCounts[s] || 0,
+    fill: `hsl(var(--chart-${
+      s === "approved" ? 1 : s === "improvise" ? 2 : s === "rejected" ? 3 : 4
+    }))`,
+  }));
+
+  /* ------------- CHART: TOP INNOVATORS --------- */
+  const topInnovators = React.useMemo(() => {
+    const map: Record<string, number[]> = {};
+    ideas.forEach((i: any) => {
+      if (i.userId) (map[i.userId] ||= []).push(i.overallScore || 0);
+    });
+    return Object.entries(map)
+      .map(([uid, scores]) => ({
+        // find innovator name
+        name: innovators.find((inv: any) => inv._id === uid)?.name || "Unknown",
+        score: avg(scores),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [ideas, innovators]);
+
+  /* ------------- LOADING STATE ----------------- */
+  if (!profile)
     return (
-        <div className="flex flex-col gap-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/coordinator/innovator-management?role=${ROLES.COORDINATOR}`)}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Innovators</CardTitle>
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-bold">{collegeInnovators.length}</p>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/coordinator/manage-ideas?role=${ROLES.COORDINATOR}`)}>
-                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Assigned Ideas</CardTitle>
-                        <Lightbulb className="w-4 h-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-bold">{assignedIdeas.length}</p>
-                    </CardContent>
-                </Card>
-                 <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/coordinator/manage-ideas?role=${ROLES.COORDINATOR}`)}>
-                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Evaluations</CardTitle>
-                        <ListChecks className="w-4 h-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-bold">{pendingEvaluations.length}</p>
-                    </CardContent>
-                </Card>
-                 <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/coordinator/consultations?role=${ROLES.COORDINATOR}`)}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Upcoming Consultations</CardTitle>
-                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-bold">{scheduledConsultations.length}</p>
-                    </CardContent>
-                </Card>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                 <Card className="lg:col-span-3 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push(`/dashboard/coordinator/analytics?role=${ROLES.COORDINATOR}`)}>
-                    <CardHeader>
-                        <CardTitle>Top Performing Innovators</CardTitle>
-                        <CardDescription>Innovators you manage, ranked by average idea score.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <ChartContainer config={{}} className="h-[250px] w-full">
-                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={topInnovators} layout="vertical" margin={{ left: 10, right: 10 }}>
-                                    <CartesianGrid horizontal={false} />
-                                    <XAxis type="number" domain={[0,100]} hide />
-                                    <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={100} />
-                                    <Tooltip
-                                        cursor={true}
-                                        content={<ChartTooltipContent
-                                            contentStyle={{background: "hsl(var(--background))", border: "1px solid hsl(var(--border))"}}
-                                            labelClassName="font-bold"
-                                            formatter={(value) => [`${(value as number).toFixed(2)} Avg Score`, '']}
-                                        />}
-                                    />
-                                    <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={5} background={{ fill: 'hsl(var(--muted)/0.5)', radius: 5 }} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                       </ChartContainer>
-                    </CardContent>
-                </Card>
-                <Card className="lg:col-span-2 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push(`/dashboard/coordinator/analytics?role=${ROLES.COORDINATOR}`)}>
-                    <CardHeader>
-                        <CardTitle>Idea Status Distribution</CardTitle>
-                         <CardDescription>Breakdown of outcomes for ideas you've been assigned.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="min-h-[250px] w-full">
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Tooltip
-                                      cursor={true}
-                                      content={<ChartTooltipContent 
-                                        contentStyle={{background: "hsl(var(--background))", border: "1px solid hsl(var(--border))"}}
-                                        labelClassName="font-bold"
-                                        formatter={(value, name) => [`${value} Ideas`, name]}
-                                      />}
-                                    />
-                                    <Pie data={ideaStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label>
-                                        {ideaStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-            </div>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Upcoming Consultations</CardTitle>
-                    <CardDescription>Your scheduled consultations with innovators.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Idea Title</TableHead>
-                                <TableHead>Innovator</TableHead>
-                                <TableHead>Date & Time</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {scheduledConsultations.length > 0 ? scheduledConsultations.map(idea => (
-                                <TableRow key={idea.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/ideas/${idea.id}?role=${ROLES.COORDINATOR}`)}>
-                                    <TableCell>{idea.title}</TableCell>
-                                    <TableCell>{idea.innovatorName}</TableCell>
-                                    <TableCell>{idea.consultationDate} at {idea.consultationTime}</TableCell>
-                                    <TableCell><Badge className={cn(STATUS_COLORS[idea.consultationStatus || ''])}>{idea.consultationStatus}</Badge></TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center">No upcoming consultations.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
+      <div className="flex items-center justify-center h-96">
+        Loading profile…
+      </div>
     );
+
+  /* ------------- UI --------------------------- */
+  return (
+    <div className="flex flex-col gap-6">
+      {/* KPI CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() =>
+            router.push(
+              `/dashboard/coordinator/innovator-management?role=${ROLES.COORDINATOR}`
+            )
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Innovators
+            </CardTitle>
+            <Users className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{allInnovators?.length}</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() =>
+            router.push(
+              `/dashboard/coordinator/manage-ideas?role=${ROLES.COORDINATOR}`
+            )
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Assigned Ideas
+            </CardTitle>
+            <Lightbulb className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{assignedIdeas.length}</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() =>
+            router.push(
+              `/dashboard/coordinator/manage-ideas?role=${ROLES.COORDINATOR}`
+            )
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Evaluations
+            </CardTitle>
+            <ListChecks className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{pendingEvaluations.length}</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() =>
+            router.push(
+              `/dashboard/coordinator/consultations?role=${ROLES.COORDINATOR}`
+            )
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Upcoming Consultations
+            </CardTitle>
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {scheduledConsultations.length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* CHARTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Top Performing Innovators</CardTitle>
+            <CardDescription>
+              Average idea score (only innovators with submitted ideas)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topInnovators}
+                  layout="vertical"
+                  margin={{ left: 10 }}
+                >
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={100}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip cursor content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="score"
+                    fill="hsl(var(--chart-1))"
+                    radius={5}
+                    background={{ fill: "hsl(var(--muted)/0.5)", radius: 5 }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Idea Status Distribution</CardTitle>
+            <CardDescription>All ideas you manage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-[250px]">
+              <ResponsiveContainer>
+                <PieChart>
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    label
+                  >
+                    {pieData.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* UPCOMING CONSULTATIONS TABLE (EMPTY FOR NOW) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upcoming Consultations</CardTitle>
+          <CardDescription>
+            Scheduled consultations with innovators (feature coming soon)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Idea Title</TableHead>
+                <TableHead>Innovator</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {scheduledConsultations.length ? (
+                scheduledConsultations.map((idea) => (
+                  <TableRow
+                    key={idea.id}
+                    className="cursor-pointer"
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/ideas/${idea.id}?role=${ROLES.COORDINATOR}`
+                      )
+                    }
+                  >
+                    <TableCell>{idea.title}</TableCell>
+                    <TableCell>{idea.innovatorName}</TableCell>
+                    <TableCell>
+                      {idea.consultationDate} at {idea.consultationTime}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={cn(
+                          STATUS_COLORS[idea.consultationStatus || ""]
+                        )}
+                      >
+                        {idea.consultationStatus}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-center text-muted-foreground"
+                  >
+                    No upcoming consultations.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

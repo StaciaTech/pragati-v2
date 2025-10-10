@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import axios from "axios";
 import {
   Card,
   CardHeader,
@@ -10,16 +11,9 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  MOCK_INNOVATOR_USER,
-  MOCK_PRINCIPAL_USERS,
-  MOCK_TEAM_MEMBER_USERS,
-  MOCK_INTERNAL_MENTOR_USERS,
-} from "@/lib/data/auth";
-import { MOCK_TTCS, MOCK_COLLEGES } from "@/lib/data/organization";
 import { ROLES, type Role } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Pencil, Eye, EyeOff, Upload, Send } from "lucide-react";
+import { Pencil, Eye, EyeOff, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,8 +34,9 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ProfilePage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
-  const { data: user } = useUserProfile();
+  const { data: user, isLoading, refetch } = useUserProfile();
 
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] =
     React.useState(false);
@@ -53,43 +48,14 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
+  const [isUpdatingProfile, setIsUpdatingProfile] = React.useState(false);
+  const [isChangingPassword, setIsChangingPassword] = React.useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
 
-  const role = (searchParams.get("role") as Role) || ROLES.INNOVATOR;
-
-  // let user: any = {};
-  let college: any = {};
-
-  // Mock fetching user data based on role
-  // switch (role) {
-  //   case ROLES.INNOVATOR:
-  //     user = MOCK_INNOVATOR_USER;
-  //     college = MOCK_COLLEGES.find((c) => c.name === user.college);
-  //     break;
-  //   case ROLES.COORDINATOR:
-  //     user = MOCK_TTCS[0];
-  //     college = MOCK_COLLEGES.find((c) => c.id === user.collegeId);
-  //     break;
-  //   case ROLES.PRINCIPAL:
-  //     user = MOCK_PRINCIPAL_USERS[0];
-  //     college = MOCK_COLLEGES.find((c) => c.id === user.collegeId);
-  //     break;
-  //   case ROLES.TEAM_MEMBER:
-  //     user = MOCK_TEAM_MEMBER_USERS[0];
-  //     break;
-  //   case ROLES.INTERNAL_MENTOR:
-  //     user = MOCK_INTERNAL_MENTOR_USERS[0];
-  //     break;
-  //   case ROLES.SUPER_ADMIN:
-  //     user = {
-  //       name: "Super Admin",
-  //       email: "admin@pragati.ai",
-  //       role: "Super Admin",
-  //     };
-  //     break;
-  //   default:
-  //     user = { name: "Guest", email: "guest@pragati.ai", role: "Guest" };
-  // }
+  const role =
+    (searchParams.get("role") as Role) || user?.role || ROLES.INNOVATOR;
 
   const getInitials = (name: string) => {
     return (
@@ -100,24 +66,87 @@ export default function ProfilePage() {
     );
   };
 
-  const handleSaveProfile = (event: React.FormEvent<HTMLFormElement>) => {
+  // ✅ UPDATE PROFILE
+  const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved.",
-    });
-    setIsEditProfileModalOpen(false);
+    setIsUpdatingProfile(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData(event.currentTarget);
+      const name = formData.get("name") as string;
+
+      const response = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.uid}`,
+        { name },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.message) {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved.",
+        });
+        setIsEditProfileModalOpen(false);
+        refetch(); // Refresh user data
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: error?.response?.data?.error || "Failed to update profile",
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handleSavePassword = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    toast({
-      title: "Password Updated",
-      description: "Your password has been changed successfully.",
-    });
-    setIsChangePasswordModalOpen(false);
+  // ✅ CHANGE PASSWORD - WITH PROPER USER ID
+  const handleSavePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsChangingPassword(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token");
+
+      // 1-step decode (safe)
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const userId = payload.uid || payload.sub;
+
+      const fd = new FormData(e.currentTarget);
+      const current = fd.get("currentPassword") as string;
+      const newPw = fd.get("newPassword") as string;
+      const confirm = fd.get("confirmPassword") as string;
+
+      if (newPw !== confirm) {
+        toast({ variant: "destructive", title: "Passwords don't match" });
+        return;
+      }
+
+      const { data } = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/password`,
+        { currentPassword: current, newPassword: newPw },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast({ title: "Password changed", description: data.message });
+      setIsChangePasswordModalOpen(false);
+      (e.target as HTMLFormElement).reset();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || "Change failed";
+      toast({ variant: "destructive", title: msg });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
+  // ✅ HANDLE AVATAR SELECTION
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
@@ -125,6 +154,17 @@ export default function ProfilePage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "Please select an image smaller than 5MB.",
+        });
+        return;
+      }
+
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -133,22 +173,89 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveAvatar = () => {
-    toast({
-      title: "Avatar Updated",
-      description: "Your new profile picture has been saved.",
-    });
-    setAvatarPreview(null);
+  // ✅ UPLOAD AVATAR
+  const handleSaveAvatar = async () => {
+    if (!selectedFile) return;
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("avatar", selectedFile);
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.uid}/avatar`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.avatarUrl) {
+        toast({
+          title: "Avatar Updated",
+          description: "Your new profile picture has been saved.",
+        });
+        setAvatarPreview(null);
+        setSelectedFile(null);
+        refetch(); // Refresh user data
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: error?.response?.data?.error || "Failed to upload avatar",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
-  const handleRequestInnovator = (event: React.FormEvent<HTMLFormElement>) => {
+  // ✅ REQUEST INNOVATOR ACCESS
+  const handleRequestInnovator = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
-    toast({
-      title: "Request Sent!",
-      description:
-        "Your request to become an innovator has been sent to your TTC Coordinator for approval.",
-    });
-    setIsRequestInnovatorModalOpen(false);
+
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData(event.currentTarget);
+      const title = formData.get("idea-title") as string;
+      const concept = formData.get("idea-concept") as string;
+
+      // Submit idea concept as innovator request
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/request-innovator`,
+        {
+          title,
+          concept,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.message) {
+        toast({
+          title: "Request Sent!",
+          description:
+            "Your request to become an innovator has been sent to your TTC Coordinator for approval.",
+        });
+        setIsRequestInnovatorModalOpen(false);
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Request Failed",
+        description: error?.response?.data?.error || "Failed to send request",
+      });
+    }
   };
 
   const displayRole = () => {
@@ -170,6 +277,12 @@ export default function ProfilePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">Loading...</div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-6">
@@ -183,6 +296,7 @@ export default function ProfilePage() {
                   <AvatarImage
                     src={
                       avatarPreview ||
+                      user?.avatarUrl ||
                       `https://avatar.vercel.sh/${user?.name}.png`
                     }
                     alt={user?.name}
@@ -203,7 +317,7 @@ export default function ProfilePage() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept="image/png, image/jpeg, image/gif"
+                  accept="image/png, image/jpeg, image/jpg"
                 />
               </div>
               <div>
@@ -224,7 +338,12 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex gap-2">
                   {avatarPreview && (
-                    <Button onClick={handleSaveAvatar}>Save Photo</Button>
+                    <Button
+                      onClick={handleSaveAvatar}
+                      disabled={isUploadingAvatar}
+                    >
+                      {isUploadingAvatar ? "Uploading..." : "Save Photo"}
+                    </Button>
                   )}
                   <Button
                     variant="outline"
@@ -305,9 +424,12 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <Label>Usage (This Month)</Label>
-                    <Progress value={33} className="mt-2" />
+                    <Progress
+                      value={user?.noOfIdeas ? (user.noOfIdeas / 15) * 100 : 0}
+                      className="mt-2"
+                    />
                     <p className="text-xs text-muted-foreground mt-1 text-right">
-                      5 / 15 credits used
+                      {user?.noOfIdeas || 0} / 15 ideas submitted
                     </p>
                   </div>
                   <Button className="w-full" asChild>
@@ -318,67 +440,11 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             )}
-            {role === ROLES.COORDINATOR &&
-              college?.creditsAvailable !== undefined && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>College Credits</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-center">
-                      <p className="text-4xl font-bold text-primary">
-                        {college.creditsAvailable}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Credits Available for College
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      You assign credits to innovators from this pool.
-                    </p>
-                    <Button className="w-full" asChild>
-                      <Link href={`/dashboard/coordinator/logs?role=${role}`}>
-                        Request Credits from Principal
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            {role === ROLES.PRINCIPAL &&
-              college?.creditsAvailable !== undefined && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Plan &amp; Credits</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Current Plan</Label>
-                      <p className="font-medium">
-                        {MOCK_COLLEGES[0].currentPlanId
-                          .replace("PLAN00", "Plan ")
-                          .replace("-M", " Monthly")}
-                      </p>
-                    </div>
-                    <div>
-                      <Label>Credits Remaining</Label>
-                      <p className="text-2xl font-bold text-primary">
-                        {college.creditsAvailable}
-                      </p>
-                    </div>
-                    <Button className="w-full" asChild>
-                      <Link
-                        href={`/dashboard/principal/plan-payment?role=${role}`}
-                      >
-                        Manage Plan &amp; Payment
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
           </div>
         </div>
       </div>
 
+      {/* EDIT PROFILE MODAL */}
       <Dialog
         open={isEditProfileModalOpen}
         onOpenChange={setIsEditProfileModalOpen}
@@ -394,7 +460,12 @@ export default function ProfilePage() {
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" name="name" defaultValue={user?.name} />
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={user?.name}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -414,12 +485,15 @@ export default function ProfilePage() {
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isUpdatingProfile}>
+                {isUpdatingProfile ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* CHANGE PASSWORD MODAL */}
       <Dialog
         open={isChangePasswordModalOpen}
         onOpenChange={setIsChangePasswordModalOpen}
@@ -454,9 +528,6 @@ export default function ProfilePage() {
                     ) : (
                       <Eye className="h-4 w-4" />
                     )}
-                    <span className="sr-only">
-                      {showPassword ? "Hide password" : "Show password"}
-                    </span>
                   </Button>
                 </div>
               </div>
@@ -468,6 +539,7 @@ export default function ProfilePage() {
                     name="newPassword"
                     type={showNewPassword ? "text" : "password"}
                     required
+                    minLength={8}
                   />
                   <Button
                     type="button"
@@ -481,9 +553,6 @@ export default function ProfilePage() {
                     ) : (
                       <Eye className="h-4 w-4" />
                     )}
-                    <span className="sr-only">
-                      {showNewPassword ? "Hide password" : "Show password"}
-                    </span>
                   </Button>
                 </div>
               </div>
@@ -495,6 +564,7 @@ export default function ProfilePage() {
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     required
+                    minLength={8}
                   />
                   <Button
                     type="button"
@@ -508,9 +578,6 @@ export default function ProfilePage() {
                     ) : (
                       <Eye className="h-4 w-4" />
                     )}
-                    <span className="sr-only">
-                      {showConfirmPassword ? "Hide password" : "Show password"}
-                    </span>
                   </Button>
                 </div>
               </div>
@@ -521,12 +588,15 @@ export default function ProfilePage() {
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit">Save Password</Button>
+              <Button type="submit" disabled={isChangingPassword}>
+                {isChangingPassword ? "Saving..." : "Save Password"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* REQUEST INNOVATOR MODAL */}
       <Dialog
         open={isRequestInnovatorModalOpen}
         onOpenChange={setIsRequestInnovatorModalOpen}

@@ -15,7 +15,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Logo } from "@/components/icons";
+import Logo from "../vencorplogo.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NAV_LINKS, ROLES, type Role } from "@/lib/constants";
 import { MOCK_INNOVATOR_USER } from "@/lib/data/auth";
@@ -38,6 +38,7 @@ import { UserNav } from "@/components/user-nav";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import Image from "next/image";
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -110,7 +111,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             href={`/dashboard?role=${role}`}
             className="flex h-23 items-center rounded-md p-2 transition-all duration-300 ease-in-out group-data-[state=collapsed]/sidebar:justify-center group-data-[state=expanded]/sidebar:justify-start"
           >
-            <Logo className="h-10 w-8 transition-transform duration-300 ease-in-out group-data-[state=collapsed]/sidebar:scale-125 group-data-[state=expanded]/sidebar:scale-150" />
+            <Image
+              src={Logo}
+              alt="PragatiAI Logo"
+              className="h-5 w-11 object-contain transition-transform duration-300 ease-in-out group-data-[state=collapsed]/sidebar:scale-125 group-data-[state=expanded]/sidebar:scale-150"
+              priority
+            />
             <span className="flex-1 overflow-hidden whitespace-nowrap text-lg font-semibold text-sidebar-foreground transition-all duration-300 ease-in-out group-data-[state=collapsed]/sidebar:w-0 group-data-[state=collapsed]/sidebar:ml-0 group-data-[state=collapsed]/sidebar:opacity-0 group-data-[state=collapsed]/sidebar:invisible group-data-[state=expanded]/sidebar:py-1 group-data-[state=expanded]/sidebar:w-auto group-data-[state=expanded]/sidebar:ml-4 group-data-[state=expanded]/sidebar:opacity-100 group-data-[state=expanded]/sidebar:visible group-data-[state=expanded]/sidebar:py-4">
               PragatiAI
             </span>
