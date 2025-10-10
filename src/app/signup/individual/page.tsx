@@ -34,7 +34,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { MOCK_DOMAINS_WITH_SUBDOMAINS } from "@/lib/data/platform";
-import { Textarea } from "@/components/ui/textarea";
+import { Suspense } from "react"; // ✅ ADD THIS
 
 const baseSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -58,10 +58,11 @@ const mentorSchema = baseSchema.extend({
 
 const innovatorSchema = baseSchema;
 
-export default function IndividualSignupPage() {
+// ✅ NEW: Separate component that uses useSearchParams
+function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // ✅ Now inside separate component
   const isMentorSignup = searchParams.get("role") === "mentor";
 
   const [showPassword, setShowPassword] = React.useState(false);
@@ -380,5 +381,22 @@ export default function IndividualSignupPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ✅ NEW: Main page export with Suspense wrapper
+export default function IndividualSignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted/40">
+          <div className="text-center">
+            <p className="text-lg">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }
