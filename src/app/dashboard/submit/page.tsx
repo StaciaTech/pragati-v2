@@ -1,9 +1,8 @@
 "use client";
-
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod";
 import axios from "axios";
 import {
   FileUp,
@@ -55,7 +54,7 @@ import {
 } from "@/components/ui/stepper";
 import { SpiderChart } from "@/components/spider-chart";
 import { INITIAL_CLUSTER_WEIGHTS } from "@/lib/data/reports";
-import { MOCK_TTC_S, MOCK_INNOVATORS } from "@/lib/data/organization";
+import { MOCK_TTCS, MOCK_INNOVATORS } from "@/lib/data/organization";
 import { MOCK_INNOVATOR_USER } from "@/lib/data/auth";
 import { MOCK_DOMAINS_WITH_SUBDOMAINS } from "@/lib/data/platform";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +88,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
 import {
   useAssignMentor,
   useInviteTeam,
@@ -98,7 +98,7 @@ import {
 import { useMentors } from "@/hooks/useMentors";
 import { useMyDraft } from "@/hooks/useMyDraft";
 
-// --- SCHEMA & PRESETS ---
+// --- SCHEMA PRESETS ---
 const clusterKeys = Object.keys(INITIAL_CLUSTER_WEIGHTS);
 const weightageSchema = clusterKeys.reduce(
   (acc, key) => ({ ...acc, [key]: z.number().min(0).max(100) }),
@@ -165,7 +165,7 @@ const submitIdeaSchema = z
     }
   );
 
-type SubmitIdeaForm = z.infer<typeof submitIdeaSchema>;
+export type SubmitIdeaForm = z.infer<typeof submitIdeaSchema>;
 
 const defaultValues: Partial<SubmitIdeaForm> = {
   ...INITIAL_CLUSTER_WEIGHTS,
@@ -216,6 +216,7 @@ const presets = {
   Balanced: INITIAL_CLUSTER_WEIGHTS,
 };
 const clusters = Object.keys(INITIAL_CLUSTER_WEIGHTS);
+
 const trlLevels = [
   {
     phase: "Phase 1: Research (TRL 1-3)",
@@ -294,8 +295,8 @@ export default function SubmitIdeaPage() {
   const { toast, ...rest } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false); // <-- NEW: Loading state for upload
   const [mentorApproved, setMentorApproved] = React.useState(false);
   const [animationData, setAnimationData] = React.useState(null);
   const [draftId, setDraftId] = React.useState<string | undefined>(undefined);
@@ -338,14 +339,18 @@ export default function SubmitIdeaPage() {
     const decoded = JSON.parse(jsonPayload);
     const userId = decoded.uid || decoded.sub || decoded.userid;
     if (!userId) return;
+
     axios
       .get(
         `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/status/${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       )
       .then((res) => {
-        if (res.data.success)
+        if (res.data.success) {
           setFounderReady(res.data.isPsychometricAnalysisDone);
+        }
       })
       .catch(() => {});
   }, []);
@@ -364,18 +369,20 @@ export default function SubmitIdeaPage() {
     setMentorApproved(serverDraftData.mentorStatus === "accepted");
     setUploadedKey(serverDraftData.pptFileKey);
     setUploadedName(serverDraftData.pptFileName);
-    if (serverDraftData._id) setDraftId(serverDraftData._id);
+    if (serverDraftData.id) {
+      setDraftId(serverDraftData.id);
+    }
   }, [serverDraftData, form]);
 
   const stickyToast = (props: Parameters<typeof toast>[0]) => {
-    const { id } = toast({ duration: Infinity, ...props });
+    const { id } = toast({
+      duration: Infinity,
+      ...props,
+    });
     return id;
   };
 
-  // ==================================================================
   // CORRECTED LOGIC STARTS HERE
-  // ==================================================================
-
   // 1. Function to SAVE DRAFT
   const handleSaveDraft = () => {
     const body: any = {
@@ -387,11 +394,9 @@ export default function SubmitIdeaPage() {
       invitedTeam: form.getValues("invitedTeam") || [],
       coreTeamIds: [],
     };
-
     if (draftId) {
       body.draftId = draftId;
     }
-
     saveDraft(body, {
       onSuccess: (res: any) => {
         if (!draftId && res.draftId) {
@@ -413,7 +418,7 @@ export default function SubmitIdeaPage() {
     });
   };
 
-  // 2. Function to UPLOAD PPT (and then save draft)
+  // 2. Function to UPLOAD PPT and then save draft
   const handleUploadPpt = (file: File) => {
     if (!draftId) {
       toast({
@@ -423,6 +428,19 @@ export default function SubmitIdeaPage() {
       });
       return;
     }
+
+    // <-- NEW: Client-side file size check -->
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "File Too Large",
+        description: "The presentation file must be smaller than 5MB.",
+      });
+      return;
+    }
+
+    setIsUploading(true); // <-- NEW: Start loading
     uploadPpt(
       { draftId, file },
       {
@@ -446,6 +464,9 @@ export default function SubmitIdeaPage() {
           };
           saveDraft(draftData); // Re-use the save draft mutation
         },
+        onSettled: () => {
+          setIsUploading(false); // <-- NEW: Stop loading
+        },
       }
     );
   };
@@ -461,7 +482,6 @@ export default function SubmitIdeaPage() {
       return;
     }
     if (isSubmitting) return;
-
     setIsSubmitting(true);
     let toastId: any = null;
     const token = localStorage.getItem("token");
@@ -474,13 +494,11 @@ export default function SubmitIdeaPage() {
       setIsSubmitting(false);
       return;
     }
-
     try {
       toastId = stickyToast({
         title: "Finalizing...",
         description: "Saving latest changes before submission.",
       });
-
       const latestValues = form.getValues();
       const finalDraftData = {
         ...latestValues,
@@ -489,7 +507,6 @@ export default function SubmitIdeaPage() {
         pptFileName: uploadedName,
         mentorStatus: mentorApproved ? "accepted" : "pending",
       };
-
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft`,
         finalDraftData,
@@ -508,9 +525,8 @@ export default function SubmitIdeaPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       rest.dismiss(toastId);
-
       toast({
-        title: "Success! 🎉",
+        title: "Success!",
         description: "Your idea has been submitted.",
       });
       router.push(`/dashboard?role=${ROLES.INNOVATOR}`);
@@ -529,7 +545,6 @@ export default function SubmitIdeaPage() {
     }
   };
 
-  // Other handlers (unchanged)
   const handleInvite = () => {
     const email = form.getValues("coreTeam");
     if (!email) return;
@@ -569,10 +584,7 @@ export default function SubmitIdeaPage() {
     );
   };
 
-  // ==================================================================
   // CORRECTED LOGIC ENDS HERE
-  // ==================================================================
-
   if (draftLoading) {
     return <div className="p-8 text-center">Loading your draft...</div>;
   }
@@ -590,14 +602,18 @@ export default function SubmitIdeaPage() {
 
       <CardContent>
         <Form {...form}>
-          {/* The form onSubmit is now only for validation, not submission logic */}
-          <form onSubmit={(e) => e.preventDefault()}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+            }}
+          >
             <Stepper initialStep={0} orientation="vertical">
               <SubmitIdeaForm
                 form={form}
                 setMentorApproved={setMentorApproved}
                 mentorApproved={mentorApproved}
                 isSubmitting={isSubmitting}
+                isUploading={isUploading} // <-- NEW: Pass down isUploading
                 founderReady={founderReady}
                 teamReady={teamReady}
                 pendingMembers={pendingMembers}
@@ -605,7 +621,6 @@ export default function SubmitIdeaPage() {
                 uploadedName={uploadedName}
                 setUploadedKey={setUploadedKey}
                 setUploadedName={setUploadedName}
-                // Pass the correct functions as props
                 handleSaveDraft={handleSaveDraft}
                 handleFinalSubmit={handleFinalSubmit}
                 handleUploadPpt={handleUploadPpt}
@@ -635,6 +650,7 @@ function SubmitIdeaForm({
   setMentorApproved,
   mentorApproved,
   isSubmitting,
+  isUploading, // <-- NEW: Receive isUploading
   founderReady,
   teamReady,
   pendingMembers,
@@ -642,7 +658,6 @@ function SubmitIdeaForm({
   uploadedName,
   setUploadedKey,
   setUploadedName,
-  // Receive the correct functions
   handleSaveDraft,
   handleFinalSubmit,
   handleUploadPpt,
@@ -651,6 +666,7 @@ function SubmitIdeaForm({
   setMentorApproved: (isApproved: boolean) => void;
   mentorApproved: boolean;
   isSubmitting: boolean;
+  isUploading: boolean; // <-- NEW: Add prop type
   founderReady: boolean;
   teamReady: boolean;
   pendingMembers: string[];
@@ -663,7 +679,6 @@ function SubmitIdeaForm({
   handleUploadPpt: (file: File) => void;
 }) {
   const stepper = useStepper();
-
   return (
     <>
       <StepperItem index={0}>
@@ -751,6 +766,7 @@ function SubmitIdeaForm({
             setUploadedKey={setUploadedKey}
             setUploadedName={setUploadedName}
             handleUploadPpt={handleUploadPpt}
+            isUploading={isUploading} // <-- NEW: Pass down isUploading
           />
         </StepperContent>
       </StepperItem>
@@ -772,7 +788,6 @@ function SubmitIdeaForm({
             founderReady={founderReady}
             teamReady={teamReady}
             pendingMembers={pendingMembers}
-            // Pass the final submit function directly
             onSubmitClick={handleFinalSubmit}
           />
         </StepperContent>
@@ -781,8 +796,7 @@ function SubmitIdeaForm({
   );
 }
 
-// --- STEPS (UI remains unchanged, only logic in handlers is affected) ---
-
+// --- STEPS UI remains unchanged, only logic in handlers is affected ---
 const Step1Content = ({ form, next, handleSaveDraft }: any) => {
   const { toast } = useToast();
   const invitedTeamEmails = form.watch("invitedTeam") || [];
@@ -794,6 +808,7 @@ const Step1Content = ({ form, next, handleSaveDraft }: any) => {
 
     const emailSchema = z.string().email("Please enter a valid email address.");
     const result = emailSchema.safeParse(email);
+
     if (!result.success) {
       toast({
         variant: "destructive",
@@ -815,6 +830,7 @@ const Step1Content = ({ form, next, handleSaveDraft }: any) => {
     const newInvitedTeam = [...invitedTeamEmails, email];
     form.setValue("invitedTeam", newInvitedTeam);
     form.setValue("coreTeam", "");
+
     toast({
       title: "Invite Sent!",
       description: `An invitation has been sent to ${email}.`,
@@ -860,7 +876,7 @@ const Step1Content = ({ form, next, handleSaveDraft }: any) => {
 
   return (
     <div className="space-y-6 py-6">
-      {/* ... UI for Step 1 ... */}
+      {/* UI for Step 1 */}
       <FormField
         control={form.control}
         name="title"
@@ -936,7 +952,7 @@ const Step2Content = ({
 
   return (
     <div className="space-y-6">
-      {/* ... UI for Step 2 ... */}
+      {/* UI for Step 2 */}
       <FormField
         control={form.control}
         name="mentorId"
@@ -1019,8 +1035,7 @@ const Step2Content = ({
           Next
         </Button>
         <Button type="button" variant="outline" onClick={handleSaveDraft}>
-          <History className="mr-2 h-4 w-4" />
-          Save Draft
+          <History className="mr-2 h-4 w-4" /> Save Draft
         </Button>
       </div>
     </div>
@@ -1028,20 +1043,23 @@ const Step2Content = ({
 };
 
 const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
-  // ... UI for Step 3, ensure buttons call handleSaveDraft and next/prev
+  // UI for Step 3, ensure buttons call handleSaveDraft and next/prev
   const { control, watch, setValue } = form;
   const preset = watch("preset");
   const total = clusters.reduce((s, k) => s + (watch(k) || 0), 0);
+
   const applyPreset = (p: string) => {
     setValue("preset", p);
-    if (p !== "Manual")
-      Object.entries(presets[p as keyof typeof presets]).forEach(([k, v]) =>
-        setValue(k, v)
-      );
+    if (p !== "Manual") {
+      Object.entries((presets as any)[p]).forEach(([k, v]) => {
+        setValue(k, v);
+      });
+    }
   };
+
   return (
     <div className="space-y-6 py-6">
-      {/* ... UI for Step 3 */}
+      {/* UI for Step 3 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           <div className="flex flex-wrap gap-2 justify-center">
@@ -1060,7 +1078,7 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
               variant={preset === "Manual" ? "default" : "outline"}
               onClick={() => applyPreset("Manual")}
             >
-              Manual 🛠️
+              Manual
             </Button>
           </div>
           {preset === "Manual" && (
@@ -1111,10 +1129,10 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
           <div
             className={cn(
               "relative text-sm font-medium p-3 border rounded-lg flex justify-between items-center",
-              total === 100 ? "border-green-500" : "border-red-500"
+              total !== 100 ? "border-red-500" : "border-green-500"
             )}
           >
-            <span>Total Weight:</span>
+            <span>Total Weight</span>
             <span className="font-bold text-xl">{total}%</span>
           </div>
         </div>
@@ -1146,14 +1164,18 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
 };
 
 const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
-  // ... UI for Step 4, ensure buttons call handleSaveDraft and next/prev
+  // UI for Step 4, ensure buttons call handleSaveDraft and next/prev
   const { control, watch, setValue } = form;
   const domain = watch("domain");
   const selected = MOCK_DOMAINS_WITH_SUBDOMAINS.find((d) => d.name === domain);
-  React.useEffect(() => setValue("subDomain", ""), [domain, setValue]);
+
+  React.useEffect(() => {
+    setValue("subDomain", "");
+  }, [domain, setValue]);
+
   return (
     <div className="space-y-6 py-6">
-      {/* ... UI for Step 4 */}
+      {/* UI for Step 4 */}
       <FormField
         control={control}
         name="domain"
@@ -1221,55 +1243,50 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
         />
       )}
       {domain === "Retail" && (
-        <>
-          <FormField
-            control={control}
-            name="cityOrVillage"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>City or village</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a city or village" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata"].map(
-                      (c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {watch("cityOrVillage") && (
-            <FormField
-              control={control}
-              name="locality"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Locality</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., Bandra West, Connaught Place"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <FormField
+          control={control}
+          name="cityOrVillage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>City or village</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a city or village" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata"].map(
+                    (c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
           )}
-        </>
+        />
+      )}
+      {watch("cityOrVillage") && (
+        <FormField
+          control={control}
+          name="locality"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Locality</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="e.g., Bandra West, Connaught Place"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       )}
       <FormField
         control={control}
@@ -1339,7 +1356,7 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
         name="background"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Background Validation</FormLabel>
+            <FormLabel>Background & Validation</FormLabel>
             <FormControl>
               <Textarea
                 placeholder="How did your personal background, skills, or experiences inspire this specific idea?"
@@ -1383,6 +1400,7 @@ const Step5Content = ({
   setUploadedKey,
   setUploadedName,
   handleUploadPpt,
+  isUploading, // <-- NEW: Receive loading state
 }: any) => {
   const [fileName, setFileName] = React.useState(
     uploadedKey ? uploadedName : ""
@@ -1423,11 +1441,13 @@ const Step5Content = ({
                     type="file"
                     className="pl-10"
                     accept=".ppt,.pptx"
+                    {...fieldProps}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleUploadPpt(file);
+                      if (file) {
+                        handleUploadPpt(file);
+                      }
                     }}
-                    {...fieldProps}
                   />
                 </div>
               )}
@@ -1442,22 +1462,34 @@ const Step5Content = ({
           </FormItem>
         )}
       />
+      {isUploading && ( // <-- NEW: Show loading indicator
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <BrainCircuit className="h-4 w-4 animate-spin" />
+          <span>Uploading...</span>
+        </div>
+      )}
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={prev}>
           Back
         </Button>
         <div className="flex items-center gap-4">
-          <Button type="button" variant="secondary" onClick={handleSaveDraft}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleSaveDraft}
+            disabled={isUploading} // <-- NEW: Disable button
+          >
             Save as Draft
           </Button>
           <Button
             type="button"
             onClick={async () => {
               if (await form.trigger("pptFile")) {
-                handleSaveDraft();
+                await handleSaveDraft();
                 next();
               }
             }}
+            disabled={isUploading} // <-- NEW: Disable button
           >
             Next
           </Button>
@@ -1483,8 +1515,7 @@ const Step6Content = ({
     (acc, key) => ({ ...acc, [key]: allValues[key] }),
     {}
   );
-
-  // THIS IS THE CRITICAL FIX: Direct function call, no wrappers.
+  // THIS IS THE CRITICAL FIX - Direct function call, no wrappers.
   const realSubmit = onSubmitClick;
 
   const canSubmit =
@@ -1492,7 +1523,7 @@ const Step6Content = ({
 
   return (
     <div className="space-y-6 py-6">
-      {/* ... UI for Step 6, which is already mostly correct ... */}
+      {/* UI for Step 6, which is already mostly correct */}
       {!founderReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
