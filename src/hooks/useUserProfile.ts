@@ -19,7 +19,8 @@ export const useUserProfile = () => {
       const { data } = await axios.get(`${apiUrl}/api/users/${uid}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      return data;
+
+      return data.data;
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!uid && !!token,

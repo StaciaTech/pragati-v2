@@ -1,22 +1,15 @@
 "use client";
 
 import * as React from "react";
+import axios from "axios";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { MOCK_IDEAS } from "@/lib/data/ideas";
-import { MOCK_TTCS } from "@/lib/data/organization";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import {
   Bar,
   BarChart,
@@ -30,165 +23,98 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { SpiderChart } from "@/components/spider-chart";
-import { MOCK_INNOVATORS } from "@/lib/data/organization";
-import { MOCK_COLLEGES } from "@/lib/data/organization";
-import { LineChart, Line } from "recharts";
-import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CollegeAnalyticsPage() {
-  const college = MOCK_COLLEGES[0];
-  const {
-    data: ideas,
-    isLoading: ideaLoading,
-    error: ideaErrors,
-  } = useUserIdeas();
-  if (ideaLoading) return <p>Loading…</p>;
-  if (ideaErrors) return <p>Error loading ideas.</p>;
-  // const ideas = MOCK_IDEAS.filter((i) => i.collegeId === college.id);
-  const ttcs = MOCK_TTCS.filter((t) => t.collegeId === college.id);
-  // const totalIdeas = ideas.length;
-  // const approvedIdeas = ideas.filter((i) => i.status === "Approved").length;
-  // const approvalRate = totalIdeas > 0 ? (approvedIdeas / totalIdeas) * 100 : 0;
+  const [loading, setLoading] = React.useState(true);
+  const [summary, setSummary] = React.useState<any>(null);
+  const [ttcPerformance, setTtcPerformance] = React.useState<any[]>([]);
+  const [domainData, setDomainData] = React.useState<any[]>([]);
 
-  // const domainSubmissions = ideas.reduce((acc, idea) => {
-  //   acc[idea.domain] = (acc[idea.domain] || 0) + 1;
-  //   return acc;
-  // }, {} as Record<string, number>);
+  // Fetch analytics data
+  React.useEffect(() => {
+    const fetchAnalytics = async () => {
+      const token = localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-  // const domainChartData = Object.entries(domainSubmissions).map(
-  //   ([name, ideas]) => ({ name, ideas })
-  // );
+      try {
+        const [summaryRes, ttcRes, domainRes] = await Promise.all([
+          axios.get(`${apiUrl}/api/analytics/college/summary`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${apiUrl}/api/analytics/college/ttc-performance`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${apiUrl}/api/analytics/domain-trend`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-  // const statusCounts = ideas.reduce((acc, idea) => {
-  //   const status = idea.report?.validationOutcome || idea.status || "N/A";
-  //   acc[status] = (acc[status] || 0) + 1;
-  //   return acc;
-  // }, {} as Record<string, number>);
-
-  // const statusChartData = [
-  //   {
-  //     name: "Approved",
-  //     value: statusCounts.Approved || 0,
-  //     fill: "hsl(var(--color-approved))",
-  //   },
-  //   {
-  //     name: "Moderate",
-  //     value: statusCounts.Moderate || 0,
-  //     fill: "hsl(var(--color-moderate))",
-  //   },
-  //   {
-  //     name: "Rejected",
-  //     value: statusCounts.Rejected || 0,
-  //     fill: "hsl(var(--color-rejected))",
-  //   },
-  // ];
-
-  // const submissionTrendData = ideas.reduce((acc, idea) => {
-  //   const month = new Date(idea.dateSubmitted).toLocaleString("default", {
-  //     month: "short",
-  //   });
-  //   acc[month] = (acc[month] || 0) + 1;
-  //   return acc;
-  // }, {} as Record<string, number>);
-
-  // const trendChartData = Object.entries(submissionTrendData).map(
-  //   ([name, ideas]) => ({ name, ideas })
-  // );
-
-  const ttcPerformance = ttcs.map((ttc) => {
-    const ttcIdeas = MOCK_IDEAS.filter((idea) => idea.ttcAssigned === ttc.id);
-    const approved = ttcIdeas.filter((i) => i.status === "Approved").length;
-    return {
-      name: ttc.name
-        .replace("Dr. ", "")
-        .replace("Mr. ", "")
-        .replace("Ms. ", ""),
-      ideas: ttcIdeas.length,
-      approvalRate:
-        ttcIdeas.length > 0 ? (approved / ttcIdeas.length) * 100 : 0,
+        setSummary(summaryRes.data.data);
+        setTtcPerformance(ttcRes.data.data);
+        setDomainData(domainRes.data.data);
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-  });
 
-  const totalIdeas = ideas.length;
-  const approvedIdeas = ideas.filter(
-    (i: any) => i.status === "approved"
-  ).length;
-  const approvalRate = totalIdeas > 0 ? (approvedIdeas / totalIdeas) * 100 : 0;
+    fetchAnalytics();
+  }, []);
 
-  const domainSubmissions = ideas.reduce((acc: any, idea: any) => {
-    acc[idea.domain] = (acc[idea.domain] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Build status chart data
+  const statusChartData = summary
+    ? [
+        {
+          name: "Approved",
+          value: summary.approvedIdeas || 0,
+          fill: "hsl(var(--color-approved))",
+        },
+        {
+          name: "Submitted",
+          value: summary.statusBreakdown?.submitted || 0,
+          fill: "hsl(var(--color-moderate))",
+        },
+        {
+          name: "Rejected",
+          value: summary.statusBreakdown?.rejected || 0,
+          fill: "hsl(var(--color-rejected))",
+        },
+      ]
+    : [];
 
-  const domainChartData = Object.entries(domainSubmissions).map(
-    ([name, ideas]) => ({ name, ideas })
-  );
-
-  const statusCounts = ideas.reduce((acc: any, idea: any) => {
-    const status = idea.status || "N/A";
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  console.log(statusCounts);
-
-  const statusChartData = [
-    {
-      name: "Approved",
-      value: statusCounts.approved || 0,
-      fill: "hsl(var(--color-approved))",
-    },
-    {
-      name: "Moderate",
-      value: statusCounts.Moderate || 0,
-      fill: "hsl(var(--color-moderate))",
-    },
-    {
-      name: "Rejected",
-      value: statusCounts.declined || 0,
-      fill: "hsl(var(--color-rejected))",
-    },
-  ];
-
-  const submissionTrendData = ideas.reduce((acc: any, idea: any) => {
-    const month = new Date(idea.createdAt).toLocaleString("default", {
-      month: "short",
-    });
-    acc[month] = (acc[month] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const trendChartData = Object.entries(submissionTrendData).map(
-    ([name, ideas]) => ({ name, ideas })
-  );
-
-  // const ttcPerformance = ttcs.map((ttc: any) => {
-  //   const ttcIdeas = ideas.filter((idea: any) => idea.ttcAssigned === ttc._id);
-  //   const approved = ttcIdeas.filter(
-  //     (i: any) => i.status === "Approved"
-  //   ).length;
-  //   return {
-  //     name: ttc.name
-  //       .replace("Dr. ", "")
-  //       .replace("Mr. ", "")
-  //       .replace("Ms. ", ""),
-  //     ideas: ttcIdeas.length,
-  //     approvalRate:
-  //       ttcIdeas.length > 0 ? (approved / ttcIdeas.length) * 100 : 0,
-  //   };
-  // });
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-12 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Approval Rate</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold text-primary">
-              {approvalRate.toFixed(1)}%
+              {summary?.approvalRate?.toFixed(1) || 0}%
             </p>
           </CardContent>
         </Card>
@@ -197,7 +123,7 @@ export default function CollegeAnalyticsPage() {
             <CardTitle>Total Ideas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{totalIdeas}</p>
+            <p className="text-4xl font-bold">{summary?.totalIdeas || 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -205,12 +131,24 @@ export default function CollegeAnalyticsPage() {
             <CardTitle>Total TTCs</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{MOCK_TTCS.length}</p>
+            <p className="text-4xl font-bold">{summary?.totalTTCs || 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Innovators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">
+              {summary?.totalInnovators || 0}
+            </p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* TTC Performance */}
         <Card>
           <CardHeader>
             <CardTitle>TTC Performance Comparison</CardTitle>
@@ -223,7 +161,13 @@ export default function CollegeAnalyticsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={ttcPerformance}>
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
                   <YAxis
                     yAxisId="left"
                     orientation="left"
@@ -274,9 +218,14 @@ export default function CollegeAnalyticsPage() {
             </ChartContainer>
           </CardContent>
         </Card>
+
+        {/* Status Distribution */}
         <Card>
           <CardHeader>
             <CardTitle>Idea Status Distribution</CardTitle>
+            <CardDescription>
+              Breakdown of ideas by current status
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={{}} className="min-h-[200px] w-full">
@@ -316,6 +265,38 @@ export default function CollegeAnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Domain Distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Domain Distribution</CardTitle>
+          <CardDescription>
+            Ideas submitted across different domains
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{}} className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={domainData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis />
+                <Tooltip
+                  content={
+                    <ChartTooltipContent
+                      contentStyle={{
+                        background: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                      }}
+                    />
+                  }
+                />
+                <Bar dataKey="ideas" fill="hsl(var(--chart-1))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }

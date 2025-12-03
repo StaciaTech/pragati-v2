@@ -529,7 +529,7 @@ export default function IdeasPage() {
                         <DropdownMenuItem
                           onSelect={() =>
                             router.push(
-                              `/dashboard/ideas/${idea._id}?role=${role}`
+                              `/dashboard/ideas/${idea.resultDocId}?role=${role}`
                             )
                           }
                         >

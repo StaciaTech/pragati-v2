@@ -144,6 +144,11 @@ export const NAV_LINKS: Record<
       href: `/dashboard/coordinator/innovator-management?role=${ROLES.COORDINATOR}`,
     },
     {
+      title: "Manage Mentors",
+      icon: Users,
+      href: `/dashboard/coordinator/mentor-management?role=${ROLES.COORDINATOR}`,
+    },
+    {
       title: "Consultations",
       icon: MessageSquare,
       href: `/dashboard/coordinator/consultations?role=${ROLES.COORDINATOR}`,

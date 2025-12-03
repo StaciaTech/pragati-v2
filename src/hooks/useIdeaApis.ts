@@ -68,10 +68,19 @@ export const useAssignMentor = () => {
 export const useUploadPpt = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ draftId, file }: { draftId: string; file: File }) => {
+    mutationFn: ({
+      draftId,
+      file,
+      sessionKey,
+    }: {
+      draftId: string;
+      file: File;
+      sessionKey?: string;
+    }) => {
       const fd = new FormData();
       fd.append("pptFile", file);
       fd.append("draftId", draftId);
+      if (sessionKey) fd.append("sessionKey", sessionKey);
       return fetch(`${apiUrl}/api/ideas/draft/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },

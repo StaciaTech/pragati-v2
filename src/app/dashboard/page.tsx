@@ -164,6 +164,10 @@ function DashboardPageContent() {
   const role = (searchParams.get("role") as Role) || ROLES.INNOVATOR;
   const { data: ideas, isLoading, error } = useUserIdeas();
   const { data: user } = useUserProfile();
+  console.log(user);
+  console.log("printed");
+
+  console.log(ideas);
 
   // const [ideas, setIdeas] = useState<Idea[]>([]);
   // const [isLoading, setIsLoading] = useState(true);
@@ -195,7 +199,7 @@ function DashboardPageContent() {
     else setGreeting("Good evening");
 
     // Set a random quote
-    setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    setQuote(quotes[Math.floor(Math.random() * quotes?.length)]);
   }, []);
 
   const totalIdeas = ideas?.length;
@@ -206,7 +210,7 @@ function DashboardPageContent() {
       : 0;
   const approvedCount = ideas?.filter(
     (item) => item.status?.toLowerCase() === "approved"
-  ).length;
+  )?.length;
 
   const approvalRate = totalIdeas > 0 ? (approvedCount / totalIdeas) * 100 : 0;
 
@@ -319,7 +323,7 @@ function DashboardPageContent() {
 
   const getOverallScore = (idea: Idea) => {
     if (idea.report) {
-      return idea.report.overallScore.toFixed(1);
+      return idea?.report?.overallScore?.toFixed(1);
     }
     return "N/A";
   };
@@ -396,7 +400,7 @@ function DashboardPageContent() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {averageScore.toFixed(2)}
+                {averageScore?.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
                 across all validated ideas
@@ -417,7 +421,7 @@ function DashboardPageContent() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {approvalRate.toFixed(1)}%
+                {approvalRate?.toFixed(1)}%
               </div>
               <p className="text-xs text-muted-foreground">
                 of ideas have been approved
@@ -512,7 +516,7 @@ function DashboardPageContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {ideas.length === 0 ? (
+                {ideas?.length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-muted-foreground">
                       You haven't submitted any ideas yet.
@@ -520,7 +524,7 @@ function DashboardPageContent() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {ideas.slice(0, 3).map((idea) => {
+                    {ideas?.slice(0, 3).map((idea) => {
                       const status = getStatus(idea);
                       const score = getOverallScore(idea);
                       const numericScore = idea.report?.overallScore ?? null;
@@ -554,7 +558,7 @@ function DashboardPageContent() {
                                       getScoreColor(getOverallScore(idea))
                                     )}
                                   >
-                                    {idea.overallScore.toFixed(2)}
+                                    {idea.overallScore?.toFixed(2) || "00"}
                                   </span>
                                 </span>
                               </div>
@@ -683,7 +687,7 @@ function DashboardPageContent() {
                       {item.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{item.score.toFixed(1)}</TableCell>
+                  <TableCell>{item?.score?.toFixed(1)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

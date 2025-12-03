@@ -51,6 +51,8 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
+import PragathiLogo from "../app/vencorplogo.png";
+import Image from "next/image";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -188,7 +190,12 @@ export default function LandingPage() {
       <header className="py-4 px-4 sm:px-6 lg:px-8 fixed top-0 left-0 w-full z-50 bg-background/70 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
+            {/* <Logo className="h-8 w-8 text-primary" /> */}
+            <Image
+              src={PragathiLogo}
+              alt="Picture of the author"
+              className="h-8 w-8 text-primary"
+            />
             <span className="text-2xl font-bold">Pragati</span>
           </Link>
 

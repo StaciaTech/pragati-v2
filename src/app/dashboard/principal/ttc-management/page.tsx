@@ -10,14 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_CREDIT_REQUESTS } from "@/lib/data/platform";
-import {
-  MOCK_TTCS,
-  MOCK_INNOVATORS,
-  MOCK_COLLEGES,
-} from "@/lib/data/organization";
-import { MOCK_IDEAS } from "@/lib/data/ideas";
-import { STATUS_COLORS } from "@/lib/data/platform";
 import {
   Dialog,
   DialogContent,
@@ -42,8 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Lightbulb } from "lucide-react";
-import { ROLES } from "@/lib/constants";
+import { Lightbulb, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -59,13 +50,21 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTtcRequests } from "@/hooks/useTtcRequests";
-import { useAllInnovators } from "@/hooks/useAllInnovators";
 import { useTtcs } from "@/hooks/useTtcs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUpdateUser } from "@/hooks/useUpdateUser";
 import axios from "axios";
+import { useTtcInnovators } from "@/hooks/useTtcInnovators";
 
-type Ttc = (typeof MOCK_TTCS)[0];
+type Ttc = {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  expertise: string[];
+  isActive: boolean;
+  collegeId: string;
+};
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const getToken = () => localStorage.getItem("token");
@@ -78,14 +77,9 @@ const getInitials = (name: string) =>
 
 export default function TTCManagementPage() {
   const { toast } = useToast();
-  //   const [ttcs, setTtcs] = React.useState(MOCK_TTCS);
-  // const [requests, setRequests] = React.useState(MOCK_CREDIT_REQUESTS);
 
   const { data: requests = [], isLoading: loadingTtcRequest } =
     useTtcRequests();
-
-  const { data: innovators = [], isLoading: loadingInoovators } =
-    useAllInnovators();
 
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [modalType, setModalType] = React.useState<"add" | "edit">("add");
@@ -100,7 +94,13 @@ export default function TTCManagementPage() {
     (req) => req.requesterType === "TTC" && req.status === "Pending"
   );
 
-  // Assuming a single college for the principal view
+  // ✅ Fetch innovators for selected TTC
+  const { data: innovatorsResp, isLoading: loadingInnovators } =
+    useTtcInnovators(selectedTtcForInnovators?._id || null);
+
+  const innovators = innovatorsResp?.data || [];
+
+  // Get collegeId from token
   const token = getToken();
   const collegeId = React.useMemo(() => {
     if (!token) return "";
@@ -113,19 +113,18 @@ export default function TTCManagementPage() {
 
   const { data: ttcs = [], isLoading: loadingTtcs } = useTtcs(collegeId);
 
-  // const collegeTtcs = ttcs.filter((ttc) => ttc.collegeId === collegeId);
-  //   const collegeInnovators = MOCK_INNOVATORS.filter(
-  //     (inv) => inv.collegeId === collegeId
-  //   );
+  const queryClient = useQueryClient();
 
-  const innovatorsByTtc = React.useMemo(() => {
-    const map: Record<string, typeof innovators> = {};
-    for (const innovator of innovators) {
-      const key = innovator.createdBy;
-      (map[key] ??= []).push(innovator);
-    }
-    return map;
-  }, [innovators]);
+  // ✅ Get innovator counts for each TTC (for display on cards)
+  const innovatorCountByTtc = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    // You can fetch this separately or compute from a global list
+    // For now, we'll just show 0 until they click the card
+    ttcs.forEach((ttc) => {
+      counts[ttc._id] = 0; // Will be updated when modal opens
+    });
+    return counts;
+  }, [ttcs]);
 
   const handleOpenEditModal = (type: "add" | "edit", ttc?: Ttc) => {
     setModalType(type);
@@ -133,43 +132,13 @@ export default function TTCManagementPage() {
     setIsEditModalOpen(true);
   };
 
-  //   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
-  //     event.preventDefault();
-  //     const formData = new FormData(event.currentTarget);
-  //     const name = formData.get("name") as string;
-  //     toast({
-  //       title: `TTC ${modalType === "add" ? "Added" : "Updated"}`,
-  //       description: `${name} has been successfully saved.`,
-  //     });
-  //     setIsEditModalOpen(false);
-  //   };
-
-  //   const handleToggleStatus = (id: string) => {
-  //     setTtcs((prev) =>
-  //       prev.map((ttc) =>
-  //         ttc.id === id
-  //           ? ({
-  //               ...ttc,
-  //               status: ttc.status === "Active" ? "Inactive" : "Active",
-  //             } as any)
-  //           : ttc
-  //       )
-  //     );
-  //     toast({
-  //       title: "Status Updated",
-  //       description: "TTC status has been toggled.",
-  //     });
-  //   };
-
-  const queryClient = useQueryClient();
-
   /* ---- ADD / EDIT TTC ---- */
   const saveTtcMutation = useMutation({
     mutationFn: async (payload: {
       id?: string;
       name: string;
       email: string;
-      expertise: string[]; // <-- still typed as array internally
+      expertise: string[];
     }) => {
       const token = getToken();
       if (!token) throw new Error("No token");
@@ -177,7 +146,7 @@ export default function TTCManagementPage() {
       const body = {
         name: payload.name,
         email: payload.email,
-        expertise: payload.expertise.join(","), // <-- fix: send CSV
+        expertise: payload.expertise.join(","),
       };
 
       if (!payload.id) {
@@ -186,7 +155,7 @@ export default function TTCManagementPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      // EDIT (PUT /api/users/:id)
+      // EDIT
       return axios.put(`${apiUrl}/api/users/${payload.id}`, body, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -245,9 +214,9 @@ export default function TTCManagementPage() {
         }
       );
     },
-    // inside saveTtcMutation & toggleStatusMutation
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-ttcs", collegeId] });
+      toast({ title: "Status updated" });
     },
     onError: () => toast({ title: "Failed to toggle status" }),
   });
@@ -272,7 +241,6 @@ export default function TTCManagementPage() {
     },
     onSuccess: () => {
       toast({ title: "Request updated" });
-      // refresh the pending-requests list
       queryClient.invalidateQueries({ queryKey: ["ttc-credit-requests"] });
     },
     onError: (err: any) =>
@@ -290,10 +258,6 @@ export default function TTCManagementPage() {
   const handleTtcClick = (ttc: Ttc) => {
     setSelectedTtcForInnovators(ttc);
     setIsInnovatorModalOpen(true);
-  };
-
-  const getIdeasForInnovator = (innovatorEmail: string) => {
-    return MOCK_IDEAS.filter((idea) => idea.innovatorEmail === innovatorEmail);
   };
 
   return (
@@ -340,7 +304,7 @@ export default function TTCManagementPage() {
                     <div>
                       <CardTitle>{ttc.name}</CardTitle>
                       <CardDescription>{ttc.email}</CardDescription>
-                      <div className="flex gap-1 mt-1">
+                      <div className="flex gap-1 mt-1 flex-wrap">
                         {ttc.expertise.map((e) => (
                           <Badge key={e} variant="secondary">
                             {e}
@@ -358,7 +322,8 @@ export default function TTCManagementPage() {
                     <p>
                       Assigned Innovators:{" "}
                       <span className="font-bold text-foreground">
-                        {innovatorsByTtc[ttc.id]?.length || 0}
+                        {/* ✅ Show count from meta when available */}
+                        {innovatorCountByTtc[ttc._id] || "View"}
                       </span>
                     </p>
                     <div className="flex gap-2">
@@ -377,7 +342,7 @@ export default function TTCManagementPage() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleToggleStatus(ttc.id);
+                          handleToggleStatus(ttc._id);
                         }}
                       >
                         {ttc.isActive ? "Deactivate" : "Activate"}
@@ -396,6 +361,7 @@ export default function TTCManagementPage() {
         </CardContent>
       </Card>
 
+      {/* Edit/Add TTC Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -446,6 +412,7 @@ export default function TTCManagementPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Credit Requests Modal */}
       <Dialog open={isRequestsModalOpen} onOpenChange={setIsRequestsModalOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -469,7 +436,9 @@ export default function TTCManagementPage() {
                 <TableRow key={req._id}>
                   <TableCell>{req.name}</TableCell>
                   <TableCell>{req.amount}</TableCell>
-                  <TableCell>{req.createdAt}</TableCell>
+                  <TableCell>
+                    {new Date(req.createdAt).toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {req.reason}
                   </TableCell>
@@ -490,7 +459,7 @@ export default function TTCManagementPage() {
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() =>
-                              handleRequestAction(req._id, "Approved")
+                              handleRequestAction(req._id, "approved")
                             }
                           >
                             Yes, Approve
@@ -516,7 +485,7 @@ export default function TTCManagementPage() {
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() =>
-                              handleRequestAction(req._id, "Rejected")
+                              handleRequestAction(req._id, "rejected")
                             }
                           >
                             Yes, Reject
@@ -546,96 +515,98 @@ export default function TTCManagementPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ✅ Innovators Modal - Updated */}
       <Dialog
         open={isInnovatorModalOpen}
         onOpenChange={setIsInnovatorModalOpen}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Innovators under {selectedTtcForInnovators?.name}
             </DialogTitle>
             <DialogDescription>
-              List of innovators managed by this TTC. Click an innovator to see
-              their ideas.
+              {innovatorsResp?.meta.totalInnovators || 0} innovators managed by
+              this TTC
             </DialogDescription>
           </DialogHeader>
-          {innovatorsByTtc[selectedTtcForInnovators?._id || ""]?.length > 0 ? (
+
+          {loadingInnovators ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Loading innovators...
+              </p>
+            </div>
+          ) : innovators.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {innovatorsByTtc[selectedTtcForInnovators?._id || ""].map(
-                (innovator) => {
-                  const ideas = getIdeasForInnovator(innovator.email);
-                  return (
-                    <AccordionItem value={innovator._id} key={innovator._id}>
-                      <AccordionTrigger>
-                        <div className="flex items-center justify-between w-full pr-4">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6 text-xs">
-                              <AvatarImage
-                                src={`https://avatar.vercel.sh/${innovator.name}.png`}
-                                alt={innovator.name}
-                              />
-                              <AvatarFallback>
-                                {getInitials(innovator.name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">
-                              {innovator.name}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              variant="secondary"
-                              className="flex items-center gap-1"
-                            >
-                              <Lightbulb className="h-3 w-3" />
-                              {ideas.length}
+              {innovators.map((innovator) => (
+                <AccordionItem value={innovator._id} key={innovator._id}>
+                  <AccordionTrigger>
+                    <div className="flex items-center justify-between w-full pr-4">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 text-xs">
+                          <AvatarImage
+                            src={`https://avatar.vercel.sh/${innovator.name}.png`}
+                            alt={innovator.name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(innovator.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">
+                          {innovator.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          <Lightbulb className="h-3 w-3" />
+                          {innovator.ideasCount}
+                        </Badge>
+                        <Badge
+                          variant={
+                            innovator.isActive ? "default" : "destructive"
+                          }
+                        >
+                          {innovator.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {innovator.recentIdeas &&
+                    innovator.recentIdeas.length > 0 ? (
+                      <ul className="space-y-1 pl-8 pr-4">
+                        {innovator.recentIdeas.map((idea) => (
+                          <li
+                            key={idea._id}
+                            className="text-xs flex justify-between items-center py-1"
+                          >
+                            <span className="flex-1">• {idea.title}</span>
+                            <Badge variant="outline" className="ml-2">
+                              {idea.status}
                             </Badge>
-                            <Badge
-                              variant={
-                                innovator.isActive ? "default" : "destructive"
-                              }
-                            >
-                              {innovator.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ideas.length > 0 ? (
-                          <ul className="space-y-1 pl-8 pr-4">
-                            {ideas.map((idea) => (
-                              <li
-                                key={idea.id}
-                                className="text-xs flex justify-between items-center"
-                              >
-                                <span>- {idea.title}</span>
-                                <Badge
-                                  className={`${
-                                    STATUS_COLORS[idea.status]
-                                  } text-white`}
-                                >
-                                  {idea.status}
-                                </Badge>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted-foreground pl-8">
-                            No ideas submitted by this innovator.
-                          </p>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                }
-              )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-muted-foreground pl-8">
+                        No ideas submitted by this innovator.
+                      </p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
             </Accordion>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">
               No innovators assigned to this TTC.
             </p>
           )}
+
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Close</Button>

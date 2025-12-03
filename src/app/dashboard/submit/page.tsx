@@ -14,9 +14,12 @@ import {
   TriangleAlert,
   X,
   AlertCircle,
+  Loader2,
+  Clock,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Lottie from "lottie-react";
+import { v4 as uuidv4 } from "uuid";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -97,6 +100,9 @@ import {
 } from "@/hooks/useIdeaApis";
 import { useMentors } from "@/hooks/useMentors";
 import { useMyDraft } from "@/hooks/useMyDraft";
+import { useAvailableMentors } from "@/hooks/useAvailableMentors";
+import { AnimatePresence, motion } from "framer-motion";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 // --- SCHEMA PRESETS ---
 const clusterKeys = Object.keys(INITIAL_CLUSTER_WEIGHTS);
@@ -294,6 +300,18 @@ const trlLevels = [
 export default function SubmitIdeaPage() {
   const { toast, ...rest } = useToast();
   const router = useRouter();
+
+  const [sessionKey] = React.useState(() => {
+    // Try to get existing sessionKey from localStorage
+    const existing = localStorage.getItem("ideaDraftSessionKey");
+    if (existing) return existing;
+
+    // Generate new one if not exists
+    const newKey = uuidv4();
+    localStorage.setItem("ideaDraftSessionKey", newKey);
+    return newKey;
+  });
+
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false); // <-- NEW: Loading state for upload
@@ -303,7 +321,14 @@ export default function SubmitIdeaPage() {
   const [founderReady, setFounderReady] = React.useState(false);
   const [teamReady, setTeamReady] = React.useState(true);
   const [pendingMembers, setPendingMembers] = React.useState<string[]>([]);
-  const { data: serverDraft, isLoading: draftLoading } = useMyDraft();
+  // const { data: serverDraft, isLoading: draftLoading } = useMyDraft();
+  const [serverDraft, setServerDraft] = React.useState({});
+  const [draftLoading, setDraftLoading] = React.useState(false);
+  const { data: profile } = useUserProfile();
+  console.log(profile);
+
+  // console.log(serverDraft);
+
   const serverDraftData = serverDraft?.draft;
   const [uploadedKey, setUploadedKey] = React.useState<string | undefined>();
   const [uploadedName, setUploadedName] = React.useState<string | undefined>();
@@ -312,8 +337,91 @@ export default function SubmitIdeaPage() {
   const { mutate: inviteTeam } = useInviteTeam();
   const { mutate: assignMentor } = useAssignMentor();
   const { mutate: uploadPpt } = useUploadPpt();
-  const { data: mentorsResp } = useMentors();
-  const mentors = mentorsResp?.data;
+
+  const [fetchedDraftData, setFetchedDraftData] = React.useState({});
+  // const { data: mentorsResp } = useMentors();
+  // const mentors = mentorsResp?.data;
+
+  // When server draft arrives
+  React.useEffect(() => {
+    setDraftLoading(true);
+    const token = localStorage.getItem("token");
+
+    const fetchDraft = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft/my-latest`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        console.log(response.data);
+
+        if (response.data.success && response.data.draft) {
+          const draft = response.data.draft;
+
+          // ✅ Store draftId
+          setDraftId(draft._id);
+          setFetchedDraftData(response.data.draft);
+
+          // ✅ FIX: Include ALL fields in form.reset()
+          form.reset({
+            title: draft.title || "",
+            concept: draft.concept || "",
+            domain: draft.domain || "",
+            subDomain: draft.subDomain || "",
+            otherDomain: draft.otherDomain || "",
+            cityOrVillage: draft.cityOrVillage || "",
+            locality: draft.locality || "",
+            trl: draft.trl || "TRL 1",
+
+            // ✅ CRITICAL FIX: Add background field
+            background: draft.background || "",
+
+            mentorId: draft.mentorId || "",
+            invitedTeam: draft.invitedTeam || [],
+            coreTeam: "", // Empty for new input
+
+            // ✅ Add preset
+            preset: draft.preset || "Balanced",
+
+            // ✅ Add cluster weights
+            "Core Idea & Innovation": draft["Core Idea & Innovation"] || 20,
+            "Market & Commercial Opportunity":
+              draft["Market & Commercial Opportunity"] || 25,
+            "Execution & Operations": draft["Execution & Operations"] || 15,
+            "Business Model & Strategy":
+              draft["Business Model & Strategy"] || 15,
+            "Team & Organizational Health":
+              draft["Team & Organizational Health"] || 10,
+            "External Environment & Compliance":
+              draft["External Environment & Compliance"] || 10,
+            "Risk & Future Outlook": draft["Risk & Future Outlook"] || 5,
+          });
+
+          // ✅ FIX: Check mentorRequestStatus instead of mentorStatus
+          if (draft.mentorRequestStatus === "accepted") {
+            setMentorApproved(true);
+          }
+
+          if (draft.pptFileKey && draft.pptFileName) {
+            setUploadedKey(draft.pptFileKey);
+            setUploadedName(draft.pptFileName);
+          }
+
+          toast({
+            title: "Draft Loaded",
+            description: "Your previous progress has been restored.",
+          });
+        }
+      } catch (error: any) {
+        console.error("Failed to load draft:", error);
+      } finally {
+        setDraftLoading(false);
+      }
+    };
+
+    fetchDraft();
+  }, []);
 
   // Lottie loader
   React.useEffect(() => {
@@ -361,19 +469,6 @@ export default function SubmitIdeaPage() {
     defaultValues,
   });
 
-  // When server draft arrives
-  React.useEffect(() => {
-    if (!serverDraftData) return;
-    const merged = { ...defaultValues, ...serverDraftData };
-    form.reset(merged);
-    setMentorApproved(serverDraftData.mentorStatus === "accepted");
-    setUploadedKey(serverDraftData.pptFileKey);
-    setUploadedName(serverDraftData.pptFileName);
-    if (serverDraftData.id) {
-      setDraftId(serverDraftData.id);
-    }
-  }, [serverDraftData, form]);
-
   const stickyToast = (props: Parameters<typeof toast>[0]) => {
     const { id } = toast({
       duration: Infinity,
@@ -382,90 +477,191 @@ export default function SubmitIdeaPage() {
     return id;
   };
 
-  // CORRECTED LOGIC STARTS HERE
-  // 1. Function to SAVE DRAFT
   const handleSaveDraft = () => {
+    console.log("=".repeat(80));
+    console.log("🚀 [handleSaveDraft] Starting draft save...");
+    console.log("📝 Current sessionKey:", sessionKey);
+    console.log("📝 Current draftId:", draftId);
+    console.log("📝 Uploaded PPT Key:", uploadedKey);
+    console.log("📝 Uploaded PPT Name:", uploadedName);
+    console.log("📝 Fetched Draft Data:", fetchedDraftData ? "EXISTS" : "NULL");
+
+    const formValues = form.getValues();
+
+    // 🔍 DEBUG: Check form values
+    console.log("\n[FORM VALUES]");
+    console.log("  ├─ Title:", formValues.title?.substring(0, 50));
+    console.log("  ├─ Background:", formValues.background?.substring(0, 50));
+    console.log("  ├─ Domain:", formValues.domain);
+    console.log("  └─ Concept:", formValues.concept?.substring(0, 50));
+
+    // ✅ Build base body with form values
     const body: any = {
-      ...form.getValues(),
-      pptFile: undefined, // Don't send the file object
-      mentorStatus: mentorApproved ? "accepted" : "pending",
-      pptFileKey: uploadedKey,
-      pptFileName: uploadedName,
-      invitedTeam: form.getValues("invitedTeam") || [],
+      ...formValues,
+      sessionKey: sessionKey,
+      background: formValues.background || "", // Explicit background
+      invitedTeam: formValues.invitedTeam || [],
       coreTeamIds: [],
     };
+
+    // ✅ Add draftId if updating existing draft
     if (draftId) {
       body.draftId = draftId;
     }
+
+    // ✅ CRITICAL FIX: Only include PPT fields if they have values
+    const pptKey = uploadedKey || fetchedDraftData?.pptFileKey;
+    const pptName = uploadedName || fetchedDraftData?.pptFileName;
+
+    if (pptKey && pptName) {
+      body.pptFileKey = pptKey;
+      body.pptFileName = pptName;
+      body.pptFileUrl = fetchedDraftData?.pptFileUrl;
+      body.pptFileSize = fetchedDraftData?.pptFileSize;
+      body.pptUploadedAt = fetchedDraftData?.pptUploadedAt;
+      console.log("\n[PPT] ✅ Including PPT in save:");
+      console.log("  ├─ pptFileKey:", pptKey);
+      console.log("  ├─ pptFileName:", pptName);
+      console.log(
+        "  └─ pptFileSize:",
+        fetchedDraftData?.pptFileSize || "unknown"
+      );
+    } else {
+      console.log(
+        "\n[PPT] ⚠️ No PPT to include - backend will preserve existing"
+      );
+    }
+
+    // ✅ Only include mentor fields if they exist
+    if (formValues.mentorId) {
+      body.mentorId = formValues.mentorId;
+    }
+
+    // ✅ CRITICAL: Remove undefined/null fields to prevent backend issues
+    Object.keys(body).forEach((key) => {
+      if (body[key] === undefined || body[key] === null) {
+        console.log(`  ⚠️ Removing undefined field: ${key}`);
+        delete body[key];
+      }
+    });
+
+    console.log("\n[REQUEST BODY]");
+    console.log("  ├─ sessionKey:", body.sessionKey);
+    console.log("  ├─ draftId:", body.draftId || "NEW DRAFT");
+    console.log("  ├─ title:", body.title?.substring(0, 30));
+    console.log(
+      "  ├─ background:",
+      body.background ? `${body.background.length} chars` : "empty"
+    );
+    console.log("  ├─ hasPPT:", !!body.pptFileKey);
+    console.log("  ├─ pptFileKey:", body.pptFileKey || "NOT INCLUDED");
+    console.log("  ├─ pptFileName:", body.pptFileName || "NOT INCLUDED");
+    console.log("  ├─ mentorId:", body.mentorId || "none");
+    console.log("  └─ Total fields:", Object.keys(body).length);
+
+    // Make the API call
     saveDraft(body, {
       onSuccess: (res: any) => {
+        console.log("\n" + "=".repeat(80));
+        console.log("✅ [SUCCESS] Draft saved successfully!");
+        console.log("Response:", res);
+
+        // Update draftId for new drafts
         if (!draftId && res.draftId) {
           setDraftId(res.draftId);
+          console.log("✅ Updated draftId state:", res.draftId);
         }
+
+        // Update PPT info if returned
+        if (res.pptInfo) {
+          console.log("✅ PPT info in response:");
+          console.log("  ├─ pptFileKey:", res.pptInfo.pptFileKey);
+          console.log("  └─ pptFileName:", res.pptInfo.pptFileName);
+        }
+
         toast({
           title: "Draft Saved",
-          description: "Your progress has been stored on the server.",
+          description: "Your progress has been stored successfully.",
         });
+        console.log("=".repeat(80));
       },
       onError: (err: any) => {
+        console.log("\n" + "=".repeat(80));
+        console.error("❌ [ERROR] Draft save failed!");
+        console.error("Error details:", err);
+        console.error("Response data:", err?.response?.data);
+
         const msg = err?.response?.data?.error || "Failed to save draft.";
+
         toast({
           variant: "destructive",
           title: "Save Failed",
           description: msg,
         });
+        console.log("=".repeat(80));
       },
     });
   };
 
   // 2. Function to UPLOAD PPT and then save draft
+  // 1. Update the handleUploadPpt function
   const handleUploadPpt = (file: File) => {
-    if (!draftId) {
-      toast({
-        variant: "destructive",
-        title: "Save Draft First",
-        description: "Please save your draft before uploading a file.",
-      });
-      return;
-    }
-
-    // <-- NEW: Client-side file size check -->
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
       toast({
         variant: "destructive",
         title: "File Too Large",
-        description: "The presentation file must be smaller than 5MB.",
+        description: "The presentation file must be smaller than 10MB.",
       });
       return;
     }
 
-    setIsUploading(true); // <-- NEW: Start loading
+    setIsUploading(true);
+
     uploadPpt(
-      { draftId, file },
+      {
+        draftId: draftId || undefined,
+        file,
+        sessionKey,
+      },
       {
         onSuccess: (res: any) => {
-          setUploadedKey(res.pptFileKey);
-          setUploadedName(file.name);
+          console.log("✅ Upload response:", res);
+
+          const uploadedDraftId = res.data?.draftId || res.draftId;
+          const uploadedKey = res.data?.pptFileKey || res.pptFileKey;
+          const uploadedFileName = res.data?.pptFileName || res.pptFileName;
+
+          if (uploadedDraftId && !draftId) {
+            setDraftId(uploadedDraftId);
+          }
+
+          setUploadedKey(uploadedKey);
+          setUploadedName(uploadedFileName);
+
           form.setValue("pptFile", [file] as any);
           form.trigger("pptFile");
+
           toast({
             title: "File Uploaded",
-            description: "Pitch deck recognized. Saving changes...",
+            description: "Pitch deck uploaded successfully!",
           });
 
-          // --- Automatically save the draft to persist the new file key ---
-          const values = form.getValues();
-          const draftData = {
-            ...values,
-            draftId: draftId,
-            pptFileKey: res.pptFileKey,
-            pptFileName: file.name,
-          };
-          saveDraft(draftData); // Re-use the save draft mutation
+          // ❌ REMOVE THIS - Backend already saved the draft
+          // setTimeout(() => {
+          //   handleSaveDraft();
+          // }, 500);
+        },
+        onError: (err: any) => {
+          console.error("❌ Upload error:", err);
+          toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: err?.response?.data?.error || "Failed to upload file.",
+          });
         },
         onSettled: () => {
-          setIsUploading(false); // <-- NEW: Stop loading
+          setIsUploading(false);
         },
       }
     );
@@ -502,6 +698,7 @@ export default function SubmitIdeaPage() {
       const latestValues = form.getValues();
       const finalDraftData = {
         ...latestValues,
+        sessionKey: sessionKey,
         draftId: draftId,
         pptFileKey: uploadedKey,
         pptFileName: uploadedName,
@@ -525,6 +722,8 @@ export default function SubmitIdeaPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       rest.dismiss(toastId);
+      localStorage.removeItem("ideaDraftSessionKey");
+
       toast({
         title: "Success!",
         description: "Your idea has been submitted.",
@@ -624,6 +823,9 @@ export default function SubmitIdeaPage() {
                 handleSaveDraft={handleSaveDraft}
                 handleFinalSubmit={handleFinalSubmit}
                 handleUploadPpt={handleUploadPpt}
+                draftId={draftId}
+                draftData={fetchedDraftData}
+                profile={profile}
               />
             </Stepper>
           </form>
@@ -661,6 +863,9 @@ function SubmitIdeaForm({
   handleSaveDraft,
   handleFinalSubmit,
   handleUploadPpt,
+  draftId,
+  draftData,
+  profile,
 }: {
   form: any;
   setMentorApproved: (isApproved: boolean) => void;
@@ -677,6 +882,8 @@ function SubmitIdeaForm({
   handleSaveDraft: () => void;
   handleFinalSubmit: () => Promise<void>;
   handleUploadPpt: (file: File) => void;
+  draftId: string | undefined; // ✅ Add type
+  draftData: any;
 }) {
   const stepper = useStepper();
   return (
@@ -712,6 +919,8 @@ function SubmitIdeaForm({
             setMentorApproved={setMentorApproved}
             mentorApproved={mentorApproved}
             handleSaveDraft={handleSaveDraft}
+            draftId={draftId}
+            draftData={draftData}
           />
         </StepperContent>
       </StepperItem>
@@ -729,6 +938,7 @@ function SubmitIdeaForm({
             next={stepper.next}
             prev={stepper.prev}
             handleSaveDraft={handleSaveDraft}
+            draftData={draftData}
           />
         </StepperContent>
       </StepperItem>
@@ -746,6 +956,7 @@ function SubmitIdeaForm({
             next={stepper.next}
             prev={stepper.prev}
             handleSaveDraft={handleSaveDraft}
+            draftData={draftData}
           />
         </StepperContent>
       </StepperItem>
@@ -767,6 +978,7 @@ function SubmitIdeaForm({
             setUploadedName={setUploadedName}
             handleUploadPpt={handleUploadPpt}
             isUploading={isUploading} // <-- NEW: Pass down isUploading
+            draftData={draftData}
           />
         </StepperContent>
       </StepperItem>
@@ -785,10 +997,11 @@ function SubmitIdeaForm({
             isSubmitting={isSubmitting}
             mentorApproved={mentorApproved}
             handleSaveDraft={handleSaveDraft}
-            founderReady={founderReady}
+            founderReady={profile?.isPsychometricAnalysisDone}
             teamReady={teamReady}
             pendingMembers={pendingMembers}
             onSubmitClick={handleFinalSubmit}
+            draftData={draftData}
           />
         </StepperContent>
       </StepperItem>
@@ -799,84 +1012,27 @@ function SubmitIdeaForm({
 // --- STEPS UI remains unchanged, only logic in handlers is affected ---
 const Step1Content = ({ form, next, handleSaveDraft }: any) => {
   const { toast } = useToast();
-  const invitedTeamEmails = form.watch("invitedTeam") || [];
-  const founder = MOCK_INNOVATOR_USER;
-
-  const handleInvite = () => {
-    const email = form.getValues("coreTeam");
-    if (!email) return;
-
-    const emailSchema = z.string().email("Please enter a valid email address.");
-    const result = emailSchema.safeParse(email);
-
-    if (!result.success) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Email",
-        description: result.error.errors[0].message,
-      });
-      return;
-    }
-
-    if (invitedTeamEmails.includes(email) || email === founder.email) {
-      toast({
-        variant: "destructive",
-        title: "Already on Team",
-        description: `${email} is already part of the team.`,
-      });
-      return;
-    }
-
-    const newInvitedTeam = [...invitedTeamEmails, email];
-    form.setValue("invitedTeam", newInvitedTeam);
-    form.setValue("coreTeam", "");
-
-    toast({
-      title: "Invite Sent!",
-      description: `An invitation has been sent to ${email}.`,
-    });
-  };
-
-  const handleRevoke = (emailToRevoke: string) => {
-    const newInvitedTeam = invitedTeamEmails.filter(
-      (e: string) => e !== emailToRevoke
-    );
-    form.setValue("invitedTeam", newInvitedTeam);
-    toast({
-      title: "Invite Revoked",
-      description: `The invitation for ${emailToRevoke} has been revoked.`,
-    });
-  };
-
-  const getInitials = (email: string) => {
-    const user = MOCK_INNOVATORS.find((u) => u.email === email);
-    return user
-      ? user.name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-      : email.charAt(0).toUpperCase();
-  };
 
   const handleNextClick = async () => {
-    const email = form.getValues("coreTeam")?.trim();
-    if (email) {
+    // Require idea title before proceeding
+    const ok = await form.trigger("title");
+    if (!ok || !form.getValues("title")?.trim()) {
       toast({
         variant: "destructive",
-        title: "Pending invite",
-        description: "Press Invite first or clear the e-mail field.",
+        title: "Add idea title",
+        description: "Please enter your idea title to continue.",
       });
       return;
     }
-    if (await form.trigger("title")) {
-      handleSaveDraft();
-      next();
-    }
+
+    // Persist current data as draft (optional but recommended)
+    handleSaveDraft();
+    next();
   };
 
   return (
     <div className="space-y-6 py-6">
-      {/* UI for Step 1 */}
+      {/* Idea Title */}
       <FormField
         control={form.control}
         name="title"
@@ -893,7 +1049,17 @@ const Step1Content = ({ form, next, handleSaveDraft }: any) => {
           </FormItem>
         )}
       />
-      {/* ... other fields ... */}
+
+      {/* Optional: other basic Step 1 fields, if any */}
+      {/* Example placeholders (uncomment and wire up if needed):
+      <FormField name="domain" ... />
+      <FormField name="subDomain" ... />
+      <FormField name="cityOrVillage" ... />
+      <FormField name="locality" ... />
+      <FormField name="trl" ... />
+      */}
+
+      {/* Navigation */}
       <div className="flex justify-between items-center">
         <Button type="button" variant="secondary" onClick={handleSaveDraft}>
           Save as Draft
@@ -913,162 +1079,595 @@ const Step2Content = ({
   setMentorApproved,
   mentorApproved,
   handleSaveDraft,
+  draftId,
+  draftData,
 }: any) => {
   const { toast } = useToast();
-  const staticMentor = {
-    uid: "Staciacorp",
-    name: "Staciacorp",
-    expertise: "Innovation & Technology Consulting",
-    email: "contact@staciacorp.com",
-    avatar: "/avatars/staciacorp.png",
-  };
+  const [isInviting, setIsInviting] = React.useState(false);
+  const [isRequestingMentor, setIsRequestingMentor] = React.useState(false);
+  const [selectedMentorId, setSelectedMentorId] = React.useState(
+    draftData?.mentorId || ""
+  );
+  const [mentorRequestStatus, setMentorRequestStatus] = React.useState(
+    draftData?.mentorRequestStatus || "none"
+  );
+  const [mentorDetails, setMentorDetails] = React.useState({
+    name: draftData?.mentorName || "",
+    email: draftData?.mentorEmail || "",
+  });
 
-  const handleRequestApproval = () => {
-    toast({
-      title: "Request Sent",
-      description: `Approval request sent to ${staticMentor.name}.`,
-    });
-    setTimeout(() => {
-      setMentorApproved(true);
-      toast({
-        title: "Mentor Approved!",
-        description: `${staticMentor.name} has approved your request.`,
+  // Fetch available mentors
+  const { data: mentorsResp, isLoading: mentorsLoading } =
+    useAvailableMentors();
+  const mentors = mentorsResp?.data || [];
+
+  // Pre-fill mentor data from draft
+  React.useEffect(() => {
+    if (draftData?.mentorId) {
+      setSelectedMentorId(draftData.mentorId);
+      form.setValue("mentorId", draftData.mentorId);
+    }
+    if (draftData?.mentorRequestStatus) {
+      setMentorRequestStatus(draftData.mentorRequestStatus);
+      if (draftData.mentorRequestStatus === "accepted") {
+        setMentorApproved(true);
+      }
+    }
+    if (draftData?.mentorName && draftData?.mentorEmail) {
+      setMentorDetails({
+        name: draftData.mentorName,
+        email: draftData.mentorEmail,
       });
-    }, 2000);
-  };
+    }
+  }, [draftData, form, setMentorApproved]);
 
-  const handleNext = () => {
-    if (!mentorApproved) {
+  // ✅ Handle mentor request with proper API call
+  // Handle mentor request with proper API call
+  const handleMentorRequest = async (mentorId: string) => {
+    if (!draftId) {
       toast({
         variant: "destructive",
-        title: "Mentor Approval Required",
-        description: "Please get mentor approval before proceeding.",
+        title: "Save Draft First",
+        description: "Please save your draft before requesting a mentor.",
       });
       return;
     }
+
+    // Find mentor details from the list
+    const selectedMentor = mentors.find((m: any) => m._id === mentorId);
+    if (!selectedMentor) {
+      toast({
+        variant: "destructive",
+        title: "Mentor Not Found",
+        description: "Please select a valid mentor.",
+      });
+      return;
+    }
+
+    console.log("📤 Requesting mentor:", {
+      draftId,
+      mentorId,
+      mentorName: selectedMentor.name,
+      mentorEmail: selectedMentor.email,
+    });
+
+    setIsRequestingMentor(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      // ✅ Step 1: Call mentor request API - this updates the draft
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/mentors/request`,
+        {
+          draftId,
+          mentorId,
+          message: "Please review and approve my idea.", // Optional message
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      console.log("✅ Mentor request API response:", response.data);
+
+      if (response.data.success) {
+        // ✅ Step 2: Update local state
+        setSelectedMentorId(mentorId);
+        setMentorRequestStatus("pending");
+        setMentorDetails({
+          name: selectedMentor.name,
+          email: selectedMentor.email,
+        });
+
+        form.setValue("mentorId", mentorId);
+
+        toast({
+          title: "Request Sent",
+          description: `Mentor approval request sent to ${selectedMentor.name}.`,
+        });
+
+        // ✅ Step 3: NO NEED TO SAVE DRAFT AGAIN
+        // The backend already updated the draft in /api/mentors/request
+        // Just reload the draft to get the updated status
+
+        // Optional: Fetch the updated draft to sync state
+        try {
+          const draftResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/draft/my-latest`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          if (draftResponse.data.success && draftResponse.data.draft) {
+            console.log(
+              "✅ Draft reloaded with mentor status:",
+              draftResponse.data.draft.mentorRequestStatus
+            );
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to reload draft:", err);
+        }
+      }
+    } catch (error: any) {
+      console.error("❌ Mentor request failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Request Failed",
+        description:
+          error?.response?.data?.error || "Failed to send mentor request.",
+      });
+    } finally {
+      setIsRequestingMentor(false);
+    }
+  };
+
+  // Team invitation handler (unchanged)
+  const handleInviteTeam = async () => {
+    const emails = form.getValues("coreTeam");
+    if (!emails || !emails.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Email Required",
+        description: "Please enter at least one email address.",
+      });
+      return;
+    }
+
+    if (!draftId) {
+      toast({
+        variant: "destructive",
+        title: "Save Draft First",
+        description: "Please save your draft before inviting team members.",
+      });
+      return;
+    }
+
+    setIsInviting(true);
+
+    try {
+      const emailArray = emails.split(",").map((e: string) => e.trim());
+      const token = localStorage.getItem("token");
+      console.log();
+
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/teams/invite`,
+        {
+          draftId,
+          emails: emailArray,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      form.setValue("coreTeam", "");
+      form.setValue("invitedTeam", [
+        ...(draftData?.invitedTeam || []),
+        ...emailArray,
+      ]);
+
+      toast({
+        title: "Invitations Sent",
+        description: `Sent invitations to ${emailArray.length} team member(s).`,
+      });
+
+      handleSaveDraft();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Invitation Failed",
+        description:
+          error?.response?.data?.error || "Failed to send invitations.",
+      });
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleNext = () => {
+    // ✅ FIX: Show warning but ALLOW navigation
+    if (mentorRequestStatus !== "accepted") {
+      toast({
+        title: "⚠️ Mentor Approval Pending",
+        description:
+          "You can continue filling the form, but submission requires mentor approval.",
+        // ✅ Changed from 'destructive' to 'default' (info toast)
+      });
+    }
+
     handleSaveDraft();
-    next();
+    next(); // ✅ ALWAYS allow next - don't return early
+  };
+
+  const teamInvites = draftData?.invitedTeam || [];
+
+  const getInviteStatus = (email: string) => {
+    const invite = draftData?.teamInvitations?.find(
+      (inv: any) => inv.email === email
+    );
+    return invite?.status || "pending";
   };
 
   return (
-    <div className="space-y-6">
-      {/* UI for Step 2 */}
-      <FormField
-        control={form.control}
-        name="mentorId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Select Internal Mentor</FormLabel>
-            <FormControl>
-              <RadioGroup
-                onValueChange={field.onChange}
-                value={field.value}
-                className="space-y-3"
-              >
-                <div
-                  className={cn(
-                    "flex items-center space-x-3 rounded-lg border p-4 transition-all",
-                    field.value === staticMentor.uid
-                      ? "border-primary bg-primary/5"
-                      : "border-border"
-                  )}
-                >
-                  <RadioGroupItem
-                    value={staticMentor.uid}
-                    id={staticMentor.uid}
-                  />
-                  <label
-                    htmlFor={staticMentor.uid}
-                    className="flex flex-1 cursor-pointer items-center gap-4"
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage
-                        src={staticMentor.avatar}
-                        alt={staticMentor.name}
-                      />
-                      <AvatarFallback>
-                        {staticMentor.name
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-semibold">{staticMentor.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {staticMentor.expertise}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {staticMentor.email}
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </RadioGroup>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      {mentorApproved && (
-        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-          <Check className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-600">Approved</AlertTitle>
-          <AlertDescription className="text-green-600">
-            {staticMentor.name} has approved your mentor request.
+    <div className="space-y-6 py-6">
+      {/* ========== MENTOR SECTION (REQUIRED) ========== */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">
+          Internal Mentor Assignment <span className="text-red-500">*</span>
+        </h3>
+
+        <Alert className="mb-4 bg-blue-50 border-blue-200">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-800">Mentor Required</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            You must select an internal mentor and get their approval before
+            submitting your idea. This is a mandatory step.
           </AlertDescription>
         </Alert>
-      )}
-      <div className="flex gap-3">
-        <Button type="button" onClick={prev} variant="outline">
-          Back
+
+        {/* Show mentor status if already selected */}
+        {mentorDetails.name && (
+          <Alert
+            className={cn(
+              "mb-4",
+              mentorRequestStatus === "accepted"
+                ? "bg-green-50 border-green-200"
+                : mentorRequestStatus === "pending"
+                ? "bg-yellow-50 border-yellow-200"
+                : "bg-red-50 border-red-200"
+            )}
+          >
+            {mentorRequestStatus === "accepted" ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : mentorRequestStatus === "pending" ? (
+              <Clock className="h-4 w-4 text-yellow-600" />
+            ) : (
+              <X className="h-4 w-4 text-red-600" />
+            )}
+            <AlertTitle
+              className={
+                mentorRequestStatus === "accepted"
+                  ? "text-green-800"
+                  : mentorRequestStatus === "pending"
+                  ? "text-yellow-800"
+                  : "text-red-800"
+              }
+            >
+              {mentorRequestStatus === "accepted"
+                ? "Mentor Approved ✓"
+                : mentorRequestStatus === "pending"
+                ? "Approval Pending"
+                : "Request Rejected"}
+            </AlertTitle>
+            <AlertDescription
+              className={
+                mentorRequestStatus === "accepted"
+                  ? "text-green-700"
+                  : mentorRequestStatus === "pending"
+                  ? "text-yellow-700"
+                  : "text-red-700"
+              }
+            >
+              <strong>{mentorDetails.name}</strong> ({mentorDetails.email})
+              {mentorRequestStatus === "pending" &&
+                " is reviewing your request."}
+              {mentorRequestStatus === "rejected" &&
+                " Please select a different mentor."}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Mentor Selection */}
+        <FormField
+          control={form.control}
+          name="mentorId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Select Internal Mentor</FormLabel>
+              <FormControl>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setSelectedMentorId(value);
+                  }}
+                  value={field.value}
+                  disabled={mentorRequestStatus === "accepted"}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a mentor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mentorsLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Loading mentors...
+                      </SelectItem>
+                    ) : mentors.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No mentors available
+                      </SelectItem>
+                    ) : (
+                      mentors.map((mentor: any) => (
+                        <SelectItem key={mentor._id} value={mentor._id}>
+                          {mentor.name} - {mentor.expertise || "General"}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormDescription>
+                Select a mentor to guide you through the validation process.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Request Mentor Button */}
+        {selectedMentorId &&
+          mentorRequestStatus !== "accepted" &&
+          mentorRequestStatus !== "pending" && (
+            <Button
+              type="button"
+              onClick={() => handleMentorRequest(selectedMentorId)}
+              disabled={isRequestingMentor}
+              className="mt-4"
+            >
+              {isRequestingMentor ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending Request...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Request Mentor Approval
+                </>
+              )}
+            </Button>
+          )}
+
+        {/* Change Mentor (if rejected) */}
+        {mentorRequestStatus === "rejected" && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setMentorRequestStatus("none");
+              setSelectedMentorId("");
+              setMentorDetails({ name: "", email: "" });
+              form.setValue("mentorId", "");
+            }}
+            className="mt-4"
+          >
+            Select Different Mentor
+          </Button>
+        )}
+      </div>
+
+      {/* ========== TEAM SECTION (OPTIONAL) ========== */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">
+          Team Members <span className="text-muted-foreground">(Optional)</span>
+        </h3>
+
+        <Alert className="mb-4 bg-gray-50 border-gray-200">
+          <UserPlus className="h-4 w-4 text-gray-600" />
+          <AlertTitle className="text-gray-800">Invite Team Members</AlertTitle>
+          <AlertDescription className="text-gray-700">
+            You can invite team members to collaborate on this idea. This is
+            optional.
+          </AlertDescription>
+        </Alert>
+
+        {/* Show invited team members */}
+        {teamInvites.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-sm font-medium">Invited Members:</p>
+            {teamInvites.map((email: string) => (
+              <div
+                key={email}
+                className="flex items-center gap-2 p-2 bg-muted rounded-lg"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>
+                    {email.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="text-sm">{email}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Status: {getInviteStatus(email)}
+                  </p>
+                </div>
+                <Badge
+                  variant={
+                    getInviteStatus(email) === "accepted"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {getInviteStatus(email)}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Team Invitation Input */}
+        <div className="space-y-3">
+          <FormField
+            control={form.control}
+            name="coreTeam"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Invite Team Members (comma-separated emails)
+                </FormLabel>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input
+                      placeholder="email1@example.com, email2@example.com"
+                      {...field}
+                      disabled={isInviting}
+                    />
+                  </FormControl>
+                  <Button
+                    type="button"
+                    onClick={handleInviteTeam}
+                    disabled={isInviting || !field.value?.trim()}
+                  >
+                    {isInviting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Invite
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <FormDescription>
+                  Separate multiple email addresses with commas
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+
+      {/* ========== NAVIGATION ========== */}
+      <div className="flex justify-between mt-6">
+        <Button type="button" variant="secondary" onClick={prev}>
+          Previous
         </Button>
-        <Button
-          type="button"
-          onClick={handleRequestApproval}
-          variant="secondary"
-          disabled={mentorApproved}
-        >
-          {mentorApproved ? "Approved" : "Request Approval"}
-        </Button>
-        <Button type="button" onClick={handleNext} disabled={!mentorApproved}>
-          Next
-        </Button>
-        <Button type="button" variant="outline" onClick={handleSaveDraft}>
-          <History className="mr-2 h-4 w-4" /> Save Draft
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button type="button" variant="secondary" onClick={handleSaveDraft}>
+            Save as Draft
+          </Button>
+          <Button type="button" onClick={handleNext}>
+            Next Step
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
 
-const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
-  // UI for Step 3, ensure buttons call handleSaveDraft and next/prev
-  const { control, watch, setValue } = form;
-  const preset = watch("preset");
-  const total = clusters.reduce((s, k) => s + (watch(k) || 0), 0);
+const Step3Content = ({
+  form,
+  next,
+  prev,
+  handleSaveDraft,
+  draftData,
+}: {
+  form: any;
+  next: () => void;
+  prev: () => void;
+  handleSaveDraft: () => void;
+  draftData?: any;
+}) => {
+  const { toast } = useToast();
+  const preset = form.watch("preset");
+  const totalWeight = clusters.reduce(
+    (acc, cluster) => acc + Math.round(form.getValues(cluster) || 0),
+    0
+  );
 
-  const applyPreset = (p: string) => {
-    setValue("preset", p);
-    if (p !== "Manual") {
-      Object.entries((presets as any)[p]).forEach(([k, v]) => {
-        setValue(k, v);
+  // ✅ Pre-fill cluster weights from draftData on mount
+  React.useEffect(() => {
+    if (draftData) {
+      // Pre-fill preset
+      if (draftData.preset) {
+        form.setValue("preset", draftData.preset);
+      }
+
+      // Pre-fill all cluster weights
+      clusters.forEach((cluster) => {
+        if (draftData[cluster] !== undefined) {
+          form.setValue(cluster, draftData[cluster]);
+        }
+      });
+
+      console.log("✅ Step 3 weights pre-filled:", {
+        preset: draftData.preset,
+        totalWeight: clusters.reduce((sum, c) => sum + (draftData[c] || 0), 0),
+      });
+    }
+  }, [draftData, form]);
+
+  const handlePresetChange = (presetKey: keyof typeof presets | "Manual") => {
+    form.setValue("preset", presetKey);
+    if (presetKey !== "Manual") {
+      const presetValues = presets[presetKey as keyof typeof presets];
+      Object.entries(presetValues).forEach(([key, value]) => {
+        form.setValue(key, value);
+      });
+      toast({
+        title: `Preset Applied: ${presetKey}`,
+        description: "Cluster weights have been updated.",
+      });
+    } else {
+      toast({
+        title: "Manual Mode Activated",
+        description: "You can now adjust weights manually.",
       });
     }
   };
 
+  const handleNext = () => {
+    if (preset === "Manual" && totalWeight !== 100) {
+      toast({
+        variant: "destructive",
+        title: "Weightage Error",
+        description: `Total weightage must be 100%. Current: ${totalWeight}%`,
+      });
+      return;
+    }
+
+    // Save draft before moving to next step
+    handleSaveDraft();
+    next();
+  };
+
   return (
-    <div className="space-y-6 py-6">
-      {/* UI for Step 3 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-6">
+        <div className="w-full space-y-6">
+          {/* Preset Buttons */}
           <div className="flex flex-wrap gap-2 justify-center">
             {Object.keys(presets).map((p) => (
               <Button
                 key={p}
                 size="sm"
                 variant={preset === p ? "default" : "outline"}
-                onClick={() => applyPreset(p)}
+                onClick={() => handlePresetChange(p as keyof typeof presets)}
               >
                 {p}
               </Button>
@@ -1076,25 +1675,46 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
             <Button
               size="sm"
               variant={preset === "Manual" ? "default" : "outline"}
-              onClick={() => applyPreset("Manual")}
+              onClick={() => handlePresetChange("Manual")}
             >
-              Manual
+              Manual 🛠️
             </Button>
           </div>
+
+          {/* Draft Restored Alert */}
+          {draftData?.preset && (
+            <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950">
+              <Check className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800 dark:text-blue-200">
+                Weights Restored
+              </AlertTitle>
+              <AlertDescription className="text-blue-700 dark:text-blue-300">
+                Your previous cluster weights (
+                <strong>{draftData.preset}</strong>) have been restored.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Manual Mode Alert */}
           {preset === "Manual" && (
-            <Alert className="border-orange-500/50 text-orange-700 dark:text-orange-300">
-              <TriangleAlert className="h-4 w-4" />
-              <AlertTitle>Expert Mode</AlertTitle>
+            <Alert
+              variant="default"
+              className="border-orange-500/50 text-orange-700 dark:text-orange-300"
+            >
+              <TriangleAlert className="h-4 w-4 !text-orange-600" />
+              <AlertTitle>Expert Mode Activated</AlertTitle>
               <AlertDescription>
                 You are in full control. Adjust sliders to set weights.
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Cluster Weight Sliders */}
           <div className="space-y-4">
             {clusters.map((key) => (
               <FormField
                 key={key}
-                control={control}
+                control={form.control}
                 name={key}
                 render={({ field }) => (
                   <FormItem>
@@ -1107,16 +1727,17 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
                           max={100}
                           step={1}
                           disabled={preset !== "Manual"}
+                          className="flex-1"
                         />
                         <Input
                           type="number"
                           className="w-20 text-center"
                           value={Math.round(field.value || 0)}
                           onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
+                            field.onChange(parseInt(e.target.value, 10) || 0)
                           }
-                          min={0}
-                          max={100}
+                          min="0"
+                          max="100"
                           disabled={preset !== "Manual"}
                         />
                       </div>
@@ -1126,20 +1747,57 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
               />
             ))}
           </div>
+
+          {/* Total Weight Display */}
           <div
             className={cn(
               "relative text-sm font-medium p-3 border rounded-lg flex justify-between items-center",
-              total !== 100 ? "border-red-500" : "border-green-500"
+              totalWeight === 100
+                ? "border-green-500 bg-green-50 dark:bg-green-950"
+                : "border-red-500 bg-red-50 dark:bg-red-950"
             )}
           >
-            <span>Total Weight</span>
-            <span className="font-bold text-xl">{total}%</span>
+            <span
+              className={
+                totalWeight === 100
+                  ? "text-green-800 dark:text-green-200"
+                  : "text-red-800 dark:text-red-200"
+              }
+            >
+              Total Weight:
+            </span>
+            <span
+              className={cn(
+                "font-bold text-xl",
+                totalWeight === 100
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-red-600 dark:text-red-400"
+              )}
+            >
+              {totalWeight}%
+            </span>
           </div>
+
+          {/* Warning if total is not 100 */}
+          {totalWeight !== 100 && preset === "Manual" && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Invalid Total Weight</AlertTitle>
+              <AlertDescription>
+                Total weight must equal 100% to proceed. Current total:{" "}
+                <strong>{totalWeight}%</strong>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
-        <div className="w-full h-[500px] bg-background rounded-lg p-4 flex items-center justify-center">
-          <SpiderChart data={watch()} size={500} />
+
+        {/* Spider Chart */}
+        <div className="w-full h-[500px] bg-background rounded-lg p-4 flex items-center justify-center border">
+          <SpiderChart data={form.getValues()} size={500} />
         </div>
       </div>
+
+      {/* Navigation Buttons */}
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={prev}>
           Back
@@ -1150,39 +1808,65 @@ const Step3Content = ({ form, next, prev, handleSaveDraft }: any) => {
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              handleSaveDraft();
-              next();
-            }}
+            onClick={handleNext}
+            disabled={preset === "Manual" && totalWeight !== 100}
           >
             Next
           </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
-const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
-  // UI for Step 4, ensure buttons call handleSaveDraft and next/prev
+const Step4Content = ({
+  form,
+  next,
+  prev,
+  handleSaveDraft,
+  draftData,
+}: any) => {
   const { control, watch, setValue } = form;
   const domain = watch("domain");
+  const subDomain = watch("subDomain");
   const selected = MOCK_DOMAINS_WITH_SUBDOMAINS.find((d) => d.name === domain);
 
+  // ✅ REMOVE THE CLEARING USEEFFECT COMPLETELY
+  // React.useEffect(() => {
+  //   setValue("subDomain", ""); // ❌ This was wiping out your pre-filled value
+  // }, [domain, setValue]);
+
+  // ✅ NEW: Only clear subdomain when domain changes AND subdomain is no longer valid
+  const prevDomainRef = React.useRef(domain);
+
   React.useEffect(() => {
-    setValue("subDomain", "");
-  }, [domain, setValue]);
+    // Only run if domain actually changed (not on initial mount)
+    if (prevDomainRef.current && prevDomainRef.current !== domain) {
+      // Check if current subdomain is valid for new domain
+      const newSelected = MOCK_DOMAINS_WITH_SUBDOMAINS.find(
+        (d) => d.name === domain
+      );
+      if (
+        newSelected &&
+        subDomain &&
+        !newSelected.subDomains.includes(subDomain)
+      ) {
+        setValue("subDomain", ""); // Only clear if subdomain is invalid for new domain
+      }
+    }
+    prevDomainRef.current = domain;
+  }, [domain, subDomain, setValue]);
 
   return (
     <div className="space-y-6 py-6">
-      {/* UI for Step 4 */}
+      {/* Domain Selection */}
       <FormField
         control={control}
         name="domain"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Domain of Project</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a domain" />
@@ -1201,6 +1885,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           </FormItem>
         )}
       />
+
+      {/* Sub Domain Selection */}
       {selected && selected.subDomains.length > 0 && (
         <FormField
           control={control}
@@ -1227,6 +1913,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           )}
         />
       )}
+
+      {/* Other Domain Input */}
       {domain === "Other" && (
         <FormField
           control={control}
@@ -1242,6 +1930,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           )}
         />
       )}
+
+      {/* City/Village Selection */}
       {domain === "Retail" && (
         <FormField
           control={control}
@@ -1249,7 +1939,7 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>City or village</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a city or village" />
@@ -1270,6 +1960,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           )}
         />
       )}
+
+      {/* Locality Input */}
       {watch("cityOrVillage") && (
         <FormField
           control={control}
@@ -1288,6 +1980,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           )}
         />
       )}
+
+      {/* Core Concept */}
       <FormField
         control={control}
         name="concept"
@@ -1304,6 +1998,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           </FormItem>
         )}
       />
+
+      {/* TRL Selection */}
       <FormField
         control={control}
         name="trl"
@@ -1313,7 +2009,7 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
             <FormControl>
               <RadioGroup
                 onValueChange={field.onChange}
-                defaultValue={field.value}
+                value={field.value}
                 className="flex flex-col gap-1"
               >
                 <Accordion type="single" collapsible className="w-full">
@@ -1351,6 +2047,8 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
           </FormItem>
         )}
       />
+
+      {/* Background & Validation */}
       <FormField
         control={control}
         name="background"
@@ -1360,13 +2058,30 @@ const Step4Content = ({ form, next, prev, handleSaveDraft }: any) => {
             <FormControl>
               <Textarea
                 placeholder="How did your personal background, skills, or experiences inspire this specific idea?"
-                {...field}
+                value={field.value || ""} // ✅ Explicit value
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
               />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
+
+      {/* Debug Info - Remove after testing */}
+      {/* {process.env.NODE_ENV === "development" && (
+        <div className="p-4 bg-gray-100 rounded text-xs">
+          <p>
+            <strong>Debug:</strong>
+          </p>
+          <p>Domain: {domain || "none"}</p>
+          <p>SubDomain: {subDomain || "none"}</p>
+          <p>DraftData SubDomain: {draftData?.subDomain || "none"}</p>
+        </div>
+      )} */}
+
+      {/* Navigation Buttons */}
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={prev}>
           Back
@@ -1400,17 +2115,69 @@ const Step5Content = ({
   setUploadedKey,
   setUploadedName,
   handleUploadPpt,
-  isUploading, // <-- NEW: Receive loading state
+  isUploading,
+  draftData,
 }: any) => {
-  const [fileName, setFileName] = React.useState(
-    uploadedKey ? uploadedName : ""
-  );
+  // ✅ Initialize from draftData if exists
+  const { toast } = useToast();
+  const [fileName, setFileName] = React.useState("");
+  const [fileUrl, setFileUrl] = React.useState("");
+
+  // ✅ Pre-fill PPT file info from draftData on mount
   React.useEffect(() => {
-    setFileName(uploadedKey ? uploadedName : "");
+    if (draftData) {
+      if (draftData.pptFileName && draftData.pptFileKey) {
+        setUploadedKey(draftData.pptFileKey);
+        setUploadedName(draftData.pptFileName);
+        setFileName(draftData.pptFileName);
+        setFileUrl(draftData.pptFileUrl || "");
+
+        console.log("✅ PPT file restored from draft:", {
+          name: draftData.pptFileName,
+          size: draftData.pptFileSize,
+          uploaded: draftData.pptUploadedAt,
+        });
+      }
+    }
+  }, [draftData, setUploadedKey, setUploadedName]);
+
+  // Update fileName when uploadedKey changes (after new upload)
+  React.useEffect(() => {
+    if (uploadedKey && uploadedName) {
+      setFileName(uploadedName);
+    }
   }, [uploadedKey, uploadedName]);
+
+  // ✅ Check if file exists (either uploaded now or from draft)
+  const hasFile = uploadedKey || draftData?.pptFileKey;
+  const displayFileName = uploadedName || draftData?.pptFileName || "";
 
   return (
     <div className="space-y-6 py-6">
+      {/* ✅ Show success alert if file exists */}
+      {hasFile && (
+        <Alert className="bg-green-50 border-green-200">
+          <Check className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">
+            Presentation Uploaded ✓
+          </AlertTitle>
+          <AlertDescription className="text-green-700">
+            <p className="font-medium">{displayFileName}</p>
+            {draftData?.pptFileSize && (
+              <p className="text-xs mt-1">
+                Size: {(draftData.pptFileSize / (1024 * 1024)).toFixed(2)} MB
+              </p>
+            )}
+            {draftData?.pptUploadedAt && (
+              <p className="text-xs">
+                Uploaded:{" "}
+                {new Date(draftData.pptUploadedAt).toLocaleDateString()}
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <FormField
         control={form.control}
         name="pptFile"
@@ -1418,37 +2185,72 @@ const Step5Content = ({
           <FormItem>
             <FormLabel>Pitch Deck Upload</FormLabel>
             <FormControl>
-              {uploadedKey ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <Check className="h-4 w-4" />
-                  <span className="text-sm">{uploadedName}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setUploadedKey(undefined);
-                      setUploadedName(undefined);
-                      form.setValue("pptFile", null);
-                    }}
-                  >
-                    Replace
-                  </Button>
+              {hasFile ? (
+                <div className="space-y-3">
+                  {/* Show uploaded file info */}
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {displayFileName}
+                      </p>
+                      {fileUrl && (
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          View file →
+                        </a>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setUploadedKey(undefined);
+                        setUploadedName(undefined);
+                        setFileName("");
+                        setFileUrl("");
+                        form.setValue("pptFile", null);
+                      }}
+                    >
+                      Replace
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="relative">
-                  <FileUp className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
-                  <Input
-                    type="file"
-                    className="pl-10"
-                    accept=".ppt,.pptx"
-                    {...fieldProps}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleUploadPpt(file);
-                      }
-                    }}
-                  />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <FileUp className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
+                    <Input
+                      type="file"
+                      className="pl-10"
+                      accept=".ppt,.pptx"
+                      disabled={isUploading}
+                      {...fieldProps}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file size (max 10MB)
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              variant: "destructive",
+                              title: "File too large",
+                              description:
+                                "Please upload a file smaller than 10MB",
+                            });
+                            return;
+                          }
+                          handleUploadPpt(file);
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Accepted formats: .ppt, .pptx (max 10MB)
+                  </p>
                 </div>
               )}
             </FormControl>
@@ -1462,14 +2264,26 @@ const Step5Content = ({
           </FormItem>
         )}
       />
-      {isUploading && ( // <-- NEW: Show loading indicator
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <BrainCircuit className="h-4 w-4 animate-spin" />
-          <span>Uploading...</span>
-        </div>
+
+      {/* ✅ Show uploading indicator */}
+      {isUploading && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+          <AlertTitle className="text-blue-800">Uploading...</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Please wait while your presentation is being uploaded.
+          </AlertDescription>
+        </Alert>
       )}
+
+      {/* Navigation */}
       <div className="flex justify-between">
-        <Button type="button" variant="outline" onClick={prev}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={prev}
+          disabled={isUploading}
+        >
           Back
         </Button>
         <div className="flex items-center gap-4">
@@ -1477,19 +2291,28 @@ const Step5Content = ({
             type="button"
             variant="secondary"
             onClick={handleSaveDraft}
-            disabled={isUploading} // <-- NEW: Disable button
+            disabled={isUploading}
           >
             Save as Draft
           </Button>
           <Button
             type="button"
             onClick={async () => {
-              if (await form.trigger("pptFile")) {
-                await handleSaveDraft();
-                next();
+              // ✅ Check if file exists before proceeding
+              if (!hasFile) {
+                toast({
+                  variant: "destructive",
+                  title: "PPT Required",
+                  description:
+                    "Please upload your presentation before proceeding.",
+                });
+                return;
               }
+
+              await handleSaveDraft();
+              next();
             }}
-            disabled={isUploading} // <-- NEW: Disable button
+            disabled={isUploading || !hasFile}
           >
             Next
           </Button>
@@ -1509,21 +2332,23 @@ const Step6Content = ({
   teamReady,
   pendingMembers,
   onSubmitClick,
+  draftData,
 }: any) => {
   const allValues = form.getValues();
   const weights = clusters.reduce(
     (acc, key) => ({ ...acc, [key]: allValues[key] }),
     {}
   );
-  // THIS IS THE CRITICAL FIX - Direct function call, no wrappers.
   const realSubmit = onSubmitClick;
 
-  const canSubmit =
-    founderReady && teamReady && mentorApproved && !!allValues.pptFile;
+  // ✅ Validate based on draftData
+  const hasPPT = !!(draftData?.pptFileName || draftData?.pptFileKey);
+  const mentorStatus = draftData?.mentorRequestStatus === "accepted";
+
+  const canSubmit = founderReady && teamReady && mentorStatus && hasPPT;
 
   return (
     <div className="space-y-6 py-6">
-      {/* UI for Step 6, which is already mostly correct */}
       {!founderReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -1540,6 +2365,7 @@ const Step6Content = ({
           </AlertDescription>
         </Alert>
       )}
+
       <div className="flex justify-between items-center">
         <Button type="button" variant="outline" onClick={prev}>
           Back
@@ -1577,9 +2403,16 @@ const Step6Content = ({
           </AlertDialog>
         </div>
       </div>
-      {!mentorApproved && (
+
+      {!mentorStatus && (
         <p className="text-sm text-yellow-500 text-right mt-2">
           Mentor approval is required before submission.
+        </p>
+      )}
+
+      {!hasPPT && (
+        <p className="text-sm text-red-500 text-right mt-2">
+          Presentation upload is required before submission.
         </p>
       )}
     </div>

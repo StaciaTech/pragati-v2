@@ -26,36 +26,92 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MOCK_IDEAS } from "@/lib/data/ideas";
-import { STATUS_COLORS } from "@/lib/data/platform";
-import { MOCK_TTCS } from "@/lib/data/organization";
 import Link from "next/link";
 import { ROLES } from "@/lib/constants";
-import { MOCK_INTERNAL_MENTOR_USERS } from "@/lib/data/auth";
 import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PrincipalIdeaManagementPage() {
   const {
-    data: ideas,
+    data: ideasResponse,
     isLoading: ideaLoading,
     error: ideaErrors,
   } = useUserIdeas();
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");
-  const [filterTtc, setFilterTtc] = React.useState("all");
+  const [filterDomain, setFilterDomain] = React.useState("all");
 
-  const uniqueStatuses = [...new Set(MOCK_IDEAS.map((idea) => idea.status))];
+  // Extract ideas from response
+  const ideas = ideasResponse || [];
 
-  const filteredIdeas = MOCK_IDEAS.filter((idea) => {
+  // Get unique statuses and domains
+  const uniqueStatuses = [...new Set(ideas.map((idea: any) => idea.status))];
+  const uniqueDomains = [
+    ...new Set(ideas.map((idea: any) => idea.domain).filter(Boolean)),
+  ];
+
+  // Filter ideas
+  const filteredIdeas = ideas.filter((idea: any) => {
     const matchesSearch =
-      idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      idea.innovatorName.toLowerCase().includes(searchTerm.toLowerCase());
+      idea.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idea.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idea.userEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus =
-      filterStatus === "all" || idea.status === filterStatus;
-    const matchesTtc = filterTtc === "all" || idea.ttcAssigned === filterTtc;
-    return matchesSearch && matchesStatus && matchesTtc;
+      filterStatus === "all" ||
+      idea.status?.toLowerCase() === filterStatus.toLowerCase();
+
+    const matchesDomain =
+      filterDomain === "all" || idea.domain === filterDomain;
+
+    return matchesSearch && matchesStatus && matchesDomain;
   });
+
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase() || "";
+    if (statusLower === "approved" || statusLower === "accepted")
+      return "bg-green-500";
+    if (statusLower === "pending" || statusLower === "submitted")
+      return "bg-yellow-500";
+    if (statusLower === "rejected" || statusLower === "declined")
+      return "bg-red-500";
+    return "bg-gray-500";
+  };
+
+  // Loading state
+  if (ideaLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>College Idea Management</CardTitle>
+          <CardDescription>Loading ideas...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (ideaErrors) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>College Idea Management</CardTitle>
+          <CardDescription className="text-red-500">
+            Failed to load ideas: {ideaErrors.message}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -66,6 +122,7 @@ export default function PrincipalIdeaManagementPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Input
             placeholder="Search by Title or Innovator..."
@@ -85,50 +142,75 @@ export default function PrincipalIdeaManagementPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterTtc} onValueChange={setFilterTtc}>
+          <Select value={filterDomain} onValueChange={setFilterDomain}>
             <SelectTrigger>
-              <SelectValue placeholder="Filter by TTC..." />
+              <SelectValue placeholder="Filter by Domain..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All TTCs</SelectItem>
-              {MOCK_TTCS.map((ttc) => (
-                <SelectItem key={ttc.id} value={ttc.id}>
-                  {ttc.name}
+              <SelectItem value="all">All Domains</SelectItem>
+              {uniqueDomains.map((domain) => (
+                <SelectItem key={domain} value={domain}>
+                  {domain}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Ideas Table */}
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Innovator</TableHead>
-              <TableHead>Assigned TTC</TableHead>
-              <TableHead>Internal Mentor</TableHead>
+              <TableHead>Domain</TableHead>
+              <TableHead>Mentor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Submitted</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ideas?.map((idea) => {
-              // const ttc = MOCK_TTCS.find((t) => t.id === idea.ttcAssigned);
-              // const internalMentor = MOCK_INTERNAL_MENTOR_USERS.find(
-              //   (m) => m.id === (idea as any).internalMentorId
-              // );
-              return (
+            {filteredIdeas.length > 0 ? (
+              filteredIdeas.map((idea: any) => (
                 <TableRow key={idea._id}>
-                  <TableCell className="font-medium">{idea._id}</TableCell>
-                  <TableCell>{idea.ideaName}</TableCell>
-                  <TableCell>{idea.innovator.name}</TableCell>
-                  <TableCell>{idea.ttc.name || "N/A"}</TableCell>
-                  <TableCell>{idea?.internalMentor?.name || "N/A"}</TableCell>
+                  <TableCell className="font-medium font-mono text-xs">
+                    {idea._id?.slice(-8)}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {idea.title || "Untitled"}
+                  </TableCell>
                   <TableCell>
-                    <Badge className={STATUS_COLORS[idea.status]}>
-                      {idea.status}
+                    <div>
+                      <p className="font-medium">
+                        {idea.userName || "Unknown"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {idea.userEmail}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm">{idea.domain || "—"}</p>
+                      {idea.subDomain && (
+                        <p className="text-xs text-muted-foreground">
+                          {idea.subDomain}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{idea.mentorName || "Not assigned"}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(idea.status)}>
+                      {idea.status || "Unknown"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {idea.submittedAt
+                      ? new Date(idea.submittedAt).toLocaleDateString()
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="link" size="sm" asChild>
@@ -140,17 +222,53 @@ export default function PrincipalIdeaManagementPage() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-            {ideas?.length === 0 && (
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  No ideas found matching your criteria.
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-muted-foreground">
+                      {searchTerm ||
+                      filterStatus !== "all" ||
+                      filterDomain !== "all"
+                        ? "No ideas match your filters."
+                        : "No ideas submitted yet in your college."}
+                    </p>
+                    {(searchTerm ||
+                      filterStatus !== "all" ||
+                      filterDomain !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm("");
+                          setFilterStatus("all");
+                          setFilterDomain("all");
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination Info */}
+        {ideasResponse?.pagination && (
+          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+            <p>
+              Showing {filteredIdeas.length} of {ideasResponse.pagination.total}{" "}
+              ideas
+            </p>
+            <p>
+              Page {ideasResponse.pagination.page} of{" "}
+              {ideasResponse.pagination.pages}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

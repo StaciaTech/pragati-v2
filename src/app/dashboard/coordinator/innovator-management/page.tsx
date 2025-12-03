@@ -70,12 +70,13 @@ import { useInnovators } from "@/hooks/useInnovators";
 import { useCreditRequests } from "@/hooks/useCreditRequests";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { useAllInnovators } from "@/hooks/useAllInnovators";
 
 export default function InnovatorManagementPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const token = localStorage.getItem("token");
   const { data: innovators = [], isLoading: loadingInnovators } =
-    useInnovators();
+    useAllInnovators();
   const { data: requests = [], isLoading: loadingRequests } =
     useCreditRequests();
   const queryClient = useQueryClient();

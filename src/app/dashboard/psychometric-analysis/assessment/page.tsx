@@ -17,14 +17,25 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, Loader2, AlertCircle } from "lucide-react";
-import { ROLES } from "@/lib/constants";
 
-interface Question {
-  questionNumber: number;
-  text: string;
-  attribute: string;
-  category: string;
-  options: string[];
+interface QuestionData {
+  question_id: string;
+  question_text: string;
+  dimension: string;
+  question_type: string;
+  options: Array<{
+    option_id: string;
+    text: string;
+    score_profile: Record<string, number>;
+  }>;
+}
+
+interface AssessmentData {
+  assessment_id: string;
+  title: string;
+  description: string;
+  total_questions: number;
+  questions: QuestionData[];
 }
 
 export default function AssessmentPage() {
@@ -33,23 +44,41 @@ export default function AssessmentPage() {
   const role = searchParams.get("role");
   const { toast } = useToast();
 
-  const [questions, setQuestions] = React.useState<Question[]>([]);
+  // State management
+  const [assessmentData, setAssessmentData] =
+    React.useState<AssessmentData | null>(null);
   const [currentIndex, setCurrentIndex] = React.useState(0);
-  const [answers, setAnswers] = React.useState<number[]>([]);
+  const [responses, setResponses] = React.useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  // Get current question
+  const currentQuestion = assessmentData?.questions[currentIndex];
+
+  // Calculate progress
+  const progress = assessmentData?.total_questions
+    ? (Object.keys(responses).length / assessmentData.total_questions) * 100
+    : 0;
+
+  // Fetch questions on mount
   React.useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        console.log("Starting to fetch questions...");
+        console.log("Fetching questions from psychometric server...");
 
         const token = localStorage.getItem("token");
-        console.log("Token exists:", !!token);
+        const userId = localStorage.getItem("userId"); // Ensure userId is stored
+
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
 
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/generate`,
-          {},
+          `${process.env.NEXT_PUBLIC_API_PSYCHOMETRIC_URL}/api/psychometric/generate`,
+          {
+            num_questions: 20,
+            user_id: userId || "anonymous",
+          },
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -58,33 +87,35 @@ export default function AssessmentPage() {
           }
         );
 
-        console.log("Full API Response:", response);
-        console.log("Response data:", response.data);
-        console.log("Questions array:", response.data.questions);
-        console.log("Questions length:", response.data.questions?.length);
+        console.log("Assessment data received:", response.data);
 
-        if (
-          response.data.success &&
-          response.data.questions &&
-          response.data.questions.length > 0
-        ) {
-          console.log("Setting questions:", response.data.questions.length);
-          setQuestions(response.data.questions);
-          setAnswers(new Array(response.data.questions.length).fill(null));
-          console.log("Questions state should be updated");
+        if (response.data.success && response.data.questions?.length > 0) {
+          setAssessmentData({
+            assessment_id: response.data.assessment_id,
+            title: response.data.title,
+            description: response.data.description,
+            total_questions: response.data.total_questions,
+            questions: response.data.questions,
+          });
+          setResponses({});
+          toast({
+            title: "Assessment loaded",
+            description: `${response.data.total_questions} questions ready`,
+          });
         } else {
-          console.error("No questions in response");
-          throw new Error("No questions returned from server");
+          throw new Error("Invalid response format from server");
         }
       } catch (error: any) {
-        console.error("Fetch error:", error);
+        console.error("Failed to fetch questions:", error);
         toast({
           variant: "destructive",
-          title: "Failed to Load",
-          description: error?.response?.data?.error || error.message,
+          title: "Failed to Load Assessment",
+          description:
+            error?.response?.data?.error ||
+            error?.message ||
+            "Could not load questions",
         });
       } finally {
-        console.log("Setting loading to false");
         setIsLoading(false);
       }
     };
@@ -92,75 +123,20 @@ export default function AssessmentPage() {
     fetchQuestions();
   }, [toast]);
 
-  // Add this debug useEffect
-  React.useEffect(() => {
-    console.log("Questions state changed:", questions.length);
-    console.log("Current question:", questions[currentIndex]);
-  }, [questions, currentIndex]);
+  // Handle selecting an answer
+  const handleAnswer = (optionId: string) => {
+    if (!currentQuestion) return;
 
-  const currentQuestion = questions[currentIndex];
-  const progress =
-    questions.length > 0
-      ? (answers.filter((a) => a !== null).length / questions.length) * 100
-      : 0;
-
-  console.log("Render state:", {
-    isLoading,
-    questionsLength: questions.length,
-    currentIndex,
-    hasCurrentQuestion: !!currentQuestion,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="max-w-3xl mx-auto py-8">
-        <Card>
-          <CardContent className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="max-w-3xl mx-auto py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64 gap-4">
-            <AlertCircle className="h-12 w-12 text-destructive" />
-            <p>No questions loaded. Check console for details.</p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!currentQuestion) {
-    return (
-      <div className="max-w-3xl mx-auto py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64">
-            <p>Question {currentIndex + 1} not found</p>
-            <p className="text-sm text-muted-foreground">
-              Total questions: {questions.length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const handleAnswer = (value: string) => {
-    const optionIndex = currentQuestion.options.indexOf(value);
-    const newAnswers = [...answers];
-    newAnswers[currentIndex] = optionIndex + 1;
-    setAnswers(newAnswers);
+    const newResponses = { ...responses };
+    newResponses[currentQuestion.question_id] = optionId;
+    setResponses(newResponses);
   };
 
+  // Handle next button
   const handleNext = () => {
-    if (answers[currentIndex] === null) {
+    if (!currentQuestion) return;
+
+    if (!responses[currentQuestion.question_id]) {
       toast({
         variant: "destructive",
         title: "Please select an answer",
@@ -168,27 +144,60 @@ export default function AssessmentPage() {
       return;
     }
 
-    if (currentIndex < questions.length - 1) {
+    if (currentIndex < (assessmentData?.total_questions || 0) - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      // Submit
+      // All questions answered, submit
       handleSubmit();
     }
   };
 
+  // Handle back button
   const handleBack = () => {
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1);
     }
   };
 
+  // Submit assessment
   const handleSubmit = async () => {
+    console.log("clicked submission");
+
+    if (!assessmentData || !currentQuestion) return;
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
+      const userId = localStorage.getItem("UserId");
+      const userName = localStorage.getItem("userName");
+
+      console.log(token, userId, userName);
+
+      if (!token || !userId) {
+        throw new Error("Missing authentication data");
+      }
+
+      console.log("Submitting assessment...", {
+        assessment_id: assessmentData.assessment_id,
+        user_id: userId,
+        responses_count: Object.keys(responses).length,
+      });
+
+      // Call the new psychometric evaluate endpoint
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/submit`,
-        { responses: answers, model: "DINA" },
+        `${process.env.NEXT_PUBLIC_API_PSYCHOMETRIC_URL}/api/psychometric/evaluate`,
+        {
+          assessment_id: assessmentData.assessment_id,
+          user_id: userId,
+          user_name: userName || "User",
+          questions_data: {
+            assessment_id: assessmentData.assessment_id,
+            title: assessmentData.title,
+            total_questions: assessmentData.total_questions,
+            questions: assessmentData.questions,
+          },
+          responses: responses,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -197,24 +206,106 @@ export default function AssessmentPage() {
         }
       );
 
+      console.log("Evaluation response:", response.data);
+
       if (response.data.success) {
+        const overallScore = response.data.overall_score || 0;
+        const entrepreneurialFit =
+          response.data.entrepreneurial_fit?.overall_fit || "Medium";
+
+        // Store evaluation result for display on next page
+        localStorage.setItem(
+          "psychometricResult",
+          JSON.stringify({
+            evaluation_id: response.data.evaluation_id,
+            overall_score: overallScore,
+            dimension_scores: response.data.dimension_scores,
+            personality_profile: response.data.personality_profile,
+            entrepreneurial_fit: entrepreneurialFit,
+            strengths: response.data.strengths,
+            areas_for_development: response.data.areas_for_development,
+            recommendations: response.data.recommendations,
+            detailed_insights: response.data.detailed_insights,
+          })
+        );
+
         toast({
-          title: "Assessment Complete! 🎉",
-          description: `Score: ${response.data.results.overallScore.toFixed(
-            1
-          )}%`,
+          title: "Assessment Complete!",
+          description: `Your overall score: ${(overallScore * 10).toFixed(1)}%`,
         });
-        router.push(`/dashboard/psychometric-analysis?role=${role}`);
+
+        // Redirect to results/analysis page
+        router.push(
+          `/dashboard/psychometric-analysis?evaluation_id=${
+            response.data.evaluation_id
+          }&role=${role || "entrepreneur"}`
+        );
       }
     } catch (error: any) {
+      console.error("Submission error:", error);
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: error?.response?.data?.error || "Please try again",
+        description:
+          error?.response?.data?.error ||
+          error?.message ||
+          "Could not submit assessment",
       });
       setIsSubmitting(false);
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto py-8">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm text-muted-foreground">
+                Loading assessment...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No questions loaded
+  if (!assessmentData || assessmentData.questions.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto py-8">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64 gap-4">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <p>Failed to load assessment questions</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Current question not found
+  if (!currentQuestion) {
+    return (
+      <div className="max-w-3xl mx-auto py-8">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p>Question not found</p>
+            <p className="text-sm text-muted-foreground">
+              Question {currentIndex + 1} of {assessmentData.total_questions}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const selectedOptionId = responses[currentQuestion.question_id];
 
   return (
     <div className="max-w-3xl mx-auto py-8">
@@ -222,44 +313,46 @@ export default function AssessmentPage() {
         <CardHeader>
           <Progress value={progress} className="mb-4" />
           <CardTitle className="text-2xl text-center">
-            {currentQuestion.text}
+            {currentQuestion.question_text}
           </CardTitle>
           <CardDescription className="text-center">
-            {currentQuestion.category} • Question {currentIndex + 1} of{" "}
-            {questions.length}
+            {currentQuestion.dimension} • Question {currentIndex + 1} of{" "}
+            {assessmentData.total_questions}
           </CardDescription>
         </CardHeader>
-        <CardContent className="min-h-[200px] flex items-center justify-center">
+
+        <CardContent className="min-h-[300px] flex items-center justify-center">
           <RadioGroup
-            value={
-              answers[currentIndex] !== null
-                ? currentQuestion.options[answers[currentIndex] - 1]
-                : undefined
-            }
+            value={selectedOptionId || ""}
             onValueChange={handleAnswer}
-            className="w-full space-y-3"
           >
-            {currentQuestion.options?.map((option, idx) => (
-              <div
-                key={idx}
-                className={`flex items-center space-x-3 rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent ${
-                  answers[currentIndex] === idx + 1
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-                onClick={() => handleAnswer(option)}
-              >
-                <RadioGroupItem value={option} id={`option-${idx}`} />
-                <Label
-                  htmlFor={`option-${idx}`}
-                  className="flex-1 cursor-pointer"
+            <div className="w-full space-y-3">
+              {currentQuestion.options.map((option) => (
+                <div
+                  key={option.option_id}
+                  className={`flex items-center space-x-3 rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent ${
+                    selectedOptionId === option.option_id
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  }`}
+                  onClick={() => handleAnswer(option.option_id)}
                 >
-                  {option}
-                </Label>
-              </div>
-            ))}
+                  <RadioGroupItem
+                    value={option.option_id}
+                    id={`option-${option.option_id}`}
+                  />
+                  <Label
+                    htmlFor={`option-${option.option_id}`}
+                    className="flex-1 cursor-pointer text-base"
+                  >
+                    {option.text}
+                  </Label>
+                </div>
+              ))}
+            </div>
           </RadioGroup>
         </CardContent>
+
         <CardFooter className="flex justify-between">
           <Button
             variant="outline"
@@ -268,16 +361,21 @@ export default function AssessmentPage() {
           >
             <ChevronLeft className="mr-2 h-4 w-4" /> Back
           </Button>
+          <div className="flex-1 text-center text-sm text-muted-foreground">
+            {Object.keys(responses).length} / {assessmentData.total_questions}{" "}
+            answered
+          </div>
           <Button
             onClick={handleNext}
-            disabled={isSubmitting || answers[currentIndex] === null}
+            disabled={isSubmitting || !selectedOptionId}
+            className="min-w-[140px]"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Submitting...
               </>
-            ) : currentIndex === questions.length - 1 ? (
+            ) : currentIndex === assessmentData.total_questions - 1 ? (
               "Submit Assessment"
             ) : (
               "Next"

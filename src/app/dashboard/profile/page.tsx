@@ -37,6 +37,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { data: user, isLoading, refetch } = useUserProfile();
+  console.log(user);
 
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] =
     React.useState(false);
@@ -77,7 +78,7 @@ export default function ProfilePage() {
       const name = formData.get("name") as string;
 
       const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${user?.uid}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/users/${user?._id}`,
         { name },
         {
           headers: {
@@ -130,7 +131,7 @@ export default function ProfilePage() {
       }
 
       const { data } = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/password`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/users/${userId}/password`,
         { currentPassword: current, newPassword: newPw },
         { headers: { Authorization: `Bearer ${token}` } }
       );

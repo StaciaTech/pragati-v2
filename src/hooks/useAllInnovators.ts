@@ -9,7 +9,7 @@ export const useAllInnovators = () =>
     queryKey: ["allInnovators"],
     queryFn: async () => {
       const token = getToken();
-      const { data } = await axios.get(`${apiUrl}/api/innovators`, {
+      const { data } = await axios.get(`${apiUrl}/api/coordinator/innovators`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return data.data as import("./types").Innovator[];

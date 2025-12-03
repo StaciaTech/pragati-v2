@@ -27,38 +27,86 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MOCK_IDEAS } from "@/lib/data/ideas";
 import { STATUS_COLORS } from "@/lib/data/platform";
-import { MOCK_TTCS } from "@/lib/data/organization";
 import Link from "next/link";
 import { ROLES } from "@/lib/constants";
 import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function IdeaManagementPage() {
   const {
-    data: ideas,
+    data: ideasResponse,
     isLoading: ideaLoading,
     error: ideaErrors,
   } = useUserIdeas();
-  console.log(ideas);
 
-  const userTTC = MOCK_TTCS[0];
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");
   const router = useRouter();
 
-  const assignedIdeas = MOCK_IDEAS.filter(
-    (idea) => idea.ttcAssigned === userTTC.id
-  );
+  // ✅ Extract ideas from response
+  const ideas = ideasResponse || [];
 
-  const filteredIdeas = ideas?.filter((idea) => {
+  // console.log("📊 Ideas data:", ideas);
+
+  // ✅ Filter ideas based on search and status
+  const filteredIdeas = ideas.filter((idea: any) => {
     const matchesSearch =
-      idea.ideaName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      idea.innovator.name.toLowerCase().includes(searchTerm.toLowerCase());
+      idea.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idea.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idea.userEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus =
-      filterStatus === "all" || idea.status === filterStatus;
+      filterStatus === "all" ||
+      idea.status?.toLowerCase() === filterStatus.toLowerCase();
+
     return matchesSearch && matchesStatus;
   });
+
+  // ✅ Get status badge color
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase() || "";
+    if (statusLower === "approved" || statusLower === "accepted")
+      return "bg-green-500";
+    if (statusLower === "pending" || statusLower === "submitted")
+      return "bg-yellow-500";
+    if (statusLower === "rejected" || statusLower === "declined")
+      return "bg-red-500";
+    return "bg-gray-500";
+  };
+
+  // ✅ Loading state
+  if (ideaLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Idea Management</CardTitle>
+          <CardDescription>Loading ideas...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ✅ Error state
+  if (ideaErrors) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Idea Management</CardTitle>
+          <CardDescription className="text-red-500">
+            Failed to load ideas: {ideaErrors.message}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -69,6 +117,7 @@ export default function IdeaManagementPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Input
             placeholder="Search by Title or Innovator..."
@@ -81,69 +130,131 @@ export default function IdeaManagementPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="Moderate">Moderate</SelectItem>
-              <SelectItem value="declined">Rejected</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
+        {/* Ideas Table */}
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Innovator</TableHead>
+              <TableHead>Domain</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Submitted</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredIdeas?.map((idea) => (
-              <TableRow
-                key={idea._id}
-                className="cursor-pointer"
-                onClick={() =>
-                  router.push(
-                    `/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`
-                  )
-                }
-              >
-                <TableCell className="font-medium">
-                  IDEA-{idea._id?.slice(idea._id.length - 12, idea._id.length)}
-                </TableCell>
-                <TableCell>{idea.ideaName}</TableCell>
-                <TableCell>{idea.innovator.name}</TableCell>
-                <TableCell>
-                  <Badge className={STATUS_COLORS[idea.status]}>
-                    {idea.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="link"
-                    size="sm"
-                    asChild
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Link
-                      href={`/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`}
+            {filteredIdeas.length > 0 ? (
+              filteredIdeas.map((idea: any) => (
+                <TableRow
+                  key={idea._id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`
+                    )
+                  }
+                >
+                  <TableCell className="font-medium font-mono text-xs">
+                    {idea._id?.slice(-8)}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {idea.title || "Untitled"}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">
+                        {idea.userName || "Unknown"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {idea.userEmail}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm">{idea.domain || "—"}</p>
+                      {idea.subDomain && (
+                        <p className="text-xs text-muted-foreground">
+                          {idea.subDomain}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(idea.status)}>
+                      {idea.status || "Unknown"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {idea.submittedAt
+                      ? new Date(idea.submittedAt).toLocaleDateString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      View Report
-                    </Link>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredIdeas?.length === 0 && (
+                      <Link
+                        href={`/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`}
+                      >
+                        View Details
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  No ideas found.
+                <TableCell colSpan={7} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-muted-foreground">
+                      {searchTerm || filterStatus !== "all"
+                        ? "No ideas match your filters."
+                        : "No ideas submitted yet."}
+                    </p>
+                    {(searchTerm || filterStatus !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm("");
+                          setFilterStatus("all");
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination Info */}
+        {ideasResponse?.pagination && (
+          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+            <p>
+              Showing {filteredIdeas.length} of {ideasResponse.pagination.total}{" "}
+              ideas
+            </p>
+            <p>
+              Page {ideasResponse.pagination.page} of{" "}
+              {ideasResponse.pagination.pages}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

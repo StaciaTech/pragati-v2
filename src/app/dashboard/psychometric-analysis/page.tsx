@@ -10,33 +10,37 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MOCK_INNOVATOR_USER, MOCK_MENTORS } from "@/lib/data/auth";
-import { MOCK_PSYCHOMETRIC_PROFILES } from "@/lib/data/reports";
 import { ROLES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, CheckCircle, Shield } from "lucide-react";
+import { ArrowRight, CheckCircle, Shield, Loader2 } from "lucide-react";
 import Link from "next/link";
+
+type PsychometricProfile = {
+  profileType: string;
+  generalAnalysis: string;
+  riskAppetite: string;
+  workStyle: string;
+  motivation: string;
+  strengths: string[];
+  weaknesses: string[];
+  domainFit: string;
+  expertiseFit: string;
+  successFactors: string;
+};
 
 export default function InnovatorPsychometricPage() {
   const searchParams = useSearchParams();
-  const role = searchParams.get("role");
+  const role = searchParams.get("role") || ROLES.INNOVATOR;
 
-  // This would come from a real auth hook/context
-  let user;
-  let profile;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-  if (role === ROLES.MENTOR) {
-    user = MOCK_MENTORS[0];
-    profile = user.hasPsychometricAnalysis
-      ? MOCK_PSYCHOMETRIC_PROFILES[user.id]
-      : null;
-  } else {
-    user = MOCK_INNOVATOR_USER;
-    profile = user.hasPsychometricAnalysis
-      ? MOCK_PSYCHOMETRIC_PROFILES[user.id]
-      : null;
-  }
+  const [profile, setProfile] = React.useState<PsychometricProfile | null>(
+    null
+  );
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
+  // Access control is still role-based
   const isAccessDenied =
     role &&
     ![
@@ -45,6 +49,58 @@ export default function InnovatorPsychometricPage() {
       ROLES.INTERNAL_MENTOR,
       ROLES.TEAM_MEMBER,
     ].includes(role as any);
+
+  // Fetch psychometric profile from CRUD server
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (!apiUrl) {
+          setError("API URL not configured");
+          setLoading(false);
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${apiUrl}/api/psychometric/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            // No profile yet; user just sees CTA to start assessment
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "Failed to load profile");
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.hasProfile && data.profile) {
+          setProfile(data.profile as PsychometricProfile);
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
+      } catch (err: any) {
+        console.error("Failed to fetch psychometric profile:", err);
+        setError(err?.message || "Failed to load profile");
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [apiUrl]);
 
   if (isAccessDenied) {
     return (
@@ -71,7 +127,26 @@ export default function InnovatorPsychometricPage() {
         </CardHeader>
       </Card>
 
-      {profile ? (
+      {loading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-48 gap-3">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Loading your psychometric profile...
+            </p>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card className="border-destructive/50">
+          <CardHeader className="text-center">
+            <CardTitle>Couldn&apos;t load profile</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : profile ? (
         <Card className="border-green-500">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -107,7 +182,7 @@ export default function InnovatorPsychometricPage() {
             </div>
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">
-                Strengths & Growth Areas
+                Strengths &amp; Growth Areas
               </h4>
               <div className="text-sm">
                 <p className="font-medium text-green-600">Strengths:</p>
@@ -165,9 +240,7 @@ export default function InnovatorPsychometricPage() {
             </p>
             <Button asChild>
               <Link
-                href={`/dashboard/psychometric-analysis/assessment?role=${
-                  role || ROLES.INNOVATOR
-                }`}
+                href={`/dashboard/psychometric-analysis/assessment?role=${role}`}
               >
                 Start Assessment <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

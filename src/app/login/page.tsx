@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/popover";
 import Link from "next/link";
 import { Suspense } from "react";
+import axios from "axios";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -115,11 +116,27 @@ const AnimatedStat = ({
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [orgs, setOrgs] = React.useState([]);
 
   const [userType, setUserType] = React.useState<string>("organisations");
   const [step, setStep] = React.useState<"select_type" | "select_org">(
     "select_type"
   );
+
+  const fetchOrganizations = async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/colleges`
+      );
+      setOrgs(res.data.colleges);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchOrganizations();
+  }, []);
 
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [selectedOrg, setSelectedOrg] = React.useState<string>("");
@@ -142,8 +159,6 @@ function LoginContent() {
 
     return () => clearInterval(quoteInterval);
   }, []);
-
-  const orgs = MOCK_COLLEGES;
 
   const handleTypeSelect = (type: string) => {
     setUserType(type);
@@ -359,8 +374,8 @@ function LoginContent() {
                             <CommandGroup>
                               {orgs.map((org) => (
                                 <CommandItem
-                                  key={org.id}
-                                  value={org.name}
+                                  key={org.collegeId}
+                                  value={org.collegeName}
                                   onSelect={() => {
                                     const userTypeParam =
                                       userType === "institutions"
@@ -376,7 +391,7 @@ function LoginContent() {
                                       query.set("description", ideaDescription);
                                     router.push(
                                       `/login/credentials?org=${encodeURIComponent(
-                                        org.name
+                                        org.collegeName
                                       )}&userType=${userTypeParam}&${query.toString()}`
                                     );
                                   }}
@@ -384,12 +399,12 @@ function LoginContent() {
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      selectedOrg === org.name
+                                      selectedOrg === org.collegeName
                                         ? "opacity-100"
                                         : "opacity-0"
                                     )}
                                   />
-                                  {org.name}
+                                  {org.collegeName}
                                 </CommandItem>
                               ))}
                             </CommandGroup>
