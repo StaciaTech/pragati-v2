@@ -37,6 +37,7 @@ export default function PrincipalIdeaManagementPage() {
     isLoading: ideaLoading,
     error: ideaErrors,
   } = useUserIdeas();
+  console.log(ideasResponse);
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");

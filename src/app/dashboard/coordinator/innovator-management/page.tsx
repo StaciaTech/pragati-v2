@@ -127,7 +127,7 @@ export default function InnovatorManagementPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["innovators"] });
+      queryClient.invalidateQueries({ queryKey: ["allInnovators"] });
     },
   });
 
@@ -181,6 +181,35 @@ export default function InnovatorManagementPage() {
     }
   };
 
+  // In your component or create a new hook
+  const toggleStatusMutation = useMutation({
+    mutationFn: async (innovatorId: string) => {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/coordinator/innovators/${innovatorId}/toggle-status`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allInnovators"] });
+      toast({ title: "Status updated successfully" });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err?.response?.data?.error || "Failed to update status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update the toggle handler
+  const handleToggleStatus = async (innovatorId: string) => {
+    await toggleStatusMutation.mutateAsync(innovatorId);
+  };
+
   //   const handleToggleStatus = (id: string) => {
   //     setInnovators((prev) =>
   //       prev.map((inv) =>
@@ -210,7 +239,7 @@ export default function InnovatorManagementPage() {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ttc-credit-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["innovators"] });
+      queryClient.invalidateQueries({ queryKey: ["allInnovators"] });
     },
   });
   const handleRequestAction = async (
@@ -353,7 +382,7 @@ export default function InnovatorManagementPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            // onClick={() => handleToggleStatus(innovator.id)}
+                            onClick={() => handleToggleStatus(innovator._id)}
                           >
                             {innovator.isActive ? (
                               <UserX className="h-4 w-4 text-red-500" />
@@ -361,9 +390,7 @@ export default function InnovatorManagementPage() {
                               <UserCheck className="h-4 w-4 text-green-500" />
                             )}
                             <span className="sr-only">
-                              {innovator.status === "Active"
-                                ? "Deactivate"
-                                : "Activate"}
+                              {innovator?.isActive ? "Deactivate" : "Activate"}
                             </span>
                           </Button>
                         </TooltipTrigger>

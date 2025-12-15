@@ -32,6 +32,8 @@ const getDashboardLink = (role: Role) => {
   switch (role) {
     case ROLES.INNOVATOR:
       return `/dashboard?role=${role}`;
+    case ROLES.INDIVIDUAL_INNOVATOR:
+      return `/dashboard?role=${role}`;
     case ROLES.PRINCIPAL:
       return `/dashboard/principal?role=${role}`;
     case ROLES.COORDINATOR:
@@ -69,6 +71,7 @@ export function LoginForm({ title }: { title: string }) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("collegeId", res.data.user.collegeId);
         localStorage.setItem("UserId", res.data.user.uid);
+        console.log(res.data.user);
 
         toast({
           title: "Login Successful",

@@ -123,6 +123,7 @@ export default function GodsEyeViewPage() {
       return data;
     },
   });
+  console.log("innovatorsResp", innovatorsResp);
 
   const innovators: Innovator[] = innovatorsResp?.data || [];
 

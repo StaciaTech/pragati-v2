@@ -21,6 +21,7 @@ async function fetchUserIdeas(): Promise<Idea[]> {
   const { data } = await axios.get(`${apiUrl}/api/ideas/user/${uid}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  console.log(data);
   return data.data;
 }
 

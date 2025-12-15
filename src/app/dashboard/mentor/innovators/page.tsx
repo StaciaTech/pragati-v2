@@ -1,98 +1,154 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_MENTORS } from "@/lib/data/auth";
-import { MOCK_INNOVATORS } from "@/lib/data/organization";
-import { ROLES } from '@/lib/constants';
-import { MOCK_IDEAS } from '@/lib/data/ideas';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Lightbulb, TrendingUp } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Lightbulb, TrendingUp, Loader2 } from "lucide-react";
+import { ROLES } from "@/lib/constants";
 
-const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem("token") : "";
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .join("");
 
 export default function MentorInnovatorsPage() {
-    const userMentor = MOCK_MENTORS[0]; 
-    const router = useRouter();
+  const router = useRouter();
 
-    const assignedInnovators = MOCK_INNOVATORS.filter(innovator => 
-        MOCK_IDEAS.some(idea => idea.externalMentorId === userMentor.id && idea.innovatorId === innovator.id)
+  // ✅ Fetch assigned innovators
+  const { data: innovatorsResp, isLoading } = useQuery({
+    queryKey: ["mentor-assigned-innovators"],
+    queryFn: async () => {
+      const token = getToken();
+      const { data } = await axios.get(
+        `${apiUrl}/api/mentors/assigned-innovators`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return data;
+    },
+  });
+
+  const assignedInnovators = innovatorsResp?.data || [];
+
+  const handleRowClick = (innovatorId: string) => {
+    router.push(
+      `/dashboard/mentor/innovators/${innovatorId}?role=${ROLES.MENTOR}`
     );
-    
-    const getInnovatorStats = (innovatorId: string) => {
-        const innovatorIdeas = MOCK_IDEAS.filter(idea => idea.innovatorId === innovatorId && idea.externalMentorId === userMentor.id && idea.report);
-        const ideaCount = innovatorIdeas.length;
-        const avgScore = ideaCount > 0 
-            ? innovatorIdeas.reduce((sum, idea) => sum + idea.report!.overallScore, 0) / ideaCount 
-            : 0;
-        return { ideaCount, avgScore };
-    }
+  };
 
-    const handleRowClick = (innovatorId: string) => {
-        router.push(`/dashboard/mentor/innovators/${innovatorId}?role=${ROLES.MENTOR}`);
-    };
-
+  if (isLoading) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>My Innovators</CardTitle>
-                <CardDescription>A list of all innovators you are currently mentoring.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Innovator</TableHead>
-                            <TableHead>Institution</TableHead>
-                            <TableHead>Ideas Mentored</TableHead>
-                            <TableHead>Average Score</TableHead>
-                            <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {assignedInnovators.length > 0 ? (
-                            assignedInnovators.map((innovator) => {
-                                const { ideaCount, avgScore } = getInnovatorStats(innovator.id);
-                                return (
-                                    <TableRow key={innovator.id} className="cursor-pointer" onClick={() => handleRowClick(innovator.id)}>
-                                        <TableCell className="font-medium flex items-center gap-3">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={`https://avatar.vercel.sh/${innovator.name}.png`} alt={innovator.name} />
-                                                <AvatarFallback>{getInitials(innovator.name)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-primary hover:underline">{innovator.name}</span>
-                                        </TableCell>
-                                        <TableCell>{innovator.collegeId}</TableCell> {/* Replace with collegeName if available */}
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <Lightbulb className="h-4 w-4 text-muted-foreground" />
-                                                {ideaCount}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                                                {avgScore.toFixed(1)}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell><Badge variant={innovator.status === 'Active' ? 'default' : 'destructive'}>{innovator.status}</Badge></TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    No innovators assigned yet.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+      <Card>
+        <CardContent className="py-12">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+        </CardContent>
+      </Card>
     );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>My Innovators</CardTitle>
+        <CardDescription>
+          A list of all innovators you are currently mentoring.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Innovator</TableHead>
+              <TableHead>Institution</TableHead>
+              <TableHead>Ideas Mentored</TableHead>
+              <TableHead>Average Score</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {assignedInnovators.length > 0 ? (
+              assignedInnovators.map((innovator: any) => (
+                <TableRow
+                  key={innovator._id}
+                  className="cursor-pointer"
+                  onClick={() => handleRowClick(innovator._id)}
+                >
+                  <TableCell className="font-medium flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={
+                          innovator.profileImage ||
+                          `https://avatar.vercel.sh/${innovator.name}.png`
+                        }
+                        alt={innovator.name}
+                      />
+                      <AvatarFallback>
+                        {getInitials(innovator.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-primary hover:underline">
+                      {innovator.name}
+                      {innovator.isTeamMember && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Team Member
+                        </Badge>
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell>{innovator.college?.name || "N/A"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                      {innovator.stats.ideasMentored}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      {innovator.stats.averageScore}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={innovator.isActive ? "default" : "destructive"}
+                    >
+                      {innovator.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No innovators assigned yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 }

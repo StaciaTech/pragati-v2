@@ -14,23 +14,50 @@ import { ROLES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, CheckCircle, Shield, Loader2 } from "lucide-react";
 import Link from "next/link";
+import axios from "axios";
 
 type PsychometricProfile = {
+  evaluationId: string;
+  userId: string;
   profileType: string;
-  generalAnalysis: string;
-  riskAppetite: string;
-  workStyle: string;
-  motivation: string;
+  userName?: string;
+  overallScore: number;
+  dimensionScores: Record<string, number>;
   strengths: string[];
-  weaknesses: string[];
-  domainFit: string;
-  expertiseFit: string;
-  successFactors: string;
+  areasForDevelopment: string[];
+  personalityProfile: string;
+  entrepreneurialFit: {
+    overall_fit?: string;
+    fit_score?: number;
+    mentoring_readiness?: string;
+    teaching_style?: string;
+    mentoring_capacity?: string;
+    expertise_domains?: string[];
+    ideal_mentee_profile?: any;
+    ideal_role?: string;
+    ideal_venture_type?: string;
+    risk_tolerance_level?: string;
+    validation_focus_areas?: string[];
+  };
+  recommendations: string[];
+  detailedInsights: any;
+  completedAt: string;
+  profileCompleteness?: number;
+  completionRate: number;
+};
+
+type UserData = {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  isPsychometricAnalysisDone?: boolean;
+  psychometricScore?: number;
 };
 
 export default function InnovatorPsychometricPage() {
   const searchParams = useSearchParams();
-  const role = searchParams.get("role") || ROLES.INNOVATOR;
+  const roleParam = searchParams.get("role") || ROLES.INNOVATOR;
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -39,68 +66,98 @@ export default function InnovatorPsychometricPage() {
   );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [userData, setUserData] = React.useState<UserData | null>(null);
 
   // Access control is still role-based
   const isAccessDenied =
-    role &&
+    roleParam &&
     ![
       ROLES.INNOVATOR,
       ROLES.MENTOR,
       ROLES.INTERNAL_MENTOR,
       ROLES.TEAM_MEMBER,
-    ].includes(role as any);
+    ].includes(roleParam as any);
 
-  // Fetch psychometric profile from CRUD server
+  // Get user data including role and isPsychometricAnalysisDone
   React.useEffect(() => {
-    const fetchProfile = async () => {
+    const getUserData = async () => {
       try {
-        if (!apiUrl) {
-          setError("API URL not configured");
-          setLoading(false);
-          return;
-        }
-
         const token = localStorage.getItem("token");
-        if (!token) {
+        const uid = localStorage.getItem("UserId");
+
+        if (!token || !uid) {
           setLoading(false);
           return;
         }
 
-        const res = await fetch(`${apiUrl}/api/psychometric/profile`, {
+        console.log("Fetching user data for:", uid);
+
+        const res = await axios.get(`${apiUrl}/api/users/${uid}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        if (!res.ok) {
-          if (res.status === 404) {
-            // No profile yet; user just sees CTA to start assessment
-            setProfile(null);
-            setLoading(false);
-            return;
-          }
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || "Failed to load profile");
-          setLoading(false);
-          return;
-        }
+        console.log("User data response:", res.data.data);
 
-        const data = await res.json();
-        if (data.hasProfile && data.profile) {
-          setProfile(data.profile as PsychometricProfile);
-        } else {
-          setProfile(null);
+        if (res.data.data) {
+          setUserData(res.data.data);
         }
-        setLoading(false);
-      } catch (err: any) {
-        console.error("Failed to fetch psychometric profile:", err);
-        setError(err?.message || "Failed to load profile");
+      } catch (err) {
+        console.error("Failed to get user info:", err);
+        setError("Failed to load user information");
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    getUserData();
   }, [apiUrl]);
+
+  // Fetch psychometric profile
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      if (!userData) return;
+
+      try {
+        const token = localStorage.getItem("token");
+
+        console.log("Fetching psychometric profile...");
+        console.log("User role:", userData.role);
+
+        const res = await axios.get(`${apiUrl}/api/psychometric/results`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("Profile response:", res.data);
+
+        if (res.data.success && res.data.data) {
+          setProfile(res.data.data as PsychometricProfile);
+        } else {
+          // No profile found
+          setProfile(null);
+        }
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error("Failed to fetch psychometric profile:", err);
+
+        if (err.response?.status === 404 || err.response?.data?.data === null) {
+          // Profile not found - show CTA
+          setProfile(null);
+          setLoading(false);
+        } else {
+          setError(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Failed to load profile"
+          );
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [apiUrl, userData]);
 
   if (isAccessDenied) {
     return (
@@ -115,14 +172,19 @@ export default function InnovatorPsychometricPage() {
     );
   }
 
+  // Determine display labels based on user role
+  const isMentor =
+    userData?.role === "mentor" || userData?.role === "internal_mentor";
+  const profileTitle = isMentor ? "Mentor" : "Innovator";
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>My Psychometric Profile</CardTitle>
           <CardDescription>
-            Understand your unique strengths and mindset as an innovator or
-            mentor.
+            Understand your unique strengths and mindset as{" "}
+            {isMentor ? "a mentor" : "an innovator"}.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -150,36 +212,90 @@ export default function InnovatorPsychometricPage() {
         <Card className="border-green-500">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Your Profile: {profile.profileType}</span>
+              <span>Your {profileTitle} Profile</span>
               <Badge variant="secondary" className="flex items-center gap-1">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 Completed
               </Badge>
             </CardTitle>
             <CardDescription className="italic">
-              "{profile.generalAnalysis}"
+              {profile.personalityProfile}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Key Traits */}
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">Key Traits</h4>
               <div className="space-y-2 text-sm">
                 <p>
-                  <span className="text-muted-foreground">Risk Appetite:</span>{" "}
-                  <Badge variant="outline">{profile.riskAppetite}</Badge>
+                  <span className="text-muted-foreground">Overall Score:</span>{" "}
+                  <Badge variant="outline">
+                    {profile.overallScore.toFixed(1)}/10
+                  </Badge>
                 </p>
                 <p>
-                  <span className="text-muted-foreground">Work Style:</span>{" "}
-                  <Badge variant="outline">{profile.workStyle}</Badge>
+                  <span className="text-muted-foreground">Fit Score:</span>{" "}
+                  <Badge variant="outline">
+                    {profile.entrepreneurialFit.fit_score || 0}%
+                  </Badge>
                 </p>
-                <p>
-                  <span className="text-muted-foreground">
-                    Primary Motivation:
-                  </span>{" "}
-                  <Badge variant="outline">{profile.motivation}</Badge>
-                </p>
+                {profile.profileType === "mentor" ? (
+                  <>
+                    <p>
+                      <span className="text-muted-foreground">
+                        Teaching Style:
+                      </span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.teaching_style || "N/A"}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">
+                        Mentoring Capacity:
+                      </span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.mentoring_capacity || "N/A"}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Readiness:</span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.mentoring_readiness ||
+                          "N/A"}
+                      </Badge>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      <span className="text-muted-foreground">
+                        Risk Tolerance:
+                      </span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.risk_tolerance_level ||
+                          "N/A"}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">
+                        Entrepreneurial Fit:
+                      </span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.overall_fit || "N/A"}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Ideal Role:</span>{" "}
+                      <Badge variant="outline">
+                        {profile.entrepreneurialFit.ideal_role || "N/A"}
+                      </Badge>
+                    </p>
+                  </>
+                )}
               </div>
             </div>
+
+            {/* Strengths & Growth Areas */}
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">
                 Strengths &amp; Growth Areas
@@ -187,47 +303,104 @@ export default function InnovatorPsychometricPage() {
               <div className="text-sm">
                 <p className="font-medium text-green-600">Strengths:</p>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {profile.strengths.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
+                  {profile.strengths && profile.strengths.length > 0 ? (
+                    profile.strengths.map((s, idx) => <li key={idx}>{s}</li>)
+                  ) : (
+                    <li>No strengths data available</li>
+                  )}
                 </ul>
               </div>
               <div className="text-sm">
                 <p className="font-medium text-red-600">Areas for Growth:</p>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {profile.weaknesses.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
+                  {profile.areasForDevelopment &&
+                  profile.areasForDevelopment.length > 0 ? (
+                    profile.areasForDevelopment.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))
+                  ) : (
+                    <li>No development areas data available</li>
+                  )}
                 </ul>
               </div>
             </div>
+
+            {/* Success Path / Mentoring Focus */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-lg">Your Success Path</h4>
-              <p className="text-sm">
-                <strong className="font-medium text-foreground">
-                  Ideal Domains:
-                </strong>{" "}
-                {profile.domainFit}
-              </p>
-              <p className="text-sm">
-                <strong className="font-medium text-foreground">
-                  Potential Expertise Fit:
-                </strong>{" "}
-                {profile.expertiseFit}
-              </p>
-              <p className="text-sm">
-                <strong className="font-medium text-foreground">
-                  Key Success Factors:
-                </strong>{" "}
-                {profile.successFactors}
-              </p>
+              <h4 className="font-semibold text-lg">
+                {profile.profileType === "mentor"
+                  ? "Mentoring Focus"
+                  : "Your Success Path"}
+              </h4>
+              {profile.profileType === "mentor" ? (
+                <>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Expertise Domains:
+                    </strong>{" "}
+                    {profile.entrepreneurialFit.expertise_domains &&
+                    profile.entrepreneurialFit.expertise_domains.length > 0
+                      ? profile.entrepreneurialFit.expertise_domains.join(", ")
+                      : "N/A"}
+                  </p>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Ideal Mentee Level:
+                    </strong>{" "}
+                    {profile.entrepreneurialFit.ideal_mentee_profile
+                      ?.experience_level || "N/A"}
+                  </p>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Best for:
+                    </strong>{" "}
+                    {profile.entrepreneurialFit.ideal_mentee_profile
+                      ?.challenge_areas || "N/A"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Focus Areas:
+                    </strong>{" "}
+                    {profile.entrepreneurialFit.validation_focus_areas &&
+                    profile.entrepreneurialFit.validation_focus_areas.length > 0
+                      ? profile.entrepreneurialFit.validation_focus_areas.join(
+                          ", "
+                        )
+                      : "N/A"}
+                  </p>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Venture Type:
+                    </strong>{" "}
+                    {profile.entrepreneurialFit.ideal_venture_type || "N/A"}
+                  </p>
+                  <p className="text-sm">
+                    <strong className="font-medium text-foreground">
+                      Key Recommendations:
+                    </strong>
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    {profile.recommendations &&
+                    profile.recommendations.length > 0 ? (
+                      profile.recommendations
+                        .slice(0, 3)
+                        .map((rec, idx) => <li key={idx}>{rec}</li>)
+                    ) : (
+                      <li>No recommendations available</li>
+                    )}
+                  </ul>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
       ) : (
         <Card className="border-dashed border-primary">
           <CardHeader className="text-center">
-            <CardTitle>Unlock Your Innovator/Mentor Profile</CardTitle>
+            <CardTitle>Unlock Your {profileTitle} Profile</CardTitle>
             <CardDescription>
               Take our quick psychometric assessment to discover your unique
               strengths, work style, and potential.
@@ -236,11 +409,14 @@ export default function InnovatorPsychometricPage() {
           <CardContent className="flex flex-col items-center gap-4">
             <p className="text-sm text-muted-foreground max-w-md">
               This analysis helps you understand your natural tendencies and
-              provides insights to help you succeed on your journey.
+              provides insights to help you succeed on your journey as{" "}
+              {isMentor ? "a mentor" : "an innovator"}.
             </p>
             <Button asChild>
               <Link
-                href={`/dashboard/psychometric-analysis/assessment?role=${role}`}
+                href={`/dashboard/psychometric-analysis/assessment?role=${
+                  userData?.role || roleParam
+                }`}
               >
                 Start Assessment <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

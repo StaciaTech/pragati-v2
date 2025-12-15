@@ -28,6 +28,7 @@ import {
 
 export const ROLES = {
   INNOVATOR: "innovator",
+  INDIVIDUAL_INNOVATOR: "individual_innovator",
   PRINCIPAL: "college_admin",
   COORDINATOR: "ttc_coordinator",
   SUPER_ADMIN: "super_admin",
@@ -83,6 +84,48 @@ export const NAV_LINKS: Record<
       title: "Reports",
       icon: FilePieChart,
       href: `/dashboard/reports?role=${ROLES.INNOVATOR}`,
+    },
+  ],
+  [ROLES.INDIVIDUAL_INNOVATOR]: [
+    {
+      title: "Dashboard",
+      icon: Home,
+      href: `/dashboard?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Submit Idea",
+      icon: PlusCircle,
+      href: `/dashboard/submit?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "My Ideas",
+      icon: Lightbulb,
+      href: `/dashboard/ideas?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Plan & Payment",
+      icon: Receipt,
+      href: `/dashboard/plan-payment?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Analytics",
+      icon: BarChart3,
+      href: `/dashboard/analytics?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Consultations",
+      icon: MessageSquare,
+      href: `/dashboard/consultations?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Psychometric Analysis",
+      icon: BrainCircuit,
+      href: `/dashboard/psychometric-analysis?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
+    },
+    {
+      title: "Reports",
+      icon: FilePieChart,
+      href: `/dashboard/reports?role=${ROLES.INDIVIDUAL_INNOVATOR}`,
     },
   ],
   [ROLES.PRINCIPAL]: [

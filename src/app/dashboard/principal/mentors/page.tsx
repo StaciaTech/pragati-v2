@@ -31,12 +31,22 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 
 /* ----------  data fetching / mutations  ---------- */
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { useMentors } from "@/hooks/useMentors"; // ← the hook we created earlier
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
 const getToken = () => localStorage.getItem("token");
@@ -50,8 +60,26 @@ export default function PrincipalMentorManagementPage() {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = React.useState(false);
 
-  /* ----------  server state  ---------- */
-  const { data: mentors = [], isLoading, error } = useMentors(); // hook already filters by caller's college
+  /* ----------  Fetch Internal Mentors  ---------- */
+  const {
+    data: mentorsData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["internal-mentors"],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("No token");
+      const { data } = await axios.get(
+        `${apiUrl}/api/principal/internal-mentors`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return data;
+    },
+    enabled: !!getToken(),
+  });
+
+  const mentors = mentorsData?.data || [];
 
   /* ----------  mutations  ---------- */
   const addMentorMutation = useMutation({
@@ -67,14 +95,15 @@ export default function PrincipalMentorManagementPage() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Mentor added" });
-      queryClient.invalidateQueries({ queryKey: ["mentors"] });
+      toast({ title: "Mentor added successfully" });
+      queryClient.invalidateQueries({ queryKey: ["internal-mentors"] });
       setIsAddModalOpen(false);
     },
     onError: (err: any) =>
       toast({
         title: "Error",
         description: err?.response?.data?.error || "Failed to add mentor",
+        variant: "destructive",
       }),
   });
 
@@ -84,19 +113,75 @@ export default function PrincipalMentorManagementPage() {
       if (!token) throw new Error("No token");
       const form = new FormData();
       form.append("file", file);
-      return axios.post(`${apiUrl}/api/mentors/bulk`, form, {
+      return axios.post(`${apiUrl}/api/principal/mentors/bulk`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
     },
-    onSuccess: () => {
-      toast({ title: "Bulk upload complete" });
-      queryClient.invalidateQueries({ queryKey: ["mentors"] });
+    onSuccess: (response) => {
+      const { created, errors } = response.data;
+      toast({
+        title: "Bulk upload complete",
+        description: `${created.length} mentors created. ${errors.length} errors.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["internal-mentors"] });
       setIsBulkModalOpen(false);
     },
     onError: (err: any) =>
       toast({
         title: "Upload failed",
         description: err?.response?.data?.error || "Unknown error",
+        variant: "destructive",
+      }),
+  });
+
+  /* ----------  Toggle Status Mutation  ---------- */
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({
+      mentorId,
+      isActive,
+    }: {
+      mentorId: string;
+      isActive: boolean;
+    }) => {
+      const token = getToken();
+      if (!token) throw new Error("No token");
+      return axios.put(
+        `${apiUrl}/api/principal/internal-mentors/${mentorId}/activate`,
+        { isActive },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    },
+    onSuccess: () => {
+      toast({ title: "Mentor status updated" });
+      queryClient.invalidateQueries({ queryKey: ["internal-mentors"] });
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err?.response?.data?.error || "Failed to update status",
+        variant: "destructive",
+      }),
+  });
+
+  /* ----------  Delete Mentor Mutation  ---------- */
+  const deleteMentorMutation = useMutation({
+    mutationFn: async (mentorId: string) => {
+      const token = getToken();
+      if (!token) throw new Error("No token");
+      return axios.delete(
+        `${apiUrl}/api/principal/internal-mentors/${mentorId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    },
+    onSuccess: () => {
+      toast({ title: "Mentor deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["internal-mentors"] });
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err?.response?.data?.error || "Failed to delete mentor",
+        variant: "destructive",
       }),
   });
 
@@ -120,19 +205,24 @@ export default function PrincipalMentorManagementPage() {
       toast({
         title: "Invalid file type",
         description: "Please upload .csv or .xlsx",
+        variant: "destructive",
       });
       return;
     }
     bulkMutation.mutate(file);
   };
 
-  const handleToggleStatus = (mentorId: string) => {
-    toast({ title: "Not implemented", description: "Toggle mentor status" });
+  const handleToggleStatus = (mentorId: string, currentStatus: boolean) => {
+    toggleStatusMutation.mutate({ mentorId, isActive: !currentStatus });
+  };
+
+  const handleDeleteMentor = (mentorId: string) => {
+    deleteMentorMutation.mutate(mentorId);
   };
 
   /* ----------  derived data  ---------- */
   const filteredMentors = mentors.filter(
-    (m) =>
+    (m: any) =>
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -178,15 +268,26 @@ export default function PrincipalMentorManagementPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Created By</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMentors.map((mentor) => (
+              {filteredMentors.map((mentor: any) => (
                 <TableRow key={mentor._id}>
                   <TableCell className="font-medium">{mentor.name}</TableCell>
                   <TableCell>{mentor.email}</TableCell>
+                  <TableCell>
+                    <div className="text-xs">
+                      <p className="font-medium">{mentor.createdByName}</p>
+                      <p className="text-muted-foreground">
+                        {mentor.createdByRole === "college_admin"
+                          ? "Principal"
+                          : "TTC Coordinator"}
+                      </p>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       className={
@@ -199,20 +300,59 @@ export default function PrincipalMentorManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleToggleStatus(mentor._id)}
-                      disabled
-                    >
-                      Deactivate
-                    </Button>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant={mentor.isActive ? "outline" : "default"}
+                        size="sm"
+                        onClick={() =>
+                          handleToggleStatus(mentor._id, mentor.isActive)
+                        }
+                        disabled={toggleStatusMutation.isPending}
+                      >
+                        {mentor.isActive ? "Deactivate" : "Activate"}
+                      </Button>
+
+                      {/* Delete Button with Confirmation */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={deleteMentorMutation.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete{" "}
+                              <strong>{mentor.name}</strong> from the system.
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteMentor(mentor._id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Yes, delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {filteredMentors.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground"
+                  >
                     No mentors found.
                   </TableCell>
                 </TableRow>
@@ -240,7 +380,11 @@ export default function PrincipalMentorManagementPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expertise">Expertise (comma-separated)</Label>
-                <Input id="expertise" name="expertise" required />
+                <Input
+                  id="expertise"
+                  name="expertise"
+                  placeholder="e.g. AI, Machine Learning, IoT"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -273,7 +417,10 @@ export default function PrincipalMentorManagementPage() {
               disabled={bulkMutation.isPending}
             />
             <p className="text-xs text-muted-foreground mt-2">
-              Expected columns: name, email, expertise
+              Expected columns: <strong>name, email, expertise</strong>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Expertise should be comma-separated values
             </p>
           </div>
           <DialogFooter>

@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useConsultations, type Consultation } from "@/hooks/useConsultations";
+import { useToast } from "@/hooks/use-toast";
+import { isAfter, isBefore, startOfDay, format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -36,10 +39,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   CalendarIcon,
   MoreHorizontal,
@@ -49,21 +63,6 @@ import {
   PlusCircle,
   Loader2,
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useConsultations, type Consultation } from "@/hooks/useConsultations";
-import { isAfter, isBefore, startOfDay } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {
   Scheduled: "bg-blue-100 text-blue-800",
@@ -150,14 +149,6 @@ const ConsultationTable = ({
                         Reschedule
                       </DropdownMenuItem>
                     )}
-                    {consultation.status === "Scheduled" && (
-                      <DropdownMenuItem
-                        className="text-red-500"
-                        onSelect={() => onActionSelect("cancel", consultation)}
-                      >
-                        Cancel
-                      </DropdownMenuItem>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -170,11 +161,25 @@ const ConsultationTable = ({
 );
 
 export default function ConsultationsPage() {
-  const { consultations, loading, error } = useConsultations();
-  console.log(consultations);
+  const {
+    consultations,
+    loading,
+    error,
+    fetchEligibleIdeas,
+    fetchExternalMentors,
+    requestConsultation,
+    rescheduleConsultation,
+    refreshConsultations,
+  } = useConsultations();
 
   const { toast } = useToast();
 
+  const isTTC =
+    typeof window !== "undefined"
+      ? localStorage.getItem("role") === "ttc_coordinator"
+      : false;
+
+  // State
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = React.useState(false);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] =
@@ -186,7 +191,54 @@ export default function ConsultationsPage() {
     new Date()
   );
 
-  // Show error toast
+  // ✅ Request form state
+  const [eligibleIdeas, setEligibleIdeas] = React.useState<any[]>([]);
+  const [mentors, setMentors] = React.useState<any[]>([]);
+  const [loadingIdeas, setLoadingIdeas] = React.useState(false);
+  const [loadingMentors, setLoadingMentors] = React.useState(false);
+  const [selectedIdea, setSelectedIdea] = React.useState("");
+  const [selectedMentor, setSelectedMentor] = React.useState("");
+  const [requestDate, setRequestDate] = React.useState<Date | undefined>();
+  const [questions, setQuestions] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // ✅ Reschedule form state
+  const [rescheduleDate, setRescheduleDate] = React.useState<
+    Date | undefined
+  >();
+  const [rescheduleReason, setRescheduleReason] = React.useState("");
+
+  // Load eligible ideas and mentors when request modal opens
+  React.useEffect(() => {
+    if (isRequestModalOpen) {
+      loadRequestData();
+    }
+  }, [isRequestModalOpen]);
+
+  const loadRequestData = async () => {
+    try {
+      setLoadingIdeas(true);
+      setLoadingMentors(true);
+
+      const [ideas, mentorsList] = await Promise.all([
+        fetchEligibleIdeas(),
+        fetchExternalMentors(),
+      ]);
+
+      setEligibleIdeas(ideas);
+      setMentors(mentorsList);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to load data",
+      });
+    } finally {
+      setLoadingIdeas(false);
+      setLoadingMentors(false);
+    }
+  };
+
   React.useEffect(() => {
     if (error) {
       toast({
@@ -197,7 +249,6 @@ export default function ConsultationsPage() {
     }
   }, [error, toast]);
 
-  // Generate consultation dates for calendar
   const consultationDates = React.useMemo(() => {
     return consultations
       .filter((c) => c.date)
@@ -220,44 +271,109 @@ export default function ConsultationsPage() {
       setSelectedConsultation(consultation);
       setIsModalOpen(false);
       setIsRescheduleModalOpen(true);
-    } else if (action === "cancel") {
-      toast({
-        title: "Feature in Development",
-        description: "Cancellation is not yet implemented.",
-      });
     }
   };
 
-  const handleRequestSubmit = (event: React.FormEvent) => {
+  // ✅ Request consultation submit
+  const handleRequestSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    toast({
-      title: "Request Submitted",
-      description:
-        "Your consultation request has been sent to the TTC Coordinator.",
-    });
-    setIsRequestModalOpen(false);
+
+    if (!selectedIdea || !selectedMentor || !requestDate || !questions.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await requestConsultation(selectedIdea, {
+        mentorId: selectedMentor,
+        preferredDate: requestDate.toISOString(),
+        questions: questions,
+      });
+
+      const messageText = isTTC
+        ? "Consultation request submitted for your innovator! They will be notified."
+        : "Consultation request submitted! You'll be notified once it's reviewed.";
+
+      toast({
+        title: "Success",
+        description: messageText,
+      });
+
+      setIsRequestModalOpen(false);
+
+      // Reset form
+      setSelectedIdea("");
+      setSelectedMentor("");
+      setRequestDate(undefined);
+      setQuestions("");
+
+      await refreshConsultations();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRescheduleSubmit = (event: React.FormEvent) => {
+  // ✅ Reschedule submit
+  const handleRescheduleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    toast({
-      title: "Reschedule Request Submitted",
-      description: `Your request to reschedule the meeting for "${selectedConsultation?.title}" has been sent.`,
-    });
-    setIsRescheduleModalOpen(false);
-    setSelectedConsultation(null);
+
+    if (!rescheduleDate || !selectedConsultation) {
+      toast({
+        title: "Error",
+        description: "Please select a new date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await rescheduleConsultation(selectedConsultation.ideaId, {
+        scheduledAt: rescheduleDate.toISOString(),
+        reason: rescheduleReason.trim() || "Rescheduling consultation",
+      });
+
+      toast({
+        title: "Reschedule Request Submitted",
+        description: `Your request to reschedule "${selectedConsultation.title}" has been sent.`,
+      });
+
+      setIsRescheduleModalOpen(false);
+      setSelectedConsultation(null);
+      setRescheduleDate(undefined);
+      setRescheduleReason("");
+
+      await refreshConsultations();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reschedule",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Filter consultations by status
   const upcomingConsultations = React.useMemo(() => {
     const today = startOfDay(new Date());
 
     return consultations.filter((c) => {
       if (!c.scheduledAt) return false;
-
       const consultationDate = new Date(c.scheduledAt);
-
-      // Upcoming: date is after today AND status is not completed/cancelled
       return (
         isAfter(consultationDate, today) &&
         (c.status === "Scheduled" ||
@@ -272,10 +388,7 @@ export default function ConsultationsPage() {
 
     return consultations.filter((c) => {
       if (!c.scheduledAt) return false;
-
       const consultationDate = new Date(c.scheduledAt);
-
-      // Past: date is before today OR status is completed/cancelled
       return (
         isBefore(consultationDate, today) ||
         c.status === "Completed" ||
@@ -300,9 +413,13 @@ export default function ConsultationsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Consultations</h1>
+            <h1 className="text-3xl font-bold">
+              {isTTC ? "Innovator Consultations" : "My Consultations"}
+            </h1>
             <p className="text-muted-foreground">
-              Manage and request consultations with mentors.
+              {isTTC
+                ? "Manage and request consultations for your innovators."
+                : "Manage and request consultations with mentors."}
             </p>
           </div>
           <Button onClick={() => setIsRequestModalOpen(true)}>
@@ -318,9 +435,11 @@ export default function ConsultationsPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>My Consultations</CardTitle>
+                      <CardTitle>
+                        {isTTC ? "Innovator Consultations" : "My Consultations"}
+                      </CardTitle>
                       <CardDescription>
-                        A list of your scheduled and past consultations.
+                        A list of scheduled and past consultations.
                       </CardDescription>
                     </div>
                     <TabsList>
@@ -344,7 +463,9 @@ export default function ConsultationsPage() {
                     ) : (
                       <div className="text-center py-10">
                         <p className="text-muted-foreground">
-                          You have no upcoming consultations.
+                          {isTTC
+                            ? "No upcoming consultations for your innovators."
+                            : "You have no upcoming consultations."}
                         </p>
                       </div>
                     )}
@@ -359,7 +480,9 @@ export default function ConsultationsPage() {
                     ) : (
                       <div className="text-center py-10">
                         <p className="text-muted-foreground">
-                          You have no past consultations.
+                          {isTTC
+                            ? "No past consultations for your innovators."
+                            : "You have no past consultations."}
                         </p>
                       </div>
                     )}
@@ -398,7 +521,7 @@ export default function ConsultationsPage() {
         </div>
       </div>
 
-      {/* Details Modal */}
+      {/* ✅ Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -420,7 +543,6 @@ export default function ConsultationsPage() {
           </DialogHeader>
           <Separator />
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
-            {/* Mentor Info */}
             <div>
               <h4 className="font-semibold text-sm mb-2">Mentor</h4>
               <div className="text-sm space-y-1">
@@ -437,7 +559,6 @@ export default function ConsultationsPage() {
             </div>
             <Separator />
 
-            {/* Summary (for completed) */}
             {selectedConsultation?.status === "Completed" && (
               <>
                 <div>
@@ -452,7 +573,6 @@ export default function ConsultationsPage() {
               </>
             )}
 
-            {/* Agenda */}
             <div>
               <h4 className="font-semibold text-sm mb-2">
                 Agenda / Milestones
@@ -470,7 +590,6 @@ export default function ConsultationsPage() {
             </div>
             <Separator />
 
-            {/* Action Items (for completed) */}
             {selectedConsultation?.status === "Completed" && (
               <>
                 <div>
@@ -502,7 +621,6 @@ export default function ConsultationsPage() {
               </>
             )}
 
-            {/* Files */}
             <div>
               <h4 className="font-semibold text-sm mb-2">Attached Files</h4>
               {selectedConsultation?.files &&
@@ -526,7 +644,6 @@ export default function ConsultationsPage() {
               )}
             </div>
 
-            {/* Action Buttons */}
             {selectedConsultation?.status === "Scheduled" && (
               <div className="pt-4 flex gap-2">
                 <Button className="w-full">Join Meeting</Button>
@@ -541,24 +658,13 @@ export default function ConsultationsPage() {
                 >
                   Request Reschedule
                 </Button>
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => {
-                    if (selectedConsultation) {
-                      handleAction("cancel", selectedConsultation);
-                    }
-                  }}
-                >
-                  Cancel
-                </Button>
               </div>
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Request Modal */}
+      {/* ✅ Request Modal */}
       <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -569,60 +675,85 @@ export default function ConsultationsPage() {
           </DialogHeader>
           <form onSubmit={handleRequestSubmit}>
             <div className="grid gap-4 py-4">
+              {/* Idea Selection */}
               <div className="space-y-2">
-                <Label htmlFor="idea">Idea to Discuss</Label>
-                <Select>
-                  <SelectTrigger id="idea">
-                    <SelectValue placeholder="Select an idea" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {consultations.map((consultation) => (
-                      <SelectItem
-                        key={consultation.ideaId}
-                        value={consultation.ideaId}
-                      >
-                        {consultation.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mentor">Preferred Mentor</Label>
-                <Select>
-                  <SelectTrigger id="mentor">
-                    <SelectValue placeholder="Select a mentor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[...new Set(consultations.map((c) => c.mentorEmail))].map(
-                      (email, idx) => {
-                        const mentor = consultations.find(
-                          (c) => c.mentorEmail === email
-                        );
-                        return mentor ? (
-                          <SelectItem key={idx} value={mentor.mentor}>
-                            {mentor.mentor}
+                <Label htmlFor="idea">Idea to Discuss *</Label>
+                {loadingIdeas ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading eligible ideas...
+                  </div>
+                ) : (
+                  <Select value={selectedIdea} onValueChange={setSelectedIdea}>
+                    <SelectTrigger id="idea">
+                      <SelectValue placeholder="Select an idea" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleIdeas.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No eligible ideas (score ≥ 85 required)
+                        </div>
+                      ) : (
+                        eligibleIdeas.map((idea) => (
+                          <SelectItem key={idea.id} value={idea.id}>
+                            {idea.title} ({idea.overallScore}/100)
                           </SelectItem>
-                        ) : null;
-                      }
-                    )}
-                  </SelectContent>
-                </Select>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
+
+              {/* Mentor Selection */}
               <div className="space-y-2">
-                <Label htmlFor="date">Preferred Date</Label>
+                <Label htmlFor="mentor">Preferred Mentor *</Label>
+                {loadingMentors ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading mentors...
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedMentor}
+                    onValueChange={setSelectedMentor}
+                  >
+                    <SelectTrigger id="mentor">
+                      <SelectValue placeholder="Select a mentor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mentors.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No mentors available
+                        </div>
+                      ) : (
+                        mentors.map((mentor) => (
+                          <SelectItem key={mentor.id} value={mentor.id}>
+                            {mentor.name}
+                            {mentor.organization && ` - ${mentor.organization}`}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Date Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="date">Preferred Date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
+                        !requestDate && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? (
-                        format(selectedDate, "PPP")
+                      {requestDate ? (
+                        format(requestDate, "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
@@ -631,34 +762,51 @@ export default function ConsultationsPage() {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
+                      selected={requestDate}
+                      onSelect={setRequestDate}
                       initialFocus
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
                     />
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Questions */}
               <div className="space-y-2">
-                <Label htmlFor="questions">Questions / Topics</Label>
+                <Label htmlFor="questions">Questions / Topics *</Label>
                 <Textarea
                   id="questions"
                   placeholder="What would you like to discuss?"
+                  value={questions}
+                  onChange={(e) => setQuestions(e.target.value)}
+                  rows={4}
                 />
               </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" disabled={isSubmitting}>
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit">Submit Request</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Request"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Reschedule Modal */}
+      {/* ✅ Reschedule Modal */}
       <Dialog
         open={isRescheduleModalOpen}
         onOpenChange={setIsRescheduleModalOpen}
@@ -674,19 +822,19 @@ export default function ConsultationsPage() {
           <form onSubmit={handleRescheduleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="reschedule-date">New Preferred Date</Label>
+                <Label htmlFor="reschedule-date">New Preferred Date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
+                        !rescheduleDate && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? (
-                        format(selectedDate, "PPP")
+                      {rescheduleDate ? (
+                        format(rescheduleDate, "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
@@ -695,9 +843,12 @@ export default function ConsultationsPage() {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
+                      selected={rescheduleDate}
+                      onSelect={setRescheduleDate}
                       initialFocus
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
                     />
                   </PopoverContent>
                 </Popover>
@@ -706,16 +857,31 @@ export default function ConsultationsPage() {
                 <Label htmlFor="comment">
                   Reason for Rescheduling (Optional)
                 </Label>
-                <Textarea id="comment" placeholder="Explain the reason..." />
+                <Textarea
+                  id="comment"
+                  placeholder="Explain the reason..."
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  rows={3}
+                />
               </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" disabled={isSubmitting}>
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit">Send Reschedule Request</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Reschedule Request"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

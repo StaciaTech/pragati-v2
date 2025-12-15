@@ -127,6 +127,7 @@ import { Roadmap } from "@/components/roadmap";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { ROLES } from "@/lib/constants";
+import html2pdf from "html2pdf.js";
 
 const getBackLink = (role: string | null) => {
   switch (role) {
@@ -257,6 +258,8 @@ export default function IdeaReportPage() {
 
   const token = getToken();
 
+  const [avgClusterScores, setAvgClusterScores] = React.useState({});
+
   // Fetch report data
   const {
     data: reportData,
@@ -269,51 +272,60 @@ export default function IdeaReportPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       console.log(data);
+      if (data?.data?.detailedAnalysis?.cluster_analyses) {
+        console.log(data.data.detailedAnalysis.cluster_analyses);
+        const clusterScores = {};
+
+        Object.entries(data.data.detailedAnalysis.cluster_analyses).forEach(
+          ([clusterName, clusterData]) => {
+            // clusterData.score contains the average score for the cluster
+            clusterScores[clusterName] = Math.round(clusterData.score);
+          }
+        );
+
+        setAvgClusterScores(clusterScores);
+        console.log(clusterScores);
+      }
       return data.data;
     },
     enabled: !!ideaId,
   });
 
   // Process data for UI
-  const { topPerformers, bottomPerformers, avgClusterScores } =
-    React.useMemo(() => {
-      if (!reportData) {
-        return {
-          topPerformers: [],
-          bottomPerformers: [],
-          avgClusterScores: {},
-        };
-      }
+  const { topPerformers, bottomPerformers } = React.useMemo(() => {
+    if (!reportData) {
+      return {
+        topPerformers: [],
+        bottomPerformers: [],
+      };
+    }
 
-      const top: Array<{
-        clusterName: string;
-        paramName: string;
-        name: string;
-        score: number;
-      }> = [];
-      const bottom: Array<{
-        clusterName: string;
-        paramName: string;
-        name: string;
-        score: number;
-      }> = [];
+    const top: Array<{
+      clusterName: string;
+      paramName: string;
+      name: string;
+      score: number;
+    }> = [];
+    const bottom: Array<{
+      clusterName: string;
+      paramName: string;
+      name: string;
+      score: number;
+    }> = [];
 
-      const clusterScores: Record<string, number> = {};
+    const clusterScores: Record<string, number> = {};
 
-      // Process cluster scores for spider chart
-      if (reportData.cluster_scores) {
-        Object.entries(reportData.cluster_scores).forEach(
-          ([cluster, score]) => {
-            clusterScores[cluster] = Math.round(score);
-          }
-        );
-      }
+    // Process cluster scores for spider chart
+    if (reportData.cluster_scores) {
+      Object.entries(reportData.cluster_scores).forEach(([cluster, score]) => {
+        clusterScores[cluster] = Math.round(score);
+      });
+    }
 
-      // Process top and bottom performers
-      if (reportData?.detailedViabilityAssessment?.clusters) {
-        Object.entries(
-          reportData?.detailedViabilityAssessment?.clusters
-        ).forEach(([clusterName, params]) => {
+    // Process top and bottom performers
+    if (reportData?.detailedViabilityAssessment?.clusters) {
+      Object.entries(reportData?.detailedViabilityAssessment?.clusters).forEach(
+        ([clusterName, params]) => {
           Object.entries(params).forEach(([paramName, subParams]) => {
             Object.entries(subParams).forEach(([subParamName, data]) => {
               if (data?.assignedScore !== undefined) {
@@ -336,18 +348,18 @@ export default function IdeaReportPage() {
               }
             });
           });
-        });
-      }
+        }
+      );
+    }
 
-      top.sort((a, b) => b.score - a.score);
-      bottom.sort((a, b) => a.score - b.score);
+    top.sort((a, b) => b.score - a.score);
+    bottom.sort((a, b) => a.score - b.score);
 
-      return {
-        topPerformers: top.slice(0, 3),
-        bottomPerformers: bottom.slice(0, 3),
-        avgClusterScores: clusterScores,
-      };
-    }, [reportData]);
+    return {
+      topPerformers: top.slice(0, 3),
+      bottomPerformers: bottom.slice(0, 3),
+    };
+  }, [reportData]);
 
   const handleHighlightClick = (
     clusterName: string,
@@ -389,32 +401,90 @@ export default function IdeaReportPage() {
 
   const handleDownload = async () => {
     if (!reportRef.current) return;
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = imgWidth / imgHeight;
-    const width = pdfWidth;
-    const height = width / ratio;
 
-    let position = 0;
-    let heightLeft = height;
+    // Store original state
+    const originalAccordionItems = [...openAccordionItems];
+    const originalParameterItems = [...openParameterItems];
 
-    pdf.addImage(imgData, "PNG", 0, position, width, height);
-    heightLeft -= pdfHeight;
+    try {
+      // Expand all clusters
+      const allClusterNames = reportData?.detailedViabilityAssessment?.clusters
+        ? Object.keys(reportData.detailedViabilityAssessment.clusters)
+        : [];
+      setOpenAccordionItems(allClusterNames);
 
-    while (heightLeft > 0) {
-      position = heightLeft - height;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, width, height);
-      heightLeft -= pdfHeight;
+      // Expand all parameters
+      const allParameterKeys: string[] = [];
+      if (reportData?.detailedViabilityAssessment?.clusters) {
+        Object.entries(reportData.detailedViabilityAssessment.clusters).forEach(
+          ([clusterName, clusterData]) => {
+            Object.keys(clusterData).forEach((paramName) => {
+              allParameterKeys.push(`${clusterName}|${paramName}`);
+            });
+          }
+        );
+      }
+      setOpenParameterItems(allParameterKeys);
+
+      // Wait for accordions to expand
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const element = reportRef.current;
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${ideaId}-PragatiAI-Report.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+      };
+
+      await html2pdf().set(opt).from(element).save();
+
+      toast({
+        title: "Success",
+        description: "PDF downloaded successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Restore original state
+      setOpenAccordionItems(originalAccordionItems);
+      setOpenParameterItems(originalParameterItems);
     }
-
-    pdf.save(`${ideaId}-PragatiAI-Report.pdf`);
   };
+
+  // const handleDownload = async () => {
+  //   if (!reportRef.current) return;
+  //   const canvas = await html2canvas(reportRef.current, { scale: 2 });
+  //   const imgData = canvas.toDataURL("image/png");
+  //   const pdf = new jsPDF("p", "mm", "a4");
+  //   const pdfWidth = pdf.internal.pageSize.getWidth();
+  //   const pdfHeight = pdf.internal.pageSize.getHeight();
+  //   const imgWidth = canvas.width;
+  //   const imgHeight = canvas.height;
+  //   const ratio = imgWidth / imgHeight;
+  //   const width = pdfWidth;
+  //   const height = width / ratio;
+
+  //   let position = 0;
+  //   let heightLeft = height;
+
+  //   pdf.addImage(imgData, "PNG", 0, position, width, height);
+  //   heightLeft -= pdfHeight;
+
+  //   while (heightLeft > 0) {
+  //     position = heightLeft - height;
+  //     pdf.addPage();
+  //     pdf.addImage(imgData, "PNG", 0, position, width, height);
+  //     heightLeft -= pdfHeight;
+  //   }
+
+  //   pdf.save(`${ideaId}-PragatiAI-Report.pdf`);
+  // };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);

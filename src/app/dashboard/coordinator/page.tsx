@@ -15,7 +15,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, ListChecks, Users, MessageSquare } from "lucide-react";
+import {
+  Lightbulb,
+  ListChecks,
+  Users,
+  MessageSquare,
+  UserCog, // 🔧 NEW ICON for internal mentors
+} from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -45,7 +51,6 @@ import React from "react";
 import { STATUS_COLORS } from "@/lib/data/platform";
 import { useUserIdeas } from "@/hooks/useUserIdeas";
 
-console.log("fdsa");
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("token") : "";
@@ -56,35 +61,40 @@ const avg = (arr: number[]) =>
 
 export default function CoordinatorDashboardPage() {
   const router = useRouter();
-  const { data: profile } = useUserProfile(); // /api/users/me
-  const { data: allInnovators = [] } = useAllInnovators(); // /api/innovators (already filtered by caller)
+  const { data: profile } = useUserProfile();
+  const { data: allInnovators = [] } = useAllInnovators();
   const token = getToken();
-  console.log(allInnovators);
 
   const innovators = React.useMemo(
     () =>
       allInnovators.filter((inv: any) => inv.ttcCoordinatorId === profile?.uid),
     [allInnovators, profile?.uid]
   );
-  const uid = localStorage.getItem("UserId");
+
   /* ------------- FETCH REAL IDEAS -------------- */
   const { data: ideas = [] } = useUserIdeas();
-  //   console.log(ideas);
 
-  //   const innovatorIds = React.useMemo(
-  //     () => innovators.map((i: any) => i._id),
-  //     [innovators]
-  //   );
+  /* ------------- FETCH INTERNAL MENTORS -------------- */
+  const { data: mentorsData } = useQuery({
+    queryKey: ["internal-mentors"],
+    queryFn: async () => {
+      const { data } = await axios.get(
+        `${apiUrl}/api/coordinator/internal-mentors`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return data;
+    },
+    enabled: !!token,
+  });
 
-  //   const ideas = React.useMemo(
-  //     () => rawIdeas.filter((idea: any) => innovatorIds.includes(idea.userId)),
-  //     [rawIdeas, innovatorIds]
-  //   );
+  const mentors = mentorsData?.data || [];
+  const ownMentors = mentors.filter((m: any) => m.canControl); // Created by TTC
+  const principalMentors = mentors.filter((m: any) => !m.canControl); // Created by Principal
 
   /* ------------- DERIVED NUMBERS --------------- */
   const assignedIdeas = ideas;
   const pendingEvaluations = ideas.filter((i: any) => i.status === "pending");
-  const scheduledConsultations: any[] = []; // not stored yet → keep empty
+  const scheduledConsultations: any[] = [];
 
   /* ------------- CHART: STATUS DISTRIBUTION ---- */
   const statusCounts = ideas.reduce((acc: any, i: any) => {
@@ -108,7 +118,6 @@ export default function CoordinatorDashboardPage() {
     });
     return Object.entries(map)
       .map(([uid, scores]) => ({
-        // find innovator name
         name: innovators.find((inv: any) => inv._id === uid)?.name || "Unknown",
         score: avg(scores),
       }))
@@ -128,7 +137,7 @@ export default function CoordinatorDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card
           className="hover:shadow-lg transition-shadow cursor-pointer"
           onClick={() =>
@@ -183,6 +192,29 @@ export default function CoordinatorDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{pendingEvaluations.length}</p>
+          </CardContent>
+        </Card>
+
+        {/* 🔧 NEW: INTERNAL MENTORS CARD */}
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() =>
+            router.push(
+              `/dashboard/coordinator/internal-mentors?role=${ROLES.COORDINATOR}`
+            )
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
+              Internal Mentors
+            </CardTitle>
+            <UserCog className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{mentors.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {ownMentors.length} yours · {principalMentors.length} principal's
+            </p>
           </CardContent>
         </Card>
 
@@ -278,7 +310,7 @@ export default function CoordinatorDashboardPage() {
         </Card>
       </div>
 
-      {/* UPCOMING CONSULTATIONS TABLE (EMPTY FOR NOW) */}
+      {/* UPCOMING CONSULTATIONS TABLE */}
       <Card>
         <CardHeader>
           <CardTitle>Upcoming Consultations</CardTitle>

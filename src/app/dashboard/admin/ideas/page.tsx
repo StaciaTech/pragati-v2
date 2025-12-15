@@ -147,7 +147,7 @@ export default function IdeaOversightPage() {
   // ✅ Selection handlers (apply only to submitted ideas)
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(submittedIdeas.map((idea) => idea.id)));
+      setSelectedIds(new Set(submittedIdeas.map((idea) => idea._id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -155,7 +155,7 @@ export default function IdeaOversightPage() {
 
   const toggleSelectRow = (ideaId: string, checked: boolean) => {
     // Only allow selecting submitted ideas
-    const idea = submittedIdeas.find((i) => i.id === ideaId);
+    const idea = submittedIdeas.find((i) => i._id === ideaId);
     if (!idea) return;
 
     setSelectedIds((prev) => {
@@ -437,17 +437,17 @@ export default function IdeaOversightPage() {
                   <TableBody>
                     {submittedIdeas.length > 0 ? (
                       submittedIdeas.map((idea) => (
-                        <TableRow key={idea.id}>
+                        <TableRow key={idea._id}>
                           <TableCell>
                             <Checkbox
-                              checked={selectedIds.has(idea.id)}
+                              checked={selectedIds.has(idea._id)}
                               onCheckedChange={(checked) =>
-                                toggleSelectRow(idea.id, Boolean(checked))
+                                toggleSelectRow(idea._id, Boolean(checked))
                               }
                             />
                           </TableCell>
                           <TableCell className="font-mono text-xs">
-                            {idea.id?.slice(0, 8)}...
+                            {idea._id?.slice(0, 8)}...
                           </TableCell>
                           <TableCell className="font-medium">
                             {idea.title}
@@ -473,12 +473,12 @@ export default function IdeaOversightPage() {
                             <Button
                               variant="link"
                               size="sm"
-                              onClick={() => handleValidateIndividual(idea.id)}
+                              onClick={() => handleValidateIndividual(idea._id)}
                               disabled={validateIndividualMutation.isPending}
                             >
                               {validateIndividualMutation.isPending &&
                               validateIndividualMutation.variables ===
-                                idea.id ? (
+                                idea._id ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   Validating...

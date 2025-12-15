@@ -1287,18 +1287,47 @@ const Step2Content = ({
   };
 
   const handleNext = () => {
-    // ✅ FIX: Show warning but ALLOW navigation
-    if (mentorRequestStatus !== "accepted") {
+    // ❌ Block if no mentor selected
+    if (!selectedMentorId) {
       toast({
-        title: "⚠️ Mentor Approval Pending",
+        variant: "destructive",
+        title: "Mentor Required",
         description:
-          "You can continue filling the form, but submission requires mentor approval.",
-        // ✅ Changed from 'destructive' to 'default' (info toast)
+          "Please select an internal mentor and send a request before proceeding.",
+      });
+      return;
+    }
+
+    // ❌ Block if mentor selected but request not sent
+    if (mentorRequestStatus === "none") {
+      toast({
+        variant: "destructive",
+        title: "Send Mentor Request",
+        description:
+          "Please click 'Request Mentor Approval' before proceeding.",
+      });
+      return;
+    }
+
+    // ✅ Allow navigation if request is pending/accepted/rejected
+    if (mentorRequestStatus === "rejected") {
+      toast({
+        title: "⚠️ Mentor Rejected",
+        description:
+          "Your mentor request was rejected. Please select a different mentor.",
+      });
+    }
+
+    if (mentorRequestStatus === "pending") {
+      toast({
+        title: "⚠️ Approval Pending",
+        description:
+          "You can continue, but submission requires mentor approval.",
       });
     }
 
     handleSaveDraft();
-    next(); // ✅ ALWAYS allow next - don't return early
+    next();
   };
 
   const teamInvites = draftData?.invitedTeam || [];
@@ -2329,7 +2358,6 @@ const Step6Content = ({
   mentorApproved,
   handleSaveDraft,
   founderReady,
-  teamReady,
   pendingMembers,
   onSubmitClick,
   draftData,
@@ -2344,6 +2372,12 @@ const Step6Content = ({
   // ✅ Validate based on draftData
   const hasPPT = !!(draftData?.pptFileName || draftData?.pptFileKey);
   const mentorStatus = draftData?.mentorRequestStatus === "accepted";
+
+  const teamInvites = draftData?.teamInvitations || [];
+  const hasPendingTeamInvites = teamInvites.some(
+    (inv: any) => inv.status === "pending"
+  );
+  const teamReady = teamInvites.length === 0 || !hasPendingTeamInvites;
 
   const canSubmit = founderReady && teamReady && mentorStatus && hasPPT;
 

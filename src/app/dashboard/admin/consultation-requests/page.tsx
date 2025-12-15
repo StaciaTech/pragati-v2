@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckCircle, XCircle, Loader2, Eye } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -44,6 +44,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 
 type Idea = {
   id: string;
@@ -66,6 +69,28 @@ type Mentor = {
   organization?: string;
 };
 
+type ConsultationRequest = {
+  id: string;
+  ideaId: string;
+  ideaTitle: string;
+  innovatorId: string;
+  innovatorName: string;
+  innovatorEmail: string;
+  requestedBy: string;
+  requesterName: string;
+  requesterRole: string;
+  requesterRoleDisplay: string;
+  mentorId: string;
+  mentorName: string;
+  mentorEmail: string;
+  preferredDate: string;
+  questions: string;
+  status: "pending" | "approved" | "rejected";
+  overallScore?: number;
+  requestedAt: string;
+  createdAt: string;
+};
+
 export default function ConsultationRequestsPage() {
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -78,12 +103,29 @@ export default function ConsultationRequestsPage() {
   const [mentors, setMentors] = React.useState<Mentor[]>([]);
   const [mentorsLoading, setMentorsLoading] = React.useState(true);
 
+  // Consultation requests state
+  const [requests, setRequests] = React.useState<ConsultationRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = React.useState(true);
+
   const [assignDialogOpen, setAssignDialogOpen] = React.useState(false);
   const [selectedIdea, setSelectedIdea] = React.useState<Idea | null>(null);
   const [selectedMentorId, setSelectedMentorId] = React.useState("");
   const [consultationDate, setConsultationDate] = React.useState<
     Date | undefined
   >(undefined);
+
+  // Request review dialog
+  const [reviewDialogOpen, setReviewDialogOpen] = React.useState(false);
+  const [selectedRequest, setSelectedRequest] =
+    React.useState<ConsultationRequest | null>(null);
+  const [reviewAction, setReviewAction] = React.useState<
+    "approve" | "reject" | null
+  >(null);
+  const [reviewScheduledAt, setReviewScheduledAt] = React.useState<
+    Date | undefined
+  >(undefined);
+  const [reviewReason, setReviewReason] = React.useState("");
+  const [reviewSubmitting, setReviewSubmitting] = React.useState(false);
 
   // Load validated ideas for consultation
   React.useEffect(() => {
@@ -132,10 +174,9 @@ export default function ConsultationRequestsPage() {
       try {
         const token = getToken();
         setMentorsLoading(true);
-        const res = await fetch(
-          `${apiUrl}/api/mentors/external?status=active&limit=100`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await fetch(`${apiUrl}/api/users/mentors`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) {
           throw new Error("Failed to load external mentors");
         }
@@ -162,9 +203,61 @@ export default function ConsultationRequestsPage() {
       }
     };
 
+    const loadRequests = async () => {
+      try {
+        const token = getToken();
+        setRequestsLoading(true);
+
+        // TODO: Replace with actual consultation requests endpoint
+        const res = await fetch(
+          `${apiUrl}/api/admin/consultation-requests?status=pending`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to load consultation requests");
+        }
+
+        const json = await res.json();
+        const data = Array.isArray(json.data) ? json.data : [];
+
+        const mapped: ConsultationRequest[] = data.map((r: any) => ({
+          id: r._id ?? r.id,
+          ideaId: r.ideaId,
+          ideaTitle: r.ideaTitle,
+          innovatorId: r.innovatorId,
+          innovatorName: r.innovatorName,
+          innovatorEmail: r.innovatorEmail,
+          requestedBy: r.requestedBy,
+          requesterName: r.requesterName,
+          requesterRole: r.requesterRole,
+          requesterRoleDisplay: r.requesterRoleDisplay,
+          mentorId: r.mentorId,
+          mentorName: r.mentorName,
+          mentorEmail: r.mentorEmail,
+          preferredDate: r.preferredDate,
+          questions: r.questions,
+          status: r.status,
+          overallScore: r.overallScore,
+          requestedAt: r.requestedAt,
+          createdAt: r.createdAt,
+        }));
+
+        setRequests(mapped);
+      } catch (err: any) {
+        console.error(err);
+        // Don't show error toast for requests - might not be implemented yet
+      } finally {
+        setRequestsLoading(false);
+      }
+    };
+
     loadIdeas();
     loadMentors();
-  }, [toast]);
+    loadRequests();
+  }, [toast, apiUrl]);
 
   const validatedIdeas = ideas;
   const consultedIdeas = ideas.filter((i) => i.consultationMentorId);
@@ -209,7 +302,10 @@ export default function ConsultationRequestsPage() {
         `${apiUrl}/api/ideas/${selectedIdea.id}/consultation`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           credentials: "include",
           body: JSON.stringify(payload),
         }
@@ -260,129 +356,346 @@ export default function ConsultationRequestsPage() {
     }
   };
 
+  const openReviewDialog = (
+    request: ConsultationRequest,
+    action: "approve" | "reject"
+  ) => {
+    setSelectedRequest(request);
+    setReviewAction(action);
+    setReviewScheduledAt(
+      request.preferredDate ? new Date(request.preferredDate) : undefined
+    );
+    setReviewReason("");
+    setReviewDialogOpen(true);
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!selectedRequest || !reviewAction) return;
+
+    if (reviewAction === "approve" && !reviewScheduledAt) {
+      toast({
+        variant: "destructive",
+        title: "Select a date",
+        description: "Please select a consultation date for approval.",
+      });
+      return;
+    }
+
+    setReviewSubmitting(true);
+
+    try {
+      const token = getToken();
+      const endpoint =
+        reviewAction === "approve"
+          ? `${apiUrl}/api/admin/consultation-requests/${selectedRequest.id}/approve`
+          : `${apiUrl}/api/admin/consultation-requests/${selectedRequest.id}/reject`;
+
+      const payload: any = {};
+
+      if (reviewAction === "approve" && reviewScheduledAt) {
+        payload.scheduledAt = reviewScheduledAt.toISOString();
+      }
+
+      if (reviewAction === "reject" && reviewReason.trim()) {
+        payload.reason = reviewReason.trim();
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(
+          errJson?.error || `Failed to ${reviewAction} consultation request`
+        );
+      }
+
+      // Remove from pending requests
+      setRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
+
+      // If approved, update the ideas list
+      if (reviewAction === "approve") {
+        setIdeas((prev) =>
+          prev.map((i) =>
+            i.id === selectedRequest.ideaId
+              ? {
+                  ...i,
+                  consultationMentorId: selectedRequest.mentorId,
+                  consultationMentorName: selectedRequest.mentorName,
+                  consultationScheduledAt: reviewScheduledAt?.toISOString(),
+                }
+              : i
+          )
+        );
+      }
+
+      toast({
+        title: `Request ${reviewAction}d`,
+        description: `Consultation request from ${selectedRequest.requesterName} has been ${reviewAction}d.`,
+      });
+
+      setReviewDialogOpen(false);
+      setSelectedRequest(null);
+      setReviewAction(null);
+      setReviewScheduledAt(undefined);
+      setReviewReason("");
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: `Failed to ${reviewAction} request`,
+        description: err?.message ?? "Something went wrong.",
+      });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+
   return (
     <div className="space-y-6">
-      {/* Validated ideas list */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Validated Ideas</CardTitle>
-            <CardDescription>
-              Assign external mentor consultations for validated ideas.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
-              Loading ideas...
-            </div>
-          ) : validatedIdeas.length === 0 ? (
-            <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
-              No validated ideas available for consultation.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Idea</TableHead>
-                  <TableHead>Innovator</TableHead>
-                  <TableHead>Institution</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Consultation</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {validatedIdeas.map((idea) => (
-                  <TableRow key={idea.id}>
-                    <TableCell className="font-medium">{idea.title}</TableCell>
-                    <TableCell>{idea.innovatorName ?? "—"}</TableCell>
-                    <TableCell>{idea.collegeName ?? "—"}</TableCell>
-                    <TableCell>
-                      {idea.overallScore != null
-                        ? Math.round(idea.overallScore)
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {idea.consultationMentorId ? (
-                        <div className="flex flex-col text-sm">
-                          <span>{idea.consultationMentorName}</span>
-                          {idea.consultationScheduledAt && (
+      <Tabs defaultValue="requests">
+        <TabsList>
+          <TabsTrigger value="requests">
+            Pending Requests ({pendingRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="validated">Validated Ideas</TabsTrigger>
+          <TabsTrigger value="history">Consultation History</TabsTrigger>
+        </TabsList>
+
+        {/* Pending Consultation Requests */}
+        <TabsContent value="requests">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Consultation Requests</CardTitle>
+              <CardDescription>
+                Review and approve/reject consultation requests from innovators
+                and TTC coordinators.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requestsLoading ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Loading requests...
+                </div>
+              ) : pendingRequests.length === 0 ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  No pending consultation requests.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Idea</TableHead>
+                      <TableHead>Innovator</TableHead>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Mentor</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Preferred Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="font-medium">
+                          {request.ideaTitle}
+                        </TableCell>
+                        <TableCell>{request.innovatorName}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-sm">
+                            <span>{request.requesterName}</span>
                             <span className="text-xs text-muted-foreground">
-                              {format(
+                              {request.requesterRoleDisplay}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{request.mentorName}</TableCell>
+                        <TableCell>
+                          {request.overallScore
+                            ? Math.round(request.overallScore)
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {request.preferredDate
+                            ? format(new Date(request.preferredDate), "PPP")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openReviewDialog(request, "approve")
+                              }
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                openReviewDialog(request, "reject")
+                              }
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Validated Ideas */}
+        <TabsContent value="validated">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Validated Ideas</CardTitle>
+                <CardDescription>
+                  Directly assign external mentor consultations for validated
+                  ideas.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  Loading ideas...
+                </div>
+              ) : validatedIdeas.length === 0 ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  No validated ideas available for consultation.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Idea</TableHead>
+                      <TableHead>Innovator</TableHead>
+                      <TableHead>Institution</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Consultation</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {validatedIdeas.map((idea) => (
+                      <TableRow key={idea.id}>
+                        <TableCell className="font-medium">
+                          {idea.title}
+                        </TableCell>
+                        <TableCell>{idea.innovatorName ?? "—"}</TableCell>
+                        <TableCell>{idea.collegeName ?? "—"}</TableCell>
+                        <TableCell>
+                          {idea.overallScore != null
+                            ? Math.round(idea.overallScore)
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {idea.consultationMentorId ? (
+                            <div className="flex flex-col text-sm">
+                              <span>{idea.consultationMentorName}</span>
+                              {idea.consultationScheduledAt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {format(
+                                    new Date(idea.consultationScheduledAt),
+                                    "PPP p"
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <Badge variant="outline">Not assigned</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => openAssignDialog(idea)}
+                            disabled={mentorsLoading}
+                          >
+                            {idea.consultationMentorId
+                              ? "Update Consultation"
+                              : "Assign Consultation"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Consultation History */}
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Consultation History</CardTitle>
+              <CardDescription>
+                All consultations that have been assigned.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {consultedIdeas.length === 0 ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  No consultations have been assigned yet.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Idea</TableHead>
+                      <TableHead>Innovator</TableHead>
+                      <TableHead>Mentor</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {consultedIdeas.map((idea) => (
+                      <TableRow key={idea.id}>
+                        <TableCell>{idea.title}</TableCell>
+                        <TableCell>{idea.innovatorName ?? "—"}</TableCell>
+                        <TableCell>{idea.consultationMentorName}</TableCell>
+                        <TableCell>
+                          {idea.consultationScheduledAt
+                            ? format(
                                 new Date(idea.consultationScheduledAt),
                                 "PPP p"
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <Badge variant="outline">Not assigned</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        onClick={() => openAssignDialog(idea)}
-                        disabled={mentorsLoading}
-                      >
-                        {idea.consultationMentorId
-                          ? "Update Consultation"
-                          : "Assign Consultation"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* History of consultations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Consultation History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {consultedIdeas.length === 0 ? (
-            <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
-              No consultations have been assigned yet.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Idea</TableHead>
-                  <TableHead>Mentor</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {consultedIdeas.map((idea) => (
-                  <TableRow key={idea.id}>
-                    <TableCell>{idea.title}</TableCell>
-                    <TableCell>{idea.consultationMentorName}</TableCell>
-                    <TableCell>
-                      {idea.consultationScheduledAt
-                        ? format(
-                            new Date(idea.consultationScheduledAt),
-                            "PPP p"
-                          )
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="default">Assigned</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                              )
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="default">Assigned</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Assign consultation dialog */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
@@ -451,6 +764,9 @@ export default function ConsultationRequestsPage() {
                     selected={consultationDate}
                     onSelect={setConsultationDate}
                     initialFocus
+                    disabled={(date) =>
+                      date < new Date(new Date().setHours(0, 0, 0, 0))
+                    }
                   />
                 </PopoverContent>
               </Popover>
@@ -466,6 +782,137 @@ export default function ConsultationRequestsPage() {
               Cancel
             </Button>
             <Button onClick={handleAssignConsultation}>Confirm & Assign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Request Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {reviewAction === "approve"
+                ? "Approve Consultation Request"
+                : "Reject Consultation Request"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedRequest &&
+                `Request from ${selectedRequest.requesterName} for "${selectedRequest.ideaTitle}"`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedRequest && (
+            <div className="space-y-4 py-4">
+              {/* Request Details */}
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    Innovator
+                  </Label>
+                  <p className="text-sm">{selectedRequest.innovatorName}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    Requested Mentor
+                  </Label>
+                  <p className="text-sm">{selectedRequest.mentorName}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    Questions/Topics
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedRequest.questions}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Approval fields */}
+              {reviewAction === "approve" && (
+                <div className="space-y-2">
+                  <Label>
+                    Consultation Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !reviewScheduledAt && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {reviewScheduledAt ? (
+                          format(reviewScheduledAt, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={reviewScheduledAt}
+                        onSelect={setReviewScheduledAt}
+                        initialFocus
+                        disabled={(date) =>
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
+              {/* Rejection reason */}
+              {reviewAction === "reject" && (
+                <div className="space-y-2">
+                  <Label>Reason for Rejection (Optional)</Label>
+                  <Textarea
+                    placeholder="Explain why this request is being rejected..."
+                    value={reviewReason}
+                    onChange={(e) => setReviewReason(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReviewDialogOpen(false)}
+              disabled={reviewSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReviewSubmit}
+              disabled={reviewSubmitting}
+              variant={reviewAction === "reject" ? "destructive" : "default"}
+            >
+              {reviewSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : reviewAction === "approve" ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve & Assign
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject Request
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

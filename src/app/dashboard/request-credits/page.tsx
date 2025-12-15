@@ -35,12 +35,13 @@ import { Loader2 } from "lucide-react";
 import {
   useMyPendingRequest,
   useRequestCredits,
-  useUserProfile,
 } from "@/hooks/useAllCreditRequest";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function RequestCreditsPage() {
   // Hooks
   const { data: user, isLoading: isLoadingUser } = useUserProfile();
+  console.log(user);
   const {
     data: pendingRequest,
     isLoading: isLoadingRequest,

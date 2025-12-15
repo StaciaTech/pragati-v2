@@ -67,7 +67,8 @@ export default function AssessmentPage() {
         console.log("Fetching questions from psychometric server...");
 
         const token = localStorage.getItem("token");
-        const userId = localStorage.getItem("userId"); // Ensure userId is stored
+        const userId = localStorage.getItem("UserId"); // Ensure userId is stored
+        console.log(token, userId);
 
         if (!token) {
           throw new Error("No authentication token found");

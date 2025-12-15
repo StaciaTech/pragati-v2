@@ -44,6 +44,8 @@ import {
 import Link from "next/link";
 import { Suspense } from "react";
 import axios from "axios";
+import PragathiLogo from "../vencorplogo.png";
+import Image from "next/image";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -260,7 +262,12 @@ function LoginContent() {
                     Back
                   </Button>
                 )}
-                <Logo className="mb-4 h-12 w-12 text-primary" />
+                {/* <Logo className="mb-4 h-12 w-12 text-primary" /> */}
+                <Image
+                  src={PragathiLogo}
+                  alt="Picture of the author"
+                  className="h-12 w-12 text-primary mb-4"
+                />
                 <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
                   Login Selection
                 </h1>

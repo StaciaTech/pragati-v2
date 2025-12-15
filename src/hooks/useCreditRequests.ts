@@ -13,6 +13,8 @@ export const useCreditRequests = () =>
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
+      console.log(data);
+
       return data.data as import("./types").CreditRequest[];
     },
     staleTime: 5 * 60 * 1000,

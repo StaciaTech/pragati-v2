@@ -23,6 +23,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import Lottie from "lottie-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import PragathiLogo from "../vencorplogo.png";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -102,7 +104,11 @@ export default function SignupPage() {
                     Back
                   </Link>
                 </Button>
-                <Logo className="mb-4 h-12 w-12 text-primary" />
+                <Image
+                  src={PragathiLogo}
+                  alt="Picture of the author"
+                  className="h-12 w-12 text-primary mb-4"
+                />
                 <h1 className="text-2xl font-bold tracking-tight text-foreground font-headline">
                   Create Your Account
                 </h1>
