@@ -16,23 +16,76 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Loader2, AlertCircle } from "lucide-react";
+import {
+  Check,
+  X,
+  Loader2,
+  AlertCircle,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MentorRequest {
   _id: string;
+  requestId: string;
   draftId: string;
   draftTitle: string;
   innovatorId: string;
   innovatorName: string;
   innovatorEmail: string;
+  innovatorPhone?: string;
+  innovatorCollege?: string;
   mentorId: string;
   mentorName: string;
   mentorEmail: string;
   status: "pending" | "accepted" | "rejected";
-  message: string;
-  requestedAt: string;
+  domain?: string;
+  questions?: string;
+  rejectionReason?: string;
   respondedAt?: string;
+  createdAt: string;
+  daysAgo?: number;
+  isPending?: boolean;
+  isAccepted?: boolean;
+  isRejected?: boolean;
+}
+
+interface MentorStats {
+  overview: {
+    totalRequests: number;
+    pendingRequests: number;
+    acceptedRequests: number;
+    rejectedRequests: number;
+    processedRequests: number;
+    activeMentorships: number;
+  };
+  performance: {
+    acceptanceRate: number;
+    averageResponseTime: {
+      hours: number;
+      display: string;
+    };
+  };
+  recentActivity: {
+    last30Days: {
+      requests: number;
+      accepted: number;
+    };
+  };
 }
 
 interface TeamInvitation {
@@ -60,25 +113,38 @@ export default function RequestsPage() {
   const token = localStorage.getItem("token");
 
   // ✅ Get role from URL params
-  const roleParam = searchParams.get("role"); // "team_member", "mentor", or "internal_mentor"
+  const roleParam = searchParams.get("role");
+
+  // ✅ State for filters and pagination
+  const [historyPage, setHistoryPage] = React.useState(1);
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+
+  // ✅ Debounce search input
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setHistoryPage(1); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ✅ Determine which API to call based on role
   const isMentor = roleParam === "mentor" || roleParam === "internal_mentor";
   const isTeamMember = roleParam === "team_member";
 
-  // ✅ Fetch pending requests (mentor or team invitations)
+  // ✅ Fetch pending requests
   const { data: pendingResp, isLoading: loadingPending } = useQuery({
     queryKey: ["requests", "pending", roleParam],
     queryFn: async () => {
       if (isMentor) {
-        // Mentor requests API
         const { data } = await axios.get(
           `${apiUrl}/api/mentors/my-requests?status=pending`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         return data;
       } else if (isTeamMember) {
-        // Team invitations API
         const { data } = await axios.get(
           `${apiUrl}/api/teams/my-invitations?status=pending`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -87,35 +153,79 @@ export default function RequestsPage() {
       }
       return { data: [] };
     },
-    enabled: !!roleParam, // Only fetch if role is specified
+    enabled: !!roleParam,
   });
 
-  // ✅ Fetch all requests (for history)
-  const { data: allRequestsResp, isLoading: loadingAll } = useQuery({
-    queryKey: ["requests", "all", roleParam],
+  // ✅ Fetch history with filters and pagination (NEW - uses history API)
+  const { data: historyResp, isLoading: loadingHistory } = useQuery({
+    queryKey: [
+      "requests",
+      "history",
+      roleParam,
+      historyPage,
+      statusFilter,
+      debouncedSearch,
+    ],
     queryFn: async () => {
       if (isMentor) {
-        const { data } = await axios.get(`${apiUrl}/api/mentors/my-requests`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const params = new URLSearchParams({
+          page: historyPage.toString(),
+          limit: "10",
+          status: statusFilter,
         });
+        if (debouncedSearch) {
+          params.append("search", debouncedSearch);
+        }
+
+        const { data } = await axios.get(
+          `${apiUrl}/api/mentors/my-requests-history?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         return data;
       } else if (isTeamMember) {
+        // Keep existing team invitations logic
         const { data } = await axios.get(`${apiUrl}/api/teams/my-invitations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Filter on client side for team members (no history API yet)
+        const filtered = data.data.filter((r: RequestType) => {
+          if (statusFilter !== "all" && r.status !== statusFilter) return false;
+          return true;
+        });
+        return {
+          data: filtered,
+          pagination: {
+            page: 1,
+            limit: filtered.length,
+            total: filtered.length,
+            pages: 1,
+          },
+        };
+      }
+      return { data: [], pagination: {} };
+    },
+    enabled: !!roleParam,
+  });
+
+  // ✅ Fetch mentor stats (NEW)
+  const { data: statsResp } = useQuery({
+    queryKey: ["mentor-stats", roleParam],
+    queryFn: async () => {
+      if (isMentor) {
+        const { data } = await axios.get(`${apiUrl}/api/mentors/my-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         return data;
       }
-      return { data: [] };
+      return null;
     },
-    enabled: !!roleParam,
+    enabled: isMentor,
   });
 
   // ✅ Accept request mutation
   const acceptMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      console.log("requestId", requestId);
       if (isMentor) {
-        // Mentor accept
         const { data } = await axios.post(
           `${apiUrl}/api/mentors/request/${requestId}/accept`,
           {},
@@ -123,7 +233,6 @@ export default function RequestsPage() {
         );
         return data;
       } else if (isTeamMember) {
-        // Team invitation accept
         const { data } = await axios.post(
           `${apiUrl}/api/teams/invitation/${requestId}/accept`,
           {},
@@ -134,6 +243,7 @@ export default function RequestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["mentor-stats"] });
       toast({
         title: "Request Accepted ✓",
         description: isMentor
@@ -160,7 +270,6 @@ export default function RequestsPage() {
       reason?: string;
     }) => {
       if (isMentor) {
-        // Mentor reject
         const { data } = await axios.post(
           `${apiUrl}/api/mentors/request/${requestId}/reject`,
           { reason: reason || "Unable to mentor at this time" },
@@ -168,7 +277,6 @@ export default function RequestsPage() {
         );
         return data;
       } else if (isTeamMember) {
-        // Team invitation reject
         const { data } = await axios.post(
           `${apiUrl}/api/teams/invitation/${requestId}/reject`,
           {},
@@ -179,6 +287,7 @@ export default function RequestsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["mentor-stats"] });
       toast({
         title: "Request Declined",
         description: isMentor
@@ -197,7 +306,6 @@ export default function RequestsPage() {
   });
 
   const handleAccept = (requestId: string) => {
-    console.log("requestId", requestId);
     acceptMutation.mutate(requestId);
   };
 
@@ -206,12 +314,10 @@ export default function RequestsPage() {
   };
 
   const pendingRequests = pendingResp?.data || [];
-  const allRequests = allRequestsResp?.data || [];
-  const pastRequests = allRequests.filter(
-    (r: RequestType) => r.status !== "pending"
-  );
+  const historyRequests = historyResp?.data || [];
+  const pagination = historyResp?.pagination || {};
+  const stats: MentorStats | null = statsResp?.data || null;
 
-  // ✅ Get appropriate title based on role
   const getTitle = () => {
     if (isMentor) return "Mentorship Requests";
     if (isTeamMember) return "Team Invitations";
@@ -226,16 +332,78 @@ export default function RequestsPage() {
     return "Manage your pending requests.";
   };
 
-  const RequestList = ({
-    list,
-    isPending,
-    isLoading,
-  }: {
-    list: RequestType[];
-    isPending: boolean;
-    isLoading: boolean;
-  }) => {
-    if (isLoading) {
+  // ✅ Stats Dashboard Component (NEW)
+  const StatsOverview = () => {
+    if (!isMentor || !stats) return null;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Acceptance Rate</p>
+                <p className="text-2xl font-bold">
+                  {stats.performance.acceptanceRate}%
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Avg Response Time
+                </p>
+                <p className="text-2xl font-bold">
+                  {stats.performance.averageResponseTime.display}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Active Mentorships
+                </p>
+                <p className="text-2xl font-bold">
+                  {stats.overview.activeMentorships}
+                </p>
+              </div>
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Requests</p>
+                <p className="text-2xl font-bold">
+                  {stats.overview.totalRequests}
+                </p>
+              </div>
+              <XCircle className="h-8 w-8 text-gray-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // ✅ Pending Requests List
+  const PendingRequestList = () => {
+    if (loadingPending) {
       return (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -244,21 +412,18 @@ export default function RequestsPage() {
       );
     }
 
-    if (list.length === 0) {
+    if (pendingRequests.length === 0) {
       return (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No {isPending ? "pending" : "past"} requests.
-          </AlertDescription>
+          <AlertDescription>No pending requests.</AlertDescription>
         </Alert>
       );
     }
 
     return (
       <div className="space-y-4">
-        {list.map((request) => {
-          // Type guard to determine if it's a mentor request or team invitation
+        {pendingRequests.map((request: RequestType) => {
           const isMentorRequest = "draftTitle" in request;
           const title = isMentorRequest
             ? (request as MentorRequest).draftTitle
@@ -269,12 +434,17 @@ export default function RequestsPage() {
           const senderEmail = isMentorRequest
             ? (request as MentorRequest).innovatorEmail
             : (request as TeamInvitation).inviteeEmail;
+          const questions = isMentorRequest
+            ? (request as MentorRequest).questions
+            : null;
+          const domain = isMentorRequest
+            ? (request as MentorRequest).domain
+            : null;
 
           return (
             <Card key={request._id}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
-                  {/* Left side - Sender info */}
                   <div className="flex items-start gap-4 flex-1">
                     <Avatar className="h-12 w-12">
                       <AvatarImage
@@ -289,7 +459,10 @@ export default function RequestsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-semibold text-lg">{title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-lg">{title}</p>
+                        {domain && <Badge variant="secondary">{domain}</Badge>}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {isMentorRequest ? "Requested by" : "Invited by"}{" "}
                         <strong>{senderName}</strong>
@@ -298,62 +471,174 @@ export default function RequestsPage() {
                         {senderEmail} •{" "}
                         {new Date(
                           isMentorRequest
-                            ? (request as MentorRequest).requestedAt
+                            ? (request as MentorRequest).createdAt
                             : (request as TeamInvitation).createdAt
                         ).toLocaleDateString()}
                       </p>
 
-                      {/* Show message if exists (mentor requests only) */}
-                      {isMentorRequest &&
-                        (request as MentorRequest).message && (
-                          <div className="mt-2 p-3 bg-muted rounded-md">
-                            <p className="text-sm italic">
-                              "{(request as MentorRequest).message}"
-                            </p>
-                          </div>
-                        )}
+                      {questions && (
+                        <div className="mt-2 p-3 bg-muted rounded-md">
+                          <p className="text-sm font-medium mb-1">
+                            Questions from Innovator:
+                          </p>
+                          <p className="text-sm italic">"{questions}"</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right side - Actions or Status */}
                   <div className="ml-4">
-                    {isPending ? (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-500 hover:bg-green-600"
-                          onClick={() => {
-                            console.log(request);
-                            handleAccept(request._id);
-                          }}
-                          disabled={acceptMutation.isPending}
-                        >
-                          {acceptMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Check className="h-4 w-4 mr-1" />
-                              Accept
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleReject(request._id)}
-                          disabled={rejectMutation.isPending}
-                        >
-                          {rejectMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <X className="h-4 w-4 mr-1" />
-                              Decline
-                            </>
-                          )}
-                        </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600"
+                        onClick={() => handleAccept(request._id)}
+                        disabled={acceptMutation.isPending}
+                      >
+                        {acceptMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-1" />
+                            Accept
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(request._id)}
+                        disabled={rejectMutation.isPending}
+                      >
+                        {rejectMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 mr-1" />
+                            Decline
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ✅ History List with Filters (NEW)
+  const HistoryRequestList = () => {
+    return (
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by innovator or idea title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val);
+              setHistoryPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Loading State */}
+        {loadingHistory && (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Loading history...</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loadingHistory && historyRequests.length === 0 && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              No history found.{" "}
+              {searchQuery || statusFilter !== "all"
+                ? "Try adjusting your filters."
+                : ""}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* History Items */}
+        {!loadingHistory && historyRequests.length > 0 && (
+          <>
+            <div className="space-y-3">
+              {historyRequests.map((request: MentorRequest) => (
+                <Card key={request._id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage
+                            src={`https://avatar.vercel.sh/${request.innovatorName}.png`}
+                            alt={request.innovatorName}
+                          />
+                          <AvatarFallback>
+                            {request.innovatorName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">
+                              {request.draftTitle}
+                            </p>
+                            {request.domain && (
+                              <Badge variant="outline" className="text-xs">
+                                {request.domain}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            <strong>{request.innovatorName}</strong>
+                            {request.innovatorCollege &&
+                              ` • ${request.innovatorCollege}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(request.respondedAt).toLocaleDateString(
+                              "en-GB"
+                            )}
+                          </p>
+
+                          {/* Rejection reason */}
+                          {request.status === "rejected" &&
+                            request.rejectionReason && (
+                              <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/10 rounded border border-red-200 dark:border-red-800">
+                                <p className="text-xs font-medium text-red-800 dark:text-red-400">
+                                  Rejection reason: {request.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+                        </div>
                       </div>
-                    ) : (
+
                       <Badge
                         variant={
                           request.status === "accepted"
@@ -365,18 +650,47 @@ export default function RequestsPage() {
                           ? "✓ Accepted"
                           : "✗ Declined"}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Page {pagination.page} of {pagination.pages} (
+                  {pagination.total} total)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                    disabled={!pagination.hasPrev || loadingHistory}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setHistoryPage((p) => p + 1)}
+                    disabled={!pagination.hasNext || loadingHistory}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   };
 
-  // ✅ Show error if no role param
   if (!roleParam) {
     return (
       <div className="container mx-auto py-8 max-w-5xl">
@@ -392,13 +706,16 @@ export default function RequestsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-5xl">
+    <div className="container mx-auto py-8 max-w-6xl">
       <Card>
         <CardHeader>
           <CardTitle>{getTitle()}</CardTitle>
           <CardDescription>{getDescription()}</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Stats Overview (Mentors Only) */}
+          <StatsOverview />
+
           <Tabs defaultValue="pending">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="pending">
@@ -409,21 +726,22 @@ export default function RequestsPage() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="history">
+                History
+                {pagination.total > 0 && (
+                  <Badge variant="outline" className="ml-2">
+                    {pagination.total}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
+
             <TabsContent value="pending" className="mt-4">
-              <RequestList
-                list={pendingRequests}
-                isPending={true}
-                isLoading={loadingPending}
-              />
+              <PendingRequestList />
             </TabsContent>
+
             <TabsContent value="history" className="mt-4">
-              <RequestList
-                list={pastRequests}
-                isPending={false}
-                isLoading={loadingAll}
-              />
+              <HistoryRequestList />
             </TabsContent>
           </Tabs>
         </CardContent>

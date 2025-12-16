@@ -462,7 +462,7 @@ export default function IdeasPage() {
                   router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
                 }
               >
-                {new Date(idea.createdAt).toLocaleDateString()}
+                {new Date(idea.createdAt).toLocaleDateString("en-GB")}
               </TableCell>
               <TableCell
                 className="cursor-pointer"
