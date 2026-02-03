@@ -29,6 +29,7 @@ import {
 import Link from "next/link";
 import { ROLES } from "@/lib/constants";
 import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { ScoreDisplay } from "@/components/score-display";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PrincipalIdeaManagementPage() {
@@ -165,6 +166,7 @@ export default function PrincipalIdeaManagementPage() {
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Innovator</TableHead>
+              <TableHead>Score</TableHead>
               <TableHead>Domain</TableHead>
               <TableHead>Mentor</TableHead>
               <TableHead>Status</TableHead>
@@ -190,6 +192,11 @@ export default function PrincipalIdeaManagementPage() {
                       <p className="text-xs text-muted-foreground">
                         {idea.userEmail}
                       </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center scale-75 origin-left -ml-2">
+                      <ScoreDisplay score={idea.overallScore || 0} status="" />
                     </div>
                   </TableCell>
                   <TableCell>

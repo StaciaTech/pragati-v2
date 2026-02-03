@@ -71,6 +71,7 @@ export function LoginForm({ title }: { title: string }) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("collegeId", res.data.user.collegeId);
         localStorage.setItem("UserId", res.data.user.uid);
+        localStorage.setItem("role", res.data.user.role);
         console.log(res.data.user);
 
         toast({

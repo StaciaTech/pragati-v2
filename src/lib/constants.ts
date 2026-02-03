@@ -365,7 +365,7 @@ export const NAV_LINKS: Record<
 export const ROADMAP_PHASES = [
   {
     name: "Phase 1: Ideation",
-    trls: ["TRL 1", "TRL 2"],
+    trls: ["TRL-1", "TRL-2"],
     timeline: "1-2 Weeks",
     keyActivities: [
       {
@@ -384,7 +384,7 @@ export const ROADMAP_PHASES = [
   },
   {
     name: "Phase 2: Prototyping",
-    trls: ["TRL 3", "TRL 4"],
+    trls: ["TRL-3", "TRL-4"],
     timeline: "3-6 Weeks",
     keyActivities: [
       {
@@ -403,7 +403,7 @@ export const ROADMAP_PHASES = [
   },
   {
     name: "Phase 3: Validation",
-    trls: ["TRL 5", "TRL 6", "TRL 7"],
+    trls: ["TRL-5", "TRL-6", "TRL-7"],
     timeline: "4-8 Weeks",
     keyActivities: [
       {
@@ -422,7 +422,7 @@ export const ROADMAP_PHASES = [
   },
   {
     name: "Phase 4: Launch",
-    trls: ["TRL 8"],
+    trls: ["TRL-8"],
     timeline: "6-10 Weeks",
     keyActivities: [
       {
@@ -441,7 +441,7 @@ export const ROADMAP_PHASES = [
   },
   {
     name: "Phase 5: Growth",
-    trls: ["TRL 9"],
+    trls: ["TRL-9"],
     timeline: "Ongoing",
     keyActivities: [
       {

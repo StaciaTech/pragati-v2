@@ -64,6 +64,9 @@ export default function InnovatorAnalyticsPage() {
         setStats(statsRes.data.data);
         setTimeline(timelineRes.data.data);
         setClusterData(clusterRes.data.data);
+        console.log("Stats:", stats);
+        console.log("Timeline:", timeline);
+        console.log("Cluster Data:", clusterRes);
       } catch (error) {
         console.error("Failed to fetch analytics:", error);
       } finally {

@@ -209,8 +209,8 @@ export default function ReportsPage() {
       const token = getToken();
       const endpoint =
         reportType === "ideas"
-          ? "/api/reports/standard/ideas-summary"
-          : "/api/reports/standard/consultations";
+          ? "/api/reports/hub/standard/ideas-summary"
+          : "/api/reports/hub/standard/consultations";
 
       const response = await fetch(`${API_URL}${endpoint}`, {
         headers: {
@@ -288,14 +288,17 @@ export default function ReportsPage() {
             : { type: "now" },
       };
 
-      const response = await fetch(`${API_URL}/api/reports/custom/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_URL}/api/reports/hub/custom/generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();

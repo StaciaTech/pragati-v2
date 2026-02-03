@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { STATUS_COLORS } from "@/lib/data/platform";
+import { Eye, Loader2 } from "lucide-react";
 
 /* ----------  UI dialogs / forms  ---------- */
 import {
@@ -30,6 +31,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -59,6 +61,10 @@ export default function PrincipalMentorManagementPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = React.useState(false);
+  const [selectedMentorId, setSelectedMentorId] = React.useState<string | null>(
+    null,
+  );
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = React.useState(false);
 
   /* ----------  Fetch Internal Mentors  ---------- */
   const {
@@ -72,7 +78,7 @@ export default function PrincipalMentorManagementPage() {
       if (!token) throw new Error("No token");
       const { data } = await axios.get(
         `${apiUrl}/api/principal/internal-mentors`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -80,6 +86,43 @@ export default function PrincipalMentorManagementPage() {
   });
 
   const mentors = mentorsData?.data || [];
+
+  /* ----------  Fetch Mentor Assignments  ---------- */
+  const {
+    data: assignmentsData,
+    isLoading: assignmentsLoading,
+    error: assignmentsError,
+  } = useQuery({
+    queryKey: ["mentor-assignments", selectedMentorId],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("No token");
+      const { data } = await axios.get(
+        `${apiUrl}/api/principal/mentors/${selectedMentorId}/assignments`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      return data;
+    },
+    enabled: !!selectedMentorId && isDetailsModalOpen,
+  });
+
+  // ✅ Refactored Data Processing for New Schema
+  const mentorDetails = assignmentsData?.data || {};
+  const assignments = mentorDetails?.assignments || [];
+  const innovatorsList = mentorDetails?.innovators || [];
+
+  // Create a lookup map for innovators
+  const innovatorsMap = React.useMemo(() => {
+    const map: Record<string, any> = {};
+    innovatorsList.forEach((inn: any) => {
+      map[inn.id] = inn;
+    });
+    return map;
+  }, [innovatorsList]);
+
+  // Derived Stats
+  const totalIdeas = assignments.length;
+  const uniqueInnovators = innovatorsList.length;
 
   /* ----------  mutations  ---------- */
   const addMentorMutation = useMutation({
@@ -148,7 +191,7 @@ export default function PrincipalMentorManagementPage() {
       return axios.put(
         `${apiUrl}/api/principal/internal-mentors/${mentorId}/activate`,
         { isActive },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
     },
     onSuccess: () => {
@@ -170,7 +213,7 @@ export default function PrincipalMentorManagementPage() {
       if (!token) throw new Error("No token");
       return axios.delete(
         `${apiUrl}/api/principal/internal-mentors/${mentorId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
     },
     onSuccess: () => {
@@ -224,7 +267,7 @@ export default function PrincipalMentorManagementPage() {
   const filteredMentors = mentors.filter(
     (m: any) =>
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.email.toLowerCase().includes(searchTerm.toLowerCase())
+      m.email.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (isLoading)
@@ -301,6 +344,17 @@ export default function PrincipalMentorManagementPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="View Details"
+                        onClick={() => {
+                          setSelectedMentorId(mentor._id);
+                          setIsDetailsModalOpen(true);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant={mentor.isActive ? "outline" : "default"}
                         size="sm"
@@ -423,6 +477,150 @@ export default function PrincipalMentorManagementPage() {
               Expertise should be comma-separated values
             </p>
           </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ----------  VIEW DETAILS MODAL  ---------- */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Mentor Details</DialogTitle>
+            <DialogDescription>
+              Assignments and details for the selected mentor.
+            </DialogDescription>
+          </DialogHeader>
+
+          {assignmentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                Loading details...
+              </span>
+            </div>
+          ) : assignmentsError ? (
+            <div className="p-4 text-center text-destructive">
+              Failed to load assignments.
+            </div>
+          ) : !mentorDetails?.mentor ? (
+            <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+              <span className="text-lg font-semibold">No Data Available</span>
+              <span className="text-sm">
+                Could not retrieve details for this mentor.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Mentor Info */}
+              <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-secondary/10">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Name
+                  </p>
+                  <p className="text-lg font-bold">
+                    {mentorDetails?.mentor?.name || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Email
+                  </p>
+                  <p className="text-lg font-bold">
+                    {mentorDetails?.mentor?.email || "N/A"}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Expertise
+                  </p>
+                  <p className="text-sm">
+                    {mentorDetails?.mentor?.expertise || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats Checks */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border p-4 rounded-lg text-center bg-primary/5">
+                  <p className="text-2xl font-bold text-primary">
+                    {totalIdeas}
+                  </p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Total Ideas
+                  </p>
+                </div>
+                <div className="border p-4 rounded-lg text-center bg-primary/5">
+                  <p className="text-2xl font-bold text-primary">
+                    {uniqueInnovators}
+                  </p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Innovators
+                  </p>
+                </div>
+              </div>
+
+              {/* Assigned Ideas */}
+              <div>
+                <h3 className="text-md font-semibold mb-2">Assigned Ideas</h3>
+                {assignments.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Idea Title</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Innovator</TableHead>
+                        <TableHead>Assigned Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {assignments.map((assignment: any, idx: number) => {
+                        const innovator =
+                          innovatorsMap[assignment.innovatorId] || {};
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">
+                              {assignment.title}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {assignment.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {innovator.name || "Unknown"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {innovator.email}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {assignment.submittedAt
+                                ? new Date(
+                                    assignment.submittedAt,
+                                  ).toLocaleDateString()
+                                : "-"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-md border-dashed">
+                    No ideas assigned to this mentor yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Close</Button>

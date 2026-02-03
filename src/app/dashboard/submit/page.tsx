@@ -111,6 +111,87 @@ const weightageSchema = clusterKeys.reduce(
   {} as Record<string, z.ZodNumber>
 );
 
+// At the top, create dynamic schema based on user role
+const createSubmitIdeaSchema = (userRole: string) => {
+  const baseSchema = {
+    ...weightageSchema,
+    preset: z.string().default("Balanced"),
+    title: z.string().min(1, { message: "Title is required." }),
+    coreTeam: z.string().optional(),
+    invitedTeam: z.array(z.string()).optional(),
+    domain: z.string().min(1, { message: "Project domain is required." }),
+    subDomain: z.string().optional(),
+    otherDomain: z.string().optional(),
+    cityOrVillage: z.string().optional(),
+    locality: z.string().optional(),
+    concept: z.string().min(1, { message: "Core concept is required." }),
+    trl: z.string().min(1, { message: "TRL is required." }),
+    background: z.string().min(1, { message: "Background is required." }),
+    pptFile: z
+      .any()
+      .refine((files) => files?.[0], "Presentation file is required.")
+      .refine((files) => {
+        const name = files?.[0]?.name?.toLowerCase();
+        return (
+          name?.endsWith(".ppt") ||
+          name?.endsWith(".pptx") ||
+          name?.endsWith(".pdf")
+        );
+      }, "Please upload a .ppt, .pptx, or .pdf file."),
+  };
+
+  // ✅ Only require mentorId for non-individual innovators
+  if (userRole !== "individual_innovator") {
+    baseSchema.mentorId = z
+      .string()
+      .min(1, { message: "A mentor must be selected." });
+  } else {
+    baseSchema.mentorId = z.string().optional();
+  }
+
+  return z
+    .object(baseSchema)
+    .refine(
+      (data) => {
+        if (data.domain === "Other") {
+          return !!data.otherDomain && data.otherDomain.length > 0;
+        }
+        return true;
+      },
+      {
+        message: "Please specify your domain",
+        path: ["otherDomain"],
+      }
+    )
+    .refine(
+      (data) => {
+        const selectedDomain = MOCK_DOMAINS_WITH_SUBDOMAINS.find(
+          (d) => d.name === data.domain
+        );
+        if (selectedDomain && selectedDomain.subDomains.length > 0) {
+          return !!data.subDomain && data.subDomain.length > 0;
+        }
+        return true;
+      },
+      {
+        message: "Please select a sub-domain.",
+        path: ["subDomain"],
+      }
+    )
+    .refine(
+      (data) => {
+        if (data.domain === "Retail") {
+          return !!data.cityOrVillage && data.cityOrVillage.length > 0;
+        }
+        return true;
+      },
+      {
+        message: "Please select a city or village for the Retail domain",
+        path: ["cityOrVillage"],
+      }
+    );
+};
+
 const submitIdeaSchema = z
   .object({
     ...weightageSchema,
@@ -327,6 +408,15 @@ export default function SubmitIdeaPage() {
   const { data: profile } = useUserProfile();
   console.log(profile);
 
+  const userRole = profile?.role || "innovator";
+
+  const submitIdeaSchema = React.useMemo(
+    () => createSubmitIdeaSchema(userRole),
+    [userRole]
+  );
+
+  // Form setup with dynamic schema
+
   // console.log(serverDraft);
 
   const serverDraftData = serverDraft?.draft;
@@ -464,6 +554,7 @@ export default function SubmitIdeaPage() {
   }, []);
 
   // Form setup
+  // Form setup with dynamic schema
   const form = useForm<SubmitIdeaForm>({
     resolver: zodResolver(submitIdeaSchema),
     defaultValues,
@@ -884,8 +975,51 @@ function SubmitIdeaForm({
   handleUploadPpt: (file: File) => void;
   draftId: string | undefined; // ✅ Add type
   draftData: any;
+  profile: any;
 }) {
   const stepper = useStepper();
+  // ✅ Check if user is individual innovator
+  const isIndividualInnovator = profile?.role === "individual_innovator";
+
+  // ✅ Adjust step indices based on role
+  const getStepIndex = (baseIndex: number) => {
+    // If individual innovator and step is after mentor step (index 1), subtract 1
+    if (isIndividualInnovator && baseIndex > 1) {
+      return baseIndex - 1;
+    }
+    return baseIndex;
+  };
+
+  const getVisualStepNumber = (actualIndex: number): number => {
+    // For individual innovators, Step 2 (mentor) doesn't exist
+    // So Step 3 becomes "2", Step 4 becomes "3", etc.
+    if (isIndividualInnovator && actualIndex > 1) {
+      return actualIndex; // Display as 2, 3, 4, 5 instead of 3, 4, 5, 6
+    }
+    return actualIndex + 1; // Normal: display as 1, 2, 3, 4, 5, 6
+  };
+
+  // ✅ Helper function for navigation from Step 1
+  const handleStep1Next = () => {
+    if (isIndividualInnovator) {
+      // Skip mentor step (index 1), go directly to Step 3 (index 2)
+      stepper.next(); // Go to Step 2
+      setTimeout(() => stepper.next(), 0);
+    } else {
+      stepper.next();
+    }
+  };
+
+  // ✅ Helper function for navigation back from Step 3
+  const handleStep3Prev = () => {
+    if (isIndividualInnovator) {
+      // Go back to Step 1 (index 0), skipping mentor step
+      stepper.prev(); // Go to Step 2
+      setTimeout(() => stepper.prev(), 0);
+    } else {
+      stepper.prev();
+    }
+  };
   return (
     <>
       <StepperItem index={0}>
@@ -898,32 +1032,34 @@ function SubmitIdeaForm({
         <StepperContent>
           <Step1Content
             form={form}
-            next={stepper.next}
+            next={handleStep1Next}
             handleSaveDraft={handleSaveDraft}
           />
         </StepperContent>
       </StepperItem>
 
-      <StepperItem index={1}>
-        <StepperTrigger>
-          <CardTitle>Internal mentor assignment</CardTitle>
-          <CardDescription>
-            Select a mentor for guidance and approval.
-          </CardDescription>
-        </StepperTrigger>
-        <StepperContent>
-          <Step2Content
-            form={form}
-            next={stepper.next}
-            prev={stepper.prev}
-            setMentorApproved={setMentorApproved}
-            mentorApproved={mentorApproved}
-            handleSaveDraft={handleSaveDraft}
-            draftId={draftId}
-            draftData={draftData}
-          />
-        </StepperContent>
-      </StepperItem>
+      {!isIndividualInnovator && (
+        <StepperItem index={1}>
+          <StepperTrigger>
+            <CardTitle>Internal mentor assignment</CardTitle>
+            <CardDescription>
+              Select a mentor for guidance and approval.
+            </CardDescription>
+          </StepperTrigger>
+          <StepperContent>
+            <Step2Content
+              form={form}
+              next={stepper.next}
+              prev={stepper.prev}
+              setMentorApproved={setMentorApproved}
+              mentorApproved={mentorApproved}
+              handleSaveDraft={handleSaveDraft}
+              draftId={draftId}
+              draftData={draftData}
+            />
+          </StepperContent>
+        </StepperItem>
+      )}
 
       <StepperItem index={2}>
         <StepperTrigger>
@@ -936,7 +1072,7 @@ function SubmitIdeaForm({
           <Step3Content
             form={form}
             next={stepper.next}
-            prev={stepper.prev}
+            prev={handleStep3Prev}
             handleSaveDraft={handleSaveDraft}
             draftData={draftData}
           />
@@ -1002,6 +1138,7 @@ function SubmitIdeaForm({
             pendingMembers={pendingMembers}
             onSubmitClick={handleFinalSubmit}
             draftData={draftData}
+            isIndividualInnovator={isIndividualInnovator}
           />
         </StepperContent>
       </StepperItem>
@@ -2181,6 +2318,17 @@ const Step5Content = ({
   const hasFile = uploadedKey || draftData?.pptFileKey;
   const displayFileName = uploadedName || draftData?.pptFileName || "";
 
+  // ✅ Get file extension and type
+  const getFileType = (filename: string) => {
+    const ext = filename?.toLowerCase().split(".").pop();
+    if (ext === "pdf") return { icon: "📄", type: "PDF" };
+    if (ext === "ppt" || ext === "pptx")
+      return { icon: "📊", type: "PowerPoint" };
+    return { icon: "📎", type: "File" };
+  };
+
+  const fileInfo = displayFileName ? getFileType(displayFileName) : null;
+
   return (
     <div className="space-y-6 py-6">
       {/* ✅ Show success alert if file exists */}
@@ -2256,7 +2404,7 @@ const Step5Content = ({
                     <Input
                       type="file"
                       className="pl-10"
-                      accept=".ppt,.pptx"
+                      accept=".ppt,.pptx,.pdf"
                       disabled={isUploading}
                       {...fieldProps}
                       onChange={(e) => {
@@ -2278,7 +2426,7 @@ const Step5Content = ({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Accepted formats: .ppt, .pptx (max 10MB)
+                    Accepted formats: .ppt, .pptx, .pdf (max 10MB)
                   </p>
                 </div>
               )}
@@ -2361,6 +2509,7 @@ const Step6Content = ({
   pendingMembers,
   onSubmitClick,
   draftData,
+  isIndividualInnovator,
 }: any) => {
   const allValues = form.getValues();
   const weights = clusters.reduce(
@@ -2371,7 +2520,9 @@ const Step6Content = ({
 
   // ✅ Validate based on draftData
   const hasPPT = !!(draftData?.pptFileName || draftData?.pptFileKey);
-  const mentorStatus = draftData?.mentorRequestStatus === "accepted";
+  const mentorStatus = isIndividualInnovator
+    ? true
+    : draftData?.mentorRequestStatus === "accepted";
 
   const teamInvites = draftData?.teamInvitations || [];
   const hasPendingTeamInvites = teamInvites.some(
@@ -2438,9 +2589,9 @@ const Step6Content = ({
         </div>
       </div>
 
-      {!mentorStatus && (
+      {!isIndividualInnovator && !mentorStatus && (
         <p className="text-sm text-yellow-500 text-right mt-2">
-          Mentor approval is required before submission.
+          ⚠️ Mentor approval is required before submission.
         </p>
       )}
 

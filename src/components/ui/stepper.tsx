@@ -1,54 +1,51 @@
+"use client";
 
-"use client"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Check } from "lucide-react";
 
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Check } from "lucide-react"
-
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 interface StepperContextValue extends StepperProps {
-  clickable?: boolean
-  isError?: boolean
-  isLoading?: boolean
-  isVertical: boolean
-  stepCount: number
-  expandVerticalSteps: boolean
+  clickable?: boolean;
+  isError?: boolean;
+  isLoading?: boolean;
+  isVertical: boolean;
+  stepCount: number;
+  expandVerticalSteps: boolean;
   activeStep: number;
   next: () => void;
   prev: () => void;
 }
 
-const StepperContext = React.createContext<StepperContextValue | null>(null)
+const StepperContext = React.createContext<StepperContextValue | null>(null);
 
 function useStepper() {
-  const context = React.useContext(StepperContext)
+  const context = React.useContext(StepperContext);
   if (!context) {
-    throw new Error("useStepper must be used within a <Stepper />")
+    throw new Error("useStepper must be used within a <Stepper />");
   }
-  return context
+  return context;
 }
 
-const stepperVariants = cva(
-  "flex w-full flex-wrap justify-between gap-2",
-  {
-    variants: {
-      orientation: {
-        horizontal: "flex-row",
-        vertical: "flex-col",
-      },
+const stepperVariants = cva("flex w-full flex-wrap justify-between gap-2", {
+  variants: {
+    orientation: {
+      horizontal: "flex-row",
+      vertical: "flex-col",
     },
-    defaultVariants: {
-      orientation: "horizontal",
-    },
-  }
-)
+  },
+  defaultVariants: {
+    orientation: "horizontal",
+  },
+});
 
-interface StepperProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof stepperVariants> {
+interface StepperProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof stepperVariants> {
   initialStep?: number;
   children: React.ReactNode;
 }
-
 
 const Stepper = React.forwardRef<HTMLDivElement, StepperProps>(
   (
@@ -61,9 +58,9 @@ const Stepper = React.forwardRef<HTMLDivElement, StepperProps>(
     },
     ref
   ) => {
-    const isVertical = orientation === "vertical"
-    const [activeStep, setActiveStep] = React.useState(initialStep)
-    
+    const isVertical = orientation === "vertical";
+    const [activeStep, setActiveStep] = React.useState(initialStep);
+
     const next = () => setActiveStep((prev) => prev + 1);
     const prev = () => setActiveStep((prev) => Math.max(0, prev - 1));
 
@@ -76,7 +73,7 @@ const Stepper = React.forwardRef<HTMLDivElement, StepperProps>(
       next,
       prev,
       ...props,
-    } as StepperContextValue
+    } as StepperContextValue;
 
     return (
       <StepperContext.Provider value={contextValue}>
@@ -88,57 +85,71 @@ const Stepper = React.forwardRef<HTMLDivElement, StepperProps>(
           {children}
         </div>
       </StepperContext.Provider>
-    )
+    );
   }
-)
-Stepper.displayName = "Stepper"
+);
+Stepper.displayName = "Stepper";
 
-
-const StepperItem = React.forwardRef<HTMLDivElement, { children: React.ReactNode; index?: number }>(
-  ({ children, index }, ref) => {
-    const { activeStep, isVertical } = useStepper()
-    const isCompleted = index !== undefined && index < activeStep
-    const isActive = index === activeStep
-
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          "flex-1 flex flex-col gap-2",
-          isVertical ? "items-start" : "items-center"
-        )}
-        data-active={isActive}
-        data-completed={isCompleted}
-      >
-        {React.Children.map(children, (child) =>
-          React.isValidElement(child)
-            ? React.cloneElement(child as React.ReactElement<any>, {
-                index,
-                isCompleted,
-                isActive,
-              })
-            : child
-        )}
-      </div>
-    )
-  }
-)
-StepperItem.displayName = "StepperItem"
-
-
-const StepperTrigger = React.forwardRef<
+const StepperItem = React.forwardRef<
   HTMLDivElement,
-  { children: React.ReactNode; index?: number; isCompleted?: boolean; isActive?: boolean }
->(({ children, index, isCompleted, isActive }, ref) => {
-  const { activeStep, isVertical, next, prev } = useStepper()
+  { children: React.ReactNode; index?: number }
+>(({ children, index }, ref) => {
+  const { activeStep, isVertical } = useStepper();
+  const isCompleted = index !== undefined && index < activeStep;
+  const isActive = index === activeStep;
 
   return (
     <div
       ref={ref}
       className={cn(
-        "flex items-center gap-4",
-        isVertical ? "w-full" : ""
+        "flex-1 flex flex-col gap-2",
+        isVertical ? "items-start" : "items-center"
       )}
+      data-active={isActive}
+      data-completed={isCompleted}
+    >
+      {React.Children.map(children, (child) =>
+        React.isValidElement(child)
+          ? React.cloneElement(child as React.ReactElement<any>, {
+              index,
+              isCompleted,
+              isActive,
+            })
+          : child
+      )}
+    </div>
+  );
+});
+StepperItem.displayName = "StepperItem";
+
+const StepperTrigger = React.forwardRef<
+  HTMLDivElement,
+  {
+    children: React.ReactNode;
+    index?: number;
+    isCompleted?: boolean;
+    isActive?: boolean;
+    isIndividualInnovator?: boolean; // ✅ NEW: Pass role info
+  }
+>(({ children, index, isCompleted, isActive, isIndividualInnovator }, ref) => {
+  const { activeStep, isVertical, next, prev } = useStepper();
+
+  // ✅ Calculate display number based on role and index
+  const getDisplayNumber = () => {
+    if (index === undefined) return "";
+
+    // For individual innovators, adjust numbering after mentor step (index 1)
+    if (isIndividualInnovator && index > 1) {
+      return index; // Shows as 2, 3, 4, 5 (instead of 3, 4, 5, 6)
+    }
+
+    return index + 1; // Normal: shows as 1, 2, 3, 4, 5, 6
+  };
+
+  return (
+    <div
+      ref={ref}
+      className={cn("flex items-center gap-4", isVertical ? "w-full" : "")}
     >
       <div
         className={cn(
@@ -150,23 +161,25 @@ const StepperTrigger = React.forwardRef<
         {isCompleted ? (
           <Check className="w-5 h-5" />
         ) : (
-          <span className={cn(isActive && "text-primary")}>{index !== undefined && index + 1}</span>
+          <span className={cn(isActive && "text-primary")}>
+            {getDisplayNumber()}
+          </span>
         )}
       </div>
       <div className={cn(isVertical ? "flex flex-col" : "hidden md:block")}>
         {children}
       </div>
     </div>
-  )
-})
-StepperTrigger.displayName = "StepperTrigger"
+  );
+});
+StepperTrigger.displayName = "StepperTrigger";
 
 const StepperContent = React.forwardRef<
   HTMLDivElement,
   { children: React.ReactNode; index?: number; isActive?: boolean }
 >(({ children, index, isActive }, ref) => {
-  const { isVertical, activeStep } = useStepper()
-  
+  const { isVertical, activeStep } = useStepper();
+
   if (index !== activeStep) return null;
 
   return (
@@ -179,15 +192,8 @@ const StepperContent = React.forwardRef<
     >
       {children}
     </div>
-  )
-})
-StepperContent.displayName = "StepperContent"
+  );
+});
+StepperContent.displayName = "StepperContent";
 
-
-export {
-  Stepper,
-  StepperItem,
-  StepperTrigger,
-  StepperContent,
-  useStepper,
-}
+export { Stepper, StepperItem, StepperTrigger, StepperContent, useStepper };

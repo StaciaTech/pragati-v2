@@ -44,6 +44,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: user } = useUserProfile();
 
+  console.log(user);
+
   const searchParams = useSearchParams();
   const role = (searchParams.get("role") as Role) || ROLES.INNOVATOR;
 
@@ -87,6 +89,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const displayRole = () => {
     switch (role) {
       case "innovator":
+        return "Innovator";
+      case "individual_innovator":
         return "Innovator";
       case "college_admin":
         return "College Principal Admin";
@@ -240,6 +244,50 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+            )}
+            {role === ROLES.INDIVIDUAL_INNOVATOR && (
+              <div>
+                {" "}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="text-white bg-gradient-to-r from-purple-500 to-indigo-500"
+                        asChild
+                      >
+                        <Link href={getCreditRequestLink()}>
+                          <CreditCard className="size-5" />
+                          {user?.creditQuota !== null && (
+                            <span className="ml-2 hidden sm:inline">
+                              {user?.creditQuota} Credits
+                            </span>
+                          )}
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="relative"
+                      >
+                        <Link href={`/dashboard/consultations?role=${role}`}>
+                          <CalendarDays className="h-5 w-5" />
+                          {upcomingConsultations > 0 && (
+                            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                            </span>
+                          )}
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
             <Notifications role={role} />
             <ThemeToggle />

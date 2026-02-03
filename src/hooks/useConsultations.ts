@@ -55,6 +55,44 @@ export interface ExternalMentor {
   expertise?: string[];
 }
 
+// hook to fetch single consultation by ideaId
+import { useQuery } from "@tanstack/react-query";
+
+export function useIdeaConsultation(ideaId: string) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  return useQuery({
+    queryKey: ["consultation", ideaId],
+    queryFn: async () => {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token");
+
+      const res = await fetch(`${apiUrl}/api/ideas/consultations/${ideaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 404) return null; // Handle Not Assigned
+      if (!res.ok) throw new Error("Failed to fetch");
+
+      const json = await res.json();
+      // Return null if data is empty or generic "not found" response
+      if (!json.data) return null;
+
+      return {
+        status: json.data.status || "Pending",
+        scheduledAt: json.data.date || json.data.scheduledAt,
+        mentor: {
+          name: json.data.mentorName || json.data.mentor?.name || "Unknown",
+          organization:
+            json.data.mentorOrganization || json.data.mentor?.organization,
+        },
+      };
+    },
+    retry: false,
+    enabled: !!ideaId,
+  });
+}
+
 // lib/hooks/useConsultations.ts
 
 export function useConsultations() {
@@ -70,9 +108,12 @@ export function useConsultations() {
   const getRole = () => {
     if (typeof window === "undefined") return "innovator";
     const role = localStorage.getItem("role");
+    console.log(role);
     // ✅ FIXED: Handle null/undefined role
     return role || "innovator";
   };
+
+  console.log(getRole());
 
   useEffect(() => {
     const loadConsultations = async () => {
@@ -90,7 +131,7 @@ export function useConsultations() {
           `${apiUrl}/api/ideas/consultations/my?role=${role}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
 
         if (!res.ok) {
@@ -168,7 +209,7 @@ export function useConsultations() {
         `${apiUrl}/api/ideas/eligible-for-consultation?role=${role}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       if (!res.ok) {
@@ -218,7 +259,7 @@ export function useConsultations() {
       mentorId: string;
       preferredDate: string;
       questions: string;
-    }
+    },
   ) => {
     try {
       const token = getToken();
@@ -233,7 +274,7 @@ export function useConsultations() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       if (!res.ok) {
@@ -255,7 +296,7 @@ export function useConsultations() {
     payload: {
       scheduledAt: string;
       reason: string;
-    }
+    },
   ) => {
     try {
       const token = getToken();
@@ -270,7 +311,7 @@ export function useConsultations() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       if (!res.ok) {
@@ -297,7 +338,7 @@ export function useConsultations() {
         `${apiUrl}/api/ideas/consultations/my?role=${role}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       if (!res.ok) {

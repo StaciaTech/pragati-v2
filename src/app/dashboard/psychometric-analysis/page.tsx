@@ -76,6 +76,7 @@ export default function InnovatorPsychometricPage() {
       ROLES.MENTOR,
       ROLES.INTERNAL_MENTOR,
       ROLES.TEAM_MEMBER,
+      ROLES.INDIVIDUAL_INNOVATOR,
     ].includes(roleParam as any);
 
   // Get user data including role and isPsychometricAnalysisDone

@@ -20,7 +20,8 @@ import {
   ListChecks,
   Users,
   MessageSquare,
-  UserCog, // 🔧 NEW ICON for internal mentors
+  UserCog,
+  Loader2,
 } from "lucide-react";
 import {
   ChartContainer,
@@ -40,98 +41,103 @@ import {
   YAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ROLES } from "@/lib/constants";
-import { useAllInnovators } from "@/hooks/useAllInnovators";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import React from "react";
-import { STATUS_COLORS } from "@/lib/data/platform";
-import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { useConsultations } from "@/hooks/useConsultations";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
-/* ---------- HELPERS ---------- */
-const avg = (arr: number[]) =>
-  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+/* ---------- STATUS COLORS ---------- */
+const STATUS_COLORS: Record<string, string> = {
+  assigned: "bg-blue-500 text-white",
+  rescheduled: "bg-yellow-500 text-white",
+  completed: "bg-green-500 text-white",
+  cancelled: "bg-red-500 text-white",
+};
 
 export default function CoordinatorDashboardPage() {
   const router = useRouter();
   const { data: profile } = useUserProfile();
-  const { data: allInnovators = [] } = useAllInnovators();
   const token = getToken();
 
-  const innovators = React.useMemo(
-    () =>
-      allInnovators.filter((inv: any) => inv.ttcCoordinatorId === profile?.uid),
-    [allInnovators, profile?.uid]
-  );
+  const { consultations } = useConsultations();
+  console.log(consultations);
 
-  /* ------------- FETCH REAL IDEAS -------------- */
-  const { data: ideas = [] } = useUserIdeas();
-
-  /* ------------- FETCH INTERNAL MENTORS -------------- */
-  const { data: mentorsData } = useQuery({
-    queryKey: ["internal-mentors"],
+  /* ------------- FETCH DASHBOARD STATS API -------------- */
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ["coordinator-dashboard-stats"],
     queryFn: async () => {
       const { data } = await axios.get(
-        `${apiUrl}/api/coordinator/internal-mentors`,
+        `${apiUrl}/api/coordinator/stats/dashboard`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      return data;
+      return data.data;
     },
     enabled: !!token,
+    refetchInterval: 60000, // Refetch every minute
   });
 
-  const mentors = mentorsData?.data || [];
-  const ownMentors = mentors.filter((m: any) => m.canControl); // Created by TTC
-  const principalMentors = mentors.filter((m: any) => !m.canControl); // Created by Principal
-
-  /* ------------- DERIVED NUMBERS --------------- */
-  const assignedIdeas = ideas;
-  const pendingEvaluations = ideas.filter((i: any) => i.status === "pending");
-  const scheduledConsultations: any[] = [];
+  /* ------------- EXTRACT STATS -------------- */
+  const {
+    totalInnovators = 0,
+    totalAssignedIdeas = 0,
+    pendingEvaluations = 0,
+    internalMentors = 0,
+    upcomingConsultations = 0,
+    statusDistribution = { approved: 0, improvise: 0, rejected: 0, pending: 0 },
+    topInnovators = [],
+    // consultations = [],
+  } = statsData || {};
 
   /* ------------- CHART: STATUS DISTRIBUTION ---- */
-  const statusCounts = ideas.reduce((acc: any, i: any) => {
-    const s = i.status || "pending";
-    acc[s] = (acc[s] || 0) + 1;
-    return acc;
-  }, {});
-  const pieData = ["approved", "improvise", "rejected", "pending"].map((s) => ({
-    name: s.charAt(0).toUpperCase() + s.slice(1),
-    value: statusCounts[s] || 0,
-    fill: `hsl(var(--chart-${
-      s === "approved" ? 1 : s === "improvise" ? 2 : s === "rejected" ? 3 : 4
-    }))`,
-  }));
+  const pieData = React.useMemo(() => {
+    return [
+      {
+        name: "Approved",
+        value: statusDistribution.approved,
+        fill: "hsl(var(--chart-1))",
+      },
+      {
+        name: "Improvise",
+        value: statusDistribution.improvise,
+        fill: "hsl(var(--chart-2))",
+      },
+      {
+        name: "Rejected",
+        value: statusDistribution.rejected,
+        fill: "hsl(var(--chart-3))",
+      },
+      {
+        name: "Pending",
+        value: statusDistribution.pending,
+        fill: "hsl(var(--chart-4))",
+      },
+    ];
+  }, [statusDistribution]);
 
   /* ------------- CHART: TOP INNOVATORS --------- */
-  const topInnovators = React.useMemo(() => {
-    const map: Record<string, number[]> = {};
-    ideas.forEach((i: any) => {
-      if (i.userId) (map[i.userId] ||= []).push(i.overallScore || 0);
-    });
-    return Object.entries(map)
-      .map(([uid, scores]) => ({
-        name: innovators.find((inv: any) => inv._id === uid)?.name || "Unknown",
-        score: avg(scores),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [ideas, innovators]);
+  const chartInnovators = React.useMemo(() => {
+    return topInnovators.map((inv: any) => ({
+      name: inv.name,
+      score: inv.avgScore,
+    }));
+  }, [topInnovators]);
 
   /* ------------- LOADING STATE ----------------- */
-  if (!profile)
+  if (!profile || statsLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        Loading profile…
+      <div className="flex items-center justify-center h-96 gap-2">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span>Loading dashboard...</span>
       </div>
     );
+  }
 
   /* ------------- UI --------------------------- */
   return (
@@ -153,7 +159,7 @@ export default function CoordinatorDashboardPage() {
             <Users className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{allInnovators?.length}</p>
+            <p className="text-2xl font-bold">{totalInnovators}</p>
           </CardContent>
         </Card>
 
@@ -172,7 +178,7 @@ export default function CoordinatorDashboardPage() {
             <Lightbulb className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{assignedIdeas.length}</p>
+            <p className="text-2xl font-bold">{totalAssignedIdeas}</p>
           </CardContent>
         </Card>
 
@@ -191,11 +197,10 @@ export default function CoordinatorDashboardPage() {
             <ListChecks className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{pendingEvaluations.length}</p>
+            <p className="text-2xl font-bold">{pendingEvaluations}</p>
           </CardContent>
         </Card>
 
-        {/* 🔧 NEW: INTERNAL MENTORS CARD */}
         <Card
           className="hover:shadow-lg transition-shadow cursor-pointer"
           onClick={() =>
@@ -211,10 +216,7 @@ export default function CoordinatorDashboardPage() {
             <UserCog className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{mentors.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {ownMentors.length} yours · {principalMentors.length} principal's
-            </p>
+            <p className="text-2xl font-bold">{internalMentors}</p>
           </CardContent>
         </Card>
 
@@ -233,9 +235,7 @@ export default function CoordinatorDashboardPage() {
             <MessageSquare className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {scheduledConsultations.length}
-            </p>
+            <p className="text-2xl font-bold">{upcomingConsultations}</p>
           </CardContent>
         </Card>
       </div>
@@ -250,32 +250,38 @@ export default function CoordinatorDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{}} className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={topInnovators}
-                  layout="vertical"
-                  margin={{ left: 10 }}
-                >
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip cursor content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="score"
-                    fill="hsl(var(--chart-1))"
-                    radius={5}
-                    background={{ fill: "hsl(var(--muted)/0.5)", radius: 5 }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            {chartInnovators.length > 0 ? (
+              <ChartContainer config={{}} className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartInnovators}
+                    layout="vertical"
+                    margin={{ left: 10 }}
+                  >
+                    <CartesianGrid horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} hide />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={100}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip cursor content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="score"
+                      fill="hsl(var(--chart-1))"
+                      radius={5}
+                      background={{ fill: "hsl(var(--muted)/0.5)", radius: 5 }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                No innovators with scored ideas yet
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -285,27 +291,33 @@ export default function CoordinatorDashboardPage() {
             <CardDescription>All ideas you manage</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{}} className="h-[250px]">
-              <ResponsiveContainer>
-                <PieChart>
-                  <Tooltip content={<ChartTooltipContent />} />
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    label
-                  >
-                    {pieData.map((entry, idx) => (
-                      <Cell key={`cell-${idx}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            {totalAssignedIdeas > 0 ? (
+              <ChartContainer config={{}} className="h-[250px]">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      label
+                    >
+                      {pieData.map((entry, idx) => (
+                        <Cell key={`cell-${idx}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                No ideas submitted yet
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -315,7 +327,7 @@ export default function CoordinatorDashboardPage() {
         <CardHeader>
           <CardTitle>Upcoming Consultations</CardTitle>
           <CardDescription>
-            Scheduled consultations with innovators (feature coming soon)
+            Scheduled consultations with your innovators
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -324,34 +336,41 @@ export default function CoordinatorDashboardPage() {
               <TableRow>
                 <TableHead>Idea Title</TableHead>
                 <TableHead>Innovator</TableHead>
+                <TableHead>Mentor</TableHead>
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {scheduledConsultations.length ? (
-                scheduledConsultations.map((idea) => (
+              {consultations && consultations.length > 0 ? (
+                consultations.map((consult: any) => (
                   <TableRow
-                    key={idea.id}
-                    className="cursor-pointer"
+                    key={consult.id}
+                    className="cursor-pointer hover:bg-muted/50"
                     onClick={() =>
                       router.push(
-                        `/dashboard/ideas/${idea.id}?role=${ROLES.COORDINATOR}`
+                        `/dashboard/ideas/${consult.ideaId}?role=${ROLES.COORDINATOR}`
                       )
                     }
                   >
-                    <TableCell>{idea.title}</TableCell>
-                    <TableCell>{idea.innovatorName}</TableCell>
+                    <TableCell className="font-medium">
+                      {consult.title}
+                    </TableCell>
+                    <TableCell>{consult.innovatorName}</TableCell>
+                    <TableCell>{consult.mentor || "TBD"}</TableCell>
                     <TableCell>
-                      {idea.consultationDate} at {idea.consultationTime}
+                      {consult.scheduledDate && consult.scheduledTime
+                        ? `${consult.scheduledDate} at ${consult.scheduledTime}`
+                        : "Not scheduled"}
                     </TableCell>
                     <TableCell>
                       <Badge
                         className={cn(
-                          STATUS_COLORS[idea.consultationStatus || ""]
+                          STATUS_COLORS[consult.status] ||
+                            "bg-gray-500 text-white"
                         )}
                       >
-                        {idea.consultationStatus}
+                        {consult.status || "pending"}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -359,8 +378,8 @@ export default function CoordinatorDashboardPage() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
-                    className="text-center text-muted-foreground"
+                    colSpan={5}
+                    className="text-center text-muted-foreground h-24"
                   >
                     No upcoming consultations.
                   </TableCell>

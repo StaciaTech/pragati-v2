@@ -411,7 +411,7 @@ export default function ProfilePage() {
             )}
           </div>
           <div className="space-y-6">
-            {role === ROLES.INNOVATOR && user?.creditQuota !== undefined && (
+            {role === ROLES.INNOVATOR && (
               <Card>
                 <CardHeader>
                   <CardTitle>Credits</CardTitle>

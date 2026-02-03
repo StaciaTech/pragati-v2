@@ -140,6 +140,8 @@ function getDashboardPath(role: Role) {
   switch (role) {
     case ROLES.INNOVATOR:
       return "/dashboard";
+    case ROLES.INDIVIDUAL_INNOVATOR:
+      return "/dashboard";
     case ROLES.COORDINATOR:
       return "/dashboard/coordinator";
     case ROLES.PRINCIPAL:
@@ -304,7 +306,7 @@ function DashboardPageContent() {
     [router]
   );
 
-  if (role !== ROLES.INNOVATOR) {
+  if (role !== ROLES.INNOVATOR && role !== ROLES.INDIVIDUAL_INNOVATOR) {
     const roleDashboardPath = getDashboardPath(role);
     useEffect(() => {
       if (roleDashboardPath !== "/dashboard") {

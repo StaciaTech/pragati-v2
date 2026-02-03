@@ -53,6 +53,28 @@ import {
   Building2,
   History,
   ChevronDown,
+  AlertTriangle,
+  Briefcase as BriefcaseIcon,
+  TrendingUpIcon,
+  Rocket,
+  Zap,
+  Activity,
+  Calculator,
+  Scale,
+  Eye,
+  AlertCircle,
+  Award,
+  Box,
+  Cpu,
+  DollarSign,
+  Info,
+  Layout,
+  Search,
+  Settings,
+  X,
+  XCircle,
+  Grid3x3,
+  Map as MapIcon,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -144,7 +166,10 @@ interface ReportData {
   title: string;
   _id: string;
   validation_outcome: string;
+  validationOutcome?: string;
   overall_score: number;
+  overallScore?: number;
+  status?: string;
   cluster_scores: Record<string, number>;
   detailedViabilityAssessment: {
     clusters: Record<string, Record<string, Record<string, any>>>;
@@ -154,6 +179,10 @@ interface ReportData {
     key_activities: string[];
   };
   created_at: string;
+  createdAt?: string;
+  businessCaseJson?: any;
+  riskAssessmentJson?: any;
+  strategicGrowthViabilityJson?: any;
 }
 
 interface Consultation {
@@ -274,12 +303,14 @@ export default function IdeaReportPage() {
       console.log(data);
       if (data?.data?.detailedAnalysis?.cluster_analyses) {
         console.log(data.data.detailedAnalysis.cluster_analyses);
-        const clusterScores = {};
+        const clusterScores: Record<string, number> = {};
 
         Object.entries(data.data.detailedAnalysis.cluster_analyses).forEach(
           ([clusterName, clusterData]) => {
             // clusterData.score contains the average score for the cluster
-            clusterScores[clusterName] = Math.round(clusterData.score);
+            clusterScores[clusterName] = Math.round(
+              (clusterData as { score: number }).score
+            );
           }
         );
 
@@ -399,92 +430,139 @@ export default function IdeaReportPage() {
     }, 500);
   };
 
+  // const handleDownload = async () => {
+  //   if (!reportRef.current) return;
+
+  //   // Store original state
+  //   const originalAccordionItems = [...openAccordionItems];
+  //   const originalParameterItems = [...openParameterItems];
+
+  //   try {
+  //     // Expand all clusters
+  //     const allClusterNames = reportData?.detailedViabilityAssessment?.clusters
+  //       ? Object.keys(reportData.detailedViabilityAssessment.clusters)
+  //       : [];
+  //     setOpenAccordionItems(allClusterNames);
+
+  //     // Expand all parameters
+  //     const allParameterKeys: string[] = [];
+  //     if (reportData?.detailedViabilityAssessment?.clusters) {
+  //       Object.entries(reportData.detailedViabilityAssessment.clusters).forEach(
+  //         ([clusterName, clusterData]) => {
+  //           Object.keys(clusterData).forEach((paramName) => {
+  //             allParameterKeys.push(`${clusterName}|${paramName}`);
+  //           });
+  //         }
+  //       );
+  //     }
+  //     setOpenParameterItems(allParameterKeys);
+
+  //     // Wait for accordions to expand
+  //     await new Promise((resolve) => setTimeout(resolve, 500));
+
+  //     const element = reportRef.current;
+  //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //     const opt: any = {
+  //       margin: [10, 10, 10, 10],
+  //       filename: `${ideaId}-PragatiAI-Report.pdf`,
+  //       image: { type: "jpeg", quality: 0.98 },
+  //       html2canvas: { scale: 2, useCORS: true },
+  //       jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+  //     };
+
+  //     await html2pdf().set(opt).from(element).save();
+
+  //     toast({
+  //       title: "Success",
+  //       description: "PDF downloaded successfully!",
+  //     });
+  //   } catch (error) {
+  //     toast({
+  //       title: "Error",
+  //       description: "Failed to generate PDF. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     // Restore original state
+  //     setOpenAccordionItems(originalAccordionItems);
+  //     setOpenParameterItems(originalParameterItems);
+  //   }
+  // };
+
   const handleDownload = async () => {
-    if (!reportRef.current) return;
-
-    // Store original state
-    const originalAccordionItems = [...openAccordionItems];
-    const originalParameterItems = [...openParameterItems];
-
     try {
-      // Expand all clusters
-      const allClusterNames = reportData?.detailedViabilityAssessment?.clusters
-        ? Object.keys(reportData.detailedViabilityAssessment.clusters)
-        : [];
-      setOpenAccordionItems(allClusterNames);
+      // Show loading toast
+      const loadingToast = toast({
+        title: "Generating PDF...",
+        description: "Please wait while we prepare your report.",
+        duration: Infinity,
+      });
 
-      // Expand all parameters
-      const allParameterKeys: string[] = [];
-      if (reportData?.detailedViabilityAssessment?.clusters) {
-        Object.entries(reportData.detailedViabilityAssessment.clusters).forEach(
-          ([clusterName, clusterData]) => {
-            Object.keys(clusterData).forEach((paramName) => {
-              allParameterKeys.push(`${clusterName}|${paramName}`);
-            });
-          }
-        );
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        return;
       }
-      setOpenParameterItems(allParameterKeys);
 
-      // Wait for accordions to expand
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Call the backend API to generate PDF
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/reports/${reportData?._id}/infographic-pdf`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          responseType: "blob", // Important: receive as blob
+        }
+      );
 
-      const element = reportRef.current;
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `${ideaId}-PragatiAI-Report.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-      };
+      // Create a download link
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
 
-      await html2pdf().set(opt).from(element).save();
+      // Extract filename from Content-Disposition header or use default
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = `${ideaId}-PragatiAI-Report.pdf`;
 
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Dismiss loading toast and show success
+      loadingToast.dismiss();
       toast({
         title: "Success",
         description: "PDF downloaded successfully!",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("PDF download error:", error);
+
       toast({
         title: "Error",
-        description: "Failed to generate PDF. Please try again.",
+        description:
+          error?.response?.data?.error ||
+          "Failed to generate PDF. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      // Restore original state
-      setOpenAccordionItems(originalAccordionItems);
-      setOpenParameterItems(originalParameterItems);
     }
   };
-
-  // const handleDownload = async () => {
-  //   if (!reportRef.current) return;
-  //   const canvas = await html2canvas(reportRef.current, { scale: 2 });
-  //   const imgData = canvas.toDataURL("image/png");
-  //   const pdf = new jsPDF("p", "mm", "a4");
-  //   const pdfWidth = pdf.internal.pageSize.getWidth();
-  //   const pdfHeight = pdf.internal.pageSize.getHeight();
-  //   const imgWidth = canvas.width;
-  //   const imgHeight = canvas.height;
-  //   const ratio = imgWidth / imgHeight;
-  //   const width = pdfWidth;
-  //   const height = width / ratio;
-
-  //   let position = 0;
-  //   let heightLeft = height;
-
-  //   pdf.addImage(imgData, "PNG", 0, position, width, height);
-  //   heightLeft -= pdfHeight;
-
-  //   while (heightLeft > 0) {
-  //     position = heightLeft - height;
-  //     pdf.addPage();
-  //     pdf.addImage(imgData, "PNG", 0, position, width, height);
-  //     heightLeft -= pdfHeight;
-  //   }
-
-  //   pdf.save(`${ideaId}-PragatiAI-Report.pdf`);
-  // };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -563,11 +641,6 @@ export default function IdeaReportPage() {
 
   const idea = MOCK_IDEAS[0];
   const DomainIcon = idea.domain ? domainIcons[idea.domain] : null;
-  // const currentPhaseIndex = idea.trl
-  //   ? ROADMAP_PHASES.findIndex((phase) => phase.trls.includes(idea.trl!))
-  //   : -1;
-  // const currentPhase =
-  //   currentPhaseIndex !== -1 ? ROADMAP_PHASES[currentPhaseIndex] : null;
 
   const shareUrl = encodeURIComponent(window.location.href);
   const shareText = encodeURIComponent(
@@ -644,17 +717,18 @@ export default function IdeaReportPage() {
       </div>
     );
   }
-  console.log(reportData);
 
   return (
     <TooltipProvider>
       <div className="space-y-6">
         <div className="flex justify-between items-center flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href={getBackLink(role)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Link>
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="cursor-pointer"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
           </Button>
           <div className="flex gap-2">
             <Button onClick={handleDownload}>
@@ -693,24 +767,30 @@ export default function IdeaReportPage() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>
                         V1.0 -{" "}
-                        {new Date(reportData.createdAt).toLocaleDateString(
-                          "en-GB"
-                        )}
+                        {new Date(
+                          reportData.createdAt || reportData.created_at
+                        ).toLocaleDateString("en-GB")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <span>
                     Submitted:{" "}
-                    {new Date(reportData.createdAt).toLocaleDateString("en-GB")}
+                    {new Date(
+                      reportData.createdAt || reportData.created_at
+                    ).toLocaleDateString("en-GB")}
                   </span>
                   <span>
                     Status:{" "}
                     <Badge
                       className={cn(
-                        STATUS_COLORS[reportData.validationOutcome]
+                        STATUS_COLORS[
+                          reportData.validationOutcome ||
+                            reportData.validation_outcome
+                        ]
                       )}
                     >
-                      {reportData.validationOutcome}
+                      {reportData.validationOutcome ||
+                        reportData.validation_outcome}
                     </Badge>
                   </span>
                   {idea.domain && (
@@ -719,17 +799,19 @@ export default function IdeaReportPage() {
                       {idea.domain}
                     </span>
                   )}
-                  {/* {currentPhase && (
-                    <Badge variant="secondary">
-                      Phase: {currentPhase?.name}
-                    </Badge>
-                  )} */}
                 </div>
               </div>
-              {/* <ScoreDisplay
-                score={reportData?.overall_score}
-                status={reportData?.validation_outcome}
-              /> */}
+              <ScoreDisplay
+                score={
+                  reportData?.overallScore ?? reportData?.overall_score ?? null
+                }
+                status={
+                  reportData?.status ||
+                  reportData?.validationOutcome ||
+                  reportData?.validation_outcome ||
+                  ""
+                }
+              />
             </CardHeader>
 
             <CardContent className="space-y-8 pt-2">
@@ -747,9 +829,24 @@ export default function IdeaReportPage() {
                     </CardHeader>
                     <CardContent>
                       <Roadmap
-                        currentTrl={reportData.roadmap.current_trl}
+                        currentTrl={String(reportData.roadmap.current_trl)}
                         role={role || ROLES.INNOVATOR}
-                        keyActivities={reportData.roadmap.key_activities}
+                        keyActivities={reportData.roadmap.key_activities?.map(
+                          (
+                            activity:
+                              | string
+                              | { text: string; timeline: string }
+                          ) => ({
+                            text:
+                              typeof activity === "string"
+                                ? activity
+                                : activity.text || "",
+                            timeline:
+                              typeof activity === "string"
+                                ? ""
+                                : activity.timeline || "",
+                          })
+                        )}
                       />
                     </CardContent>
                   </Card>
@@ -895,233 +992,312 @@ export default function IdeaReportPage() {
 
               <Separator />
 
+              {/* ✅ NEW TABS SECTION - REPLACES "Detailed Viability Assessment" */}
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-semibold">
-                      Detailed Viability Assessment
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Comprehensive evaluation of all parameters across multiple
-                      clusters
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleToggleExpandAll}
-                  >
-                    {allClustersExpanded ? "Collapse All" : "Expand All"}
-                  </Button>
+                <div>
+                  <h3 className="text-xl font-semibold">
+                    Comprehensive Analysis & Reports
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Explore detailed reports and viability assessments across
+                    multiple dimensions
+                  </p>
                 </div>
-                <Accordion
-                  type="multiple"
-                  value={openAccordionItems}
-                  onValueChange={setOpenAccordionItems}
-                  className="w-full pt-4"
-                >
-                  {reportData?.detailedViabilityAssessment?.clusters &&
-                    Object.entries(
-                      reportData.detailedViabilityAssessment.clusters
-                    ).map(([clusterName, clusterData]) => (
-                      <AccordionItem value={clusterName} key={clusterName}>
-                        <AccordionTrigger className="text-lg font-semibold text-primary hover:no-underline">
-                          {clusterName}
-                        </AccordionTrigger>
-                        <AccordionContent className="p-4 pt-0 space-y-4">
-                          <Accordion
-                            type="multiple"
-                            value={openParameterItems}
-                            onValueChange={setOpenParameterItems}
-                            className="w-full"
-                          >
-                            {Object.entries(clusterData).map(
-                              ([paramName, paramData]) => {
-                                if (
-                                  typeof paramData !== "object" ||
-                                  paramData === null
-                                )
-                                  return null;
 
-                                const scores = Object.values(paramData)
-                                  .filter(
-                                    (p) =>
-                                      typeof p === "object" &&
-                                      p !== null &&
-                                      p.assignedScore !== undefined
-                                  )
-                                  .map((p) => p.assignedScore);
+                <Tabs defaultValue="business-case" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger
+                      value="business-case"
+                      className="text-xs sm:text-sm"
+                    >
+                      <BriefcaseIcon className="h-4 w-4 mr-1" />
+                      Business Case
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="risk-assessment"
+                      className="text-xs sm:text-sm"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      Risk Assessment
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="strategic-growth"
+                      className="text-xs sm:text-sm"
+                    >
+                      <TrendingUpIcon className="h-4 w-4 mr-1" />
+                      Strategic Growth
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="viability"
+                      className="text-xs sm:text-sm"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Viability
+                    </TabsTrigger>
+                  </TabsList>
 
-                                const categoryAverage =
-                                  scores.length > 0
-                                    ? Math.round(
-                                        (scores.reduce((a, b) => a + b, 0) /
-                                          scores.length) *
-                                          100
-                                      ) / 100
-                                    : 0;
+                  {/* TAB 1: BUSINESS CASE REPORT */}
+                  <TabsContent value="business-case" className="space-y-4 mt-6">
+                    <BusinessCaseReport data={reportData?.businessCaseJson} />
+                  </TabsContent>
 
-                                const paramKey = `${clusterName}|${paramName}`;
+                  {/* TAB 2: RISK ASSESSMENT REPORT */}
+                  <TabsContent
+                    value="risk-assessment"
+                    className="space-y-4 mt-6"
+                  >
+                    <RiskAssessmentReport
+                      data={reportData?.riskAssessmentJson}
+                    />
+                  </TabsContent>
 
-                                return (
-                                  <AccordionItem
-                                    value={paramKey}
-                                    key={paramKey}
-                                  >
-                                    <AccordionTrigger className="font-semibold mb-2 hover:no-underline">
-                                      <div className="flex justify-between items-center w-full pr-2">
-                                        <span>{paramName}</span>
-                                        <span
-                                          className={cn(
-                                            "flex items-center justify-center text-base font-bold",
-                                            getScoreColor(
-                                              parseInt(categoryAverage)
-                                            )
-                                          )}
-                                        >
-                                          {parseInt(categoryAverage)}
-                                        </span>
-                                      </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent>
-                                      <div className="divide-y">
-                                        {Object.entries(paramData).map(
-                                          ([subParamName, subParamData]) => {
-                                            if (
-                                              typeof subParamData !==
-                                                "object" ||
-                                              subParamData === null ||
-                                              subParamData.assignedScore ===
-                                                undefined
-                                            )
-                                              return null;
+                  {/* TAB 3: STRATEGIC GROWTH & VIABILITY */}
+                  <TabsContent
+                    value="strategic-growth"
+                    className="space-y-4 mt-6"
+                  >
+                    <StrategicGrowthReport
+                      data={reportData?.strategicGrowthViabilityJson}
+                    />
+                  </TabsContent>
 
-                                            const score =
-                                              subParamData.assignedScore;
-                                            const whatWentWell =
-                                              subParamData.whatWentWell ||
-                                              "No data";
-                                            const whatCanBeImproved =
-                                              subParamData.whatCanBeImproved ||
-                                              "No data";
-                                            const elementId = `sub-param-${subParamName.replace(
-                                              /[^a-zA-Z0-9]/g,
-                                              "-"
-                                            )}`;
+                  {/* TAB 4: DETAILED VIABILITY ASSESSMENT (EXISTING) */}
+                  <TabsContent value="viability" className="space-y-4 mt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h4 className="text-lg font-semibold">
+                          Detailed Viability Assessment
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Comprehensive evaluation of all parameters across
+                          multiple clusters
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleToggleExpandAll}
+                      >
+                        {allClustersExpanded ? "Collapse All" : "Expand All"}
+                      </Button>
+                    </div>
+                    <Accordion
+                      type="multiple"
+                      value={openAccordionItems}
+                      onValueChange={setOpenAccordionItems}
+                      className="w-full pt-4"
+                    >
+                      {reportData?.detailedViabilityAssessment?.clusters &&
+                        Object.entries(
+                          reportData.detailedViabilityAssessment.clusters
+                        ).map(([clusterName, clusterData]) => (
+                          <AccordionItem value={clusterName} key={clusterName}>
+                            <AccordionTrigger className="text-lg font-semibold text-primary hover:no-underline">
+                              {clusterName}
+                            </AccordionTrigger>
+                            <AccordionContent className="p-4 pt-0 space-y-4">
+                              <Accordion
+                                type="multiple"
+                                value={openParameterItems}
+                                onValueChange={setOpenParameterItems}
+                                className="w-full"
+                              >
+                                {Object.entries(clusterData).map(
+                                  ([paramName, paramData]) => {
+                                    if (
+                                      typeof paramData !== "object" ||
+                                      paramData === null
+                                    )
+                                      return null;
 
-                                            const subCircumference =
-                                              2 * Math.PI * 18;
-                                            const subStrokeDashoffset =
-                                              subCircumference -
-                                              (score / 100) * subCircumference;
+                                    const scores = Object.values(paramData)
+                                      .filter(
+                                        (p) =>
+                                          typeof p === "object" &&
+                                          p !== null &&
+                                          p.assignedScore !== undefined
+                                      )
+                                      .map((p) => p.assignedScore);
 
-                                            const isHighlighted =
-                                              selectedSubParameter?.clusterName ===
-                                                clusterName &&
-                                              selectedSubParameter?.paramName ===
-                                                paramName &&
-                                              selectedSubParameter?.subParamName ===
-                                                subParamName;
+                                    const categoryAverage =
+                                      scores.length > 0
+                                        ? Math.round(
+                                            (scores.reduce((a, b) => a + b, 0) /
+                                              scores.length) *
+                                              100
+                                          ) / 100
+                                        : 0;
 
-                                            return (
-                                              <div
-                                                key={subParamName}
-                                                id={elementId}
-                                                className={cn(
-                                                  "p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center scroll-mt-20 transition-all duration-300",
-                                                  isHighlighted &&
-                                                    "ring-2 ring-primary bg-primary/5"
-                                                )}
-                                              >
-                                                <div className="md:col-span-3">
-                                                  <h6 className="font-medium text-sm">
-                                                    {subParamName}
-                                                  </h6>
-                                                </div>
-                                                <div className="md:col-span-1 flex items-center justify-start md:justify-center">
-                                                  <div className="relative h-16 w-16">
-                                                    <svg
-                                                      className="h-full w-full"
-                                                      viewBox="0 0 40 40"
-                                                    >
-                                                      <circle
-                                                        cx="20"
-                                                        cy="20"
-                                                        r="18"
-                                                        className="stroke-muted"
-                                                        strokeWidth="3"
-                                                        fill="transparent"
-                                                      />
-                                                      <circle
-                                                        cx="20"
-                                                        cy="20"
-                                                        r="18"
-                                                        className={cn(
-                                                          "stroke-current transition-all duration-500 ease-in-out",
-                                                          getScoreColor(score)
-                                                        )}
-                                                        strokeWidth="3"
-                                                        fill="transparent"
-                                                        strokeLinecap="round"
-                                                        strokeDasharray={
-                                                          subCircumference
-                                                        }
-                                                        strokeDashoffset={
-                                                          subStrokeDashoffset
-                                                        }
-                                                        transform="rotate(-90 20 20)"
-                                                      />
-                                                    </svg>
-                                                    <span
-                                                      className={cn(
-                                                        "absolute inset-0 flex items-center justify-center text-base font-bold",
-                                                        getScoreColor(score)
-                                                      )}
-                                                    >
-                                                      {score}
-                                                    </span>
+                                    const paramKey = `${clusterName}|${paramName}`;
+
+                                    return (
+                                      <AccordionItem
+                                        value={paramKey}
+                                        key={paramKey}
+                                      >
+                                        <AccordionTrigger className="font-semibold mb-2 hover:no-underline">
+                                          <div className="flex justify-between items-center w-full pr-2">
+                                            <span>{paramName}</span>
+                                            <span
+                                              className={cn(
+                                                "flex items-center justify-center text-base font-bold",
+                                                getScoreColor(
+                                                  Math.round(categoryAverage)
+                                                )
+                                              )}
+                                            >
+                                              {Math.round(categoryAverage)}
+                                            </span>
+                                          </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                          <div className="divide-y">
+                                            {Object.entries(paramData).map(
+                                              ([
+                                                subParamName,
+                                                subParamData,
+                                              ]) => {
+                                                if (
+                                                  typeof subParamData !==
+                                                    "object" ||
+                                                  subParamData === null ||
+                                                  subParamData.assignedScore ===
+                                                    undefined
+                                                )
+                                                  return null;
+
+                                                const score =
+                                                  subParamData.assignedScore;
+                                                const whatWentWell =
+                                                  subParamData.whatWentWell ||
+                                                  "No data";
+                                                const whatCanBeImproved =
+                                                  subParamData.whatCanBeImproved ||
+                                                  "No data";
+                                                const elementId = `sub-param-${subParamName.replace(
+                                                  /[^a-zA-Z0-9]/g,
+                                                  "-"
+                                                )}`;
+
+                                                const subCircumference =
+                                                  2 * Math.PI * 18;
+                                                const subStrokeDashoffset =
+                                                  subCircumference -
+                                                  (score / 100) *
+                                                    subCircumference;
+
+                                                const isHighlighted =
+                                                  selectedSubParameter?.clusterName ===
+                                                    clusterName &&
+                                                  selectedSubParameter?.paramName ===
+                                                    paramName &&
+                                                  selectedSubParameter?.subParamName ===
+                                                    subParamName;
+
+                                                return (
+                                                  <div
+                                                    key={subParamName}
+                                                    id={elementId}
+                                                    className={cn(
+                                                      "p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center scroll-mt-20 transition-all duration-300",
+                                                      isHighlighted &&
+                                                        "ring-2 ring-primary bg-primary/5"
+                                                    )}
+                                                  >
+                                                    <div className="md:col-span-3">
+                                                      <h6 className="font-medium text-sm">
+                                                        {subParamName}
+                                                      </h6>
+                                                    </div>
+                                                    <div className="md:col-span-1 flex items-center justify-start md:justify-center">
+                                                      <div className="relative h-16 w-16">
+                                                        <svg
+                                                          className="h-full w-full"
+                                                          viewBox="0 0 40 40"
+                                                        >
+                                                          <circle
+                                                            cx="20"
+                                                            cy="20"
+                                                            r="18"
+                                                            className="stroke-muted"
+                                                            strokeWidth="3"
+                                                            fill="transparent"
+                                                          />
+                                                          <circle
+                                                            cx="20"
+                                                            cy="20"
+                                                            r="18"
+                                                            className={cn(
+                                                              "stroke-current transition-all duration-500 ease-in-out",
+                                                              getScoreColor(
+                                                                score
+                                                              )
+                                                            )}
+                                                            strokeWidth="3"
+                                                            fill="transparent"
+                                                            strokeLinecap="round"
+                                                            strokeDasharray={
+                                                              subCircumference
+                                                            }
+                                                            strokeDashoffset={
+                                                              subStrokeDashoffset
+                                                            }
+                                                            transform="rotate(-90 20 20)"
+                                                          />
+                                                        </svg>
+                                                        <span
+                                                          className={cn(
+                                                            "absolute inset-0 flex items-center justify-center text-base font-bold",
+                                                            getScoreColor(score)
+                                                          )}
+                                                        >
+                                                          {score}
+                                                        </span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="md:col-span-4 space-y-1">
+                                                      <div className="flex items-start gap-2 text-sm">
+                                                        <ThumbsUp className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                                                        <p className="text-muted-foreground flex-1 break-words">
+                                                          <ExpandableText
+                                                            text={whatWentWell}
+                                                          />
+                                                        </p>
+                                                      </div>
+                                                    </div>
+                                                    <div className="md:col-span-4 space-y-1">
+                                                      <div className="flex items-start gap-2 text-sm">
+                                                        <Lightbulb className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                                                        <p className="text-muted-foreground flex-1 break-words">
+                                                          <ExpandableText
+                                                            text={
+                                                              whatCanBeImproved
+                                                            }
+                                                          />
+                                                        </p>
+                                                      </div>
+                                                    </div>
                                                   </div>
-                                                </div>
-                                                <div className="md:col-span-4 space-y-1">
-                                                  <div className="flex items-start gap-2 text-sm">
-                                                    <ThumbsUp className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                                    <p className="text-muted-foreground flex-1 break-words">
-                                                      <ExpandableText
-                                                        text={whatWentWell}
-                                                      />
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                                <div className="md:col-span-4 space-y-1">
-                                                  <div className="flex items-start gap-2 text-sm">
-                                                    <Lightbulb className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
-                                                    <p className="text-muted-foreground flex-1 break-words">
-                                                      <ExpandableText
-                                                        text={whatCanBeImproved}
-                                                      />
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          }
-                                        )}
-                                        ;
-                                      </div>
-                                    </AccordionContent>
-                                  </AccordionItem>
-                                );
-                              }
-                            )}
-                          </Accordion>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                </Accordion>
+                                                );
+                                              }
+                                            )}
+                                            ;
+                                          </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    );
+                                  }
+                                )}
+                              </Accordion>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                    </Accordion>
+                  </TabsContent>
+                </Tabs>
               </div>
             </CardContent>
           </Card>
-
           {/* Share Dialog */}
           <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
             <DialogContent>
@@ -1151,7 +1327,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://api.whatsapp.com/send?text= ${shareText} ${shareUrl}`}
+                            href={`https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1165,7 +1341,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://twitter.com/intent/tweet?text= ${shareText}&url=${shareUrl}`}
+                            href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1179,7 +1355,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://www.facebook.com/sharer/sharer.php?u= ${shareUrl}`}
+                            href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1193,7 +1369,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://www.linkedin.com/shareArticle?mini=true&url= ${shareUrl}&title=${encodeURIComponent(
+                            href={`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${encodeURIComponent(
                               idea.title || ""
                             )}&summary=${shareText}`}
                             target="_blank"
@@ -1211,7 +1387,7 @@ export default function IdeaReportPage() {
                           <a
                             href={`mailto:?subject=${encodeURIComponent(
                               idea.title || ""
-                            )}&body=${shareText} ${shareUrl}`}
+                            )}&body=${shareText}%20${shareUrl}`}
                           >
                             <MailIcon className="h-5 w-5" />
                           </a>
@@ -1245,7 +1421,1133 @@ export default function IdeaReportPage() {
   );
 }
 
-// ExpandableText Component
+// ✅ COMPONENT 1: BUSINESS CASE REPORT (REDESIGNED)
+// ✅ COMPONENT 1: BUSINESS CASE REPORT (REFACTORED)
+function BusinessCaseReport({ data }: { data: any }) {
+  if (!data || Object.keys(data).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg bg-muted/10 border-dashed">
+        <FileText className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
+        <h3 className="font-semibold text-lg">No Business Case Found</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mt-1">
+          The business case analysis hasn't been generated for this idea yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Executive Summary */}
+      {data.executiveSummary && (
+        <Card className="border-l-4 border-l-primary shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Executive Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground leading-relaxed">
+              {data.executiveSummary}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Separator />
+
+      {/* The Big Idea */}
+      {data.theBigIdea && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-yellow-500" />
+            The Big Idea
+          </h3>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Problem */}
+            <Card className="flex flex-col h-full hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  The Problem
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <p className="text-sm text-muted-foreground">
+                  {data.theBigIdea.problem}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Solution */}
+            <Card className="flex flex-col h-full hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  The Solution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {data.theBigIdea.solution?.overview}
+                </p>
+                {data.theBigIdea.solution?.keyFeatures?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {data.theBigIdea.solution.keyFeatures.map(
+                      (f: string, i: number) => (
+                        <div
+                          key={i}
+                          className="text-xs font-normal p-[0.75rem] rounded-md bg-secondary"
+                        >
+                          <span className="">{f}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Mission */}
+            <Card className="flex flex-col h-full hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <Target className="h-4 w-4 text-blue-500" />
+                  Mission
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <p className="text-sm text-muted-foreground">
+                  {data.theBigIdea.mission}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Value Prop */}
+          {data.theBigIdea.valueProposition && (
+            <div className="bg-muted/40 border rounded-md p-4 flex gap-3 items-start">
+              <Star className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">
+                  Unique Value Proposition
+                </h4>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {data.theBigIdea.valueProposition}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Accordion Sections */}
+      <Accordion
+        type="single"
+        collapsible
+        className="w-full border rounded-lg bg-card"
+      >
+        {/* Customer & Market */}
+        {data.theCustomer && (
+          <AccordionItem value="customer" className="px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-indigo-500" />
+                <span className="font-semibold">
+                  Customer & Market Analysis
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-6 space-y-6">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Target Segments
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      ...(data.theCustomer.targetAudience || []),
+                      ...(data.theCustomer.targetMarket || []),
+                    ].map((segment: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-md border bg-muted/20"
+                      >
+                        <div className="font-medium text-sm">
+                          {segment.segment}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {segment.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {data.theCustomer.marketSize && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Market Opportunity
+                      </h4>
+                      <div className="p-4 rounded-md border bg-muted/20 flex items-start gap-3">
+                        <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
+                        <div>
+                          <div className="font-medium text-sm">Market Size</div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {data.theCustomer.marketSize}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {data.theCustomer.marketStrategy && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Go-To-Market
+                      </h4>
+                      <p className="text-sm text-muted-foreground border-l-2 border-muted pl-3">
+                        {data.theCustomer.marketStrategy}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {/* Technology & Competition */}
+        {data.theMagic && (
+          <AccordionItem value="magic" className="px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <Cpu className="h-5 w-5 text-cyan-500" />
+                <span className="font-semibold">Technology & Competition</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card className="shadow-none border bg-muted/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Core Technology
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {data.theMagic.coreTechnology}
+                    </p>
+                    {data.theMagic.technicalApproach?.architecture && (
+                      <div className="mt-3 pt-3 border-t">
+                        <span className="text-xs font-semibold text-muted-foreground block mb-1">
+                          Architecture
+                        </span>
+                        <p className="text-sm text-muted-foreground">
+                          {data.theMagic.technicalApproach.architecture}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-none border bg-muted/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Competitive Edge
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {data.theMagic.competitiveAdvantage}
+                    </p>
+                    {data.theMagic.comparison?.whyItMatters && (
+                      <div className="mt-3 pt-3 border-t">
+                        <span className="text-xs font-semibold text-muted-foreground block mb-1">
+                          Why It Matters
+                        </span>
+                        <p className="text-sm text-muted-foreground">
+                          {data.theMagic.comparison.whyItMatters}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {/* Business Model */}
+        {data.businessModel && (
+          <AccordionItem value="business" className="px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <BriefcaseIcon className="h-5 w-5 text-emerald-500" />
+                <span className="font-semibold">Business Model</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-6 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-md bg-muted/10">
+                  <h5 className="font-medium text-sm mb-2">Revenue Model</h5>
+                  <p className="text-sm text-muted-foreground">
+                    {data.businessModel.revenueModel || "N/A"}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-md bg-muted/10">
+                  <h5 className="font-medium text-sm mb-2">Unit Economics</h5>
+                  <p className="text-sm text-muted-foreground">
+                    {data.businessModel.unitEconomics || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {data.businessModel.revenueStreams?.length > 0 && (
+                <div>
+                  <h5 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+                    Revenue Streams
+                  </h5>
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {data.businessModel.revenueStreams.map(
+                      (stream: any, i: number) => (
+                        <Card key={i} className="shadow-none border bg-card">
+                          <CardContent className="p-3">
+                            <div className="font-medium text-sm text-foreground">
+                              {stream.stream}
+                            </div>
+                            <p
+                              className="text-xs text-muted-foreground mt-1 line-clamp-2"
+                              title={stream.description}
+                            >
+                              {stream.description}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        )}
+      </Accordion>
+
+      {/* Conclusion */}
+      {data.conclusion && (
+        <div className="bg-muted/30 border rounded-lg p-6">
+          <h3 className="font-semibold flex items-center gap-2 mb-2">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            Conclusion
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {data.conclusion}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ✅ COMPONENT 2: RISK ASSESSMENT REPORT (REFACTORED)
+function RiskAssessmentReport({ data }: { data: any }) {
+  if (!data || Object.keys(data).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg bg-muted/10 border-dashed">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
+        <h3 className="font-semibold text-lg">No Risk Assessment Found</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mt-1">
+          The risk assessment analysis hasn't been generated yet.
+        </p>
+      </div>
+    );
+  }
+
+  // Simplified color mapping for a cleaner look
+  const getRiskBadgeVariant = (level: string) => {
+    switch (level?.toUpperCase()) {
+      case "CRITICAL":
+        return "destructive";
+      case "HIGH":
+        return "destructive";
+      case "MEDIUM":
+        return "secondary"; // Changed to secondary/orange via class if needed
+      case "LOW":
+        return "outline";
+      default:
+        return "secondary";
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Top Section: Score & Summary */}
+      <div className="grid md:grid-cols-12 gap-6">
+        {/* Score Card */}
+        {data.overallRiskProfile && (
+          <Card className="md:col-span-4 bg-muted/10 border-none shadow-none ring-1 ring-border">
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center h-full">
+              <Shield className="h-12 w-12 text-muted-foreground/20 mb-4" />
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Overall Risk Level
+              </h3>
+              <Badge
+                className={cn(
+                  "text-lg px-6 py-1 mb-3",
+                  data.overallRiskProfile.level === "LOW"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : data.overallRiskProfile.level === "MEDIUM"
+                    ? "bg-orange-500 hover:bg-orange-600"
+                    : "bg-destructive hover:bg-destructive/90"
+                )}
+              >
+                {data.overallRiskProfile.level || "UNKNOWN"}
+              </Badge>
+              <p className="text-sm text-muted-foreground px-4">
+                {data.overallRiskProfile.explanation}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Executive Summary */}
+        <div className="md:col-span-8 space-y-4">
+          {data.executiveSummary && (
+            <div className="h-full border rounded-lg p-6 bg-card">
+              <h3 className="font-semibold flex items-center gap-2 mb-3">
+                <FileText className="h-5 w-5 text-primary" />
+                Risk Summary
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {data.executiveSummary}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Risk Matrix Stats */}
+      {data.riskMatrix && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Critical",
+              count: data.riskMatrix.criticalRisks?.length || 0,
+              color: "text-red-600",
+              bg: "bg-red-50",
+            },
+            {
+              label: "High",
+              count: data.riskMatrix.highRisks?.length || 0,
+              color: "text-orange-600",
+              bg: "bg-orange-50",
+            },
+            {
+              label: "Medium",
+              count: data.riskMatrix.mediumRisks?.length || 0,
+              color: "text-yellow-600",
+              bg: "bg-yellow-50",
+            },
+            {
+              label: "Low",
+              count: data.riskMatrix.lowRisks?.length || 0,
+              color: "text-green-600",
+              bg: "bg-green-50",
+            },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="border rounded-md p-4 flex flex-col items-center justify-center bg-card"
+            >
+              <span className={cn("text-2xl font-bold", stat.color)}>
+                {stat.count}
+              </span>
+              <span className="text-xs font-medium text-muted-foreground uppercase mt-1">
+                {stat.label} Risks
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Detailed Assessment Accordion */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Search className="h-5 w-5" /> Detailed Risk Register
+        </h3>
+
+        <Accordion
+          type="single"
+          collapsible
+          className="w-full border rounded-lg bg-card"
+        >
+          {[
+            {
+              key: "businessModelFinancial",
+              title: "Business & Financial",
+              icon: DollarSign,
+              color: "text-green-600",
+            },
+            {
+              key: "technicalOperational",
+              title: "Technical & Operational",
+              icon: Settings,
+              color: "text-blue-600",
+            },
+            {
+              key: "marketCommercial",
+              title: "Market & Commercial",
+              icon: TrendingUp,
+              color: "text-purple-600",
+            },
+            {
+              key: "complianceRegulatory",
+              title: "Compliance & Regulatory",
+              icon: Scale,
+              color: "text-red-600",
+            },
+            {
+              key: "teamOrganizational",
+              title: "Team & Organizational",
+              icon: Users,
+              color: "text-indigo-600",
+            },
+          ].map((category) => {
+            const risks = data.riskCategories?.[category.key];
+            if (!risks?.length) return null;
+
+            return (
+              <AccordionItem
+                value={category.key}
+                key={category.key}
+                className="px-4"
+              >
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <category.icon className={cn("h-5 w-5", category.color)} />
+                    <span className="font-semibold">{category.title}</span>
+                    <Badge variant="secondary" className="ml-auto mr-4">
+                      {risks.length}
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-6 space-y-4">
+                  {risks.map((risk: any, i: number) => (
+                    <RiskCard key={i} risk={risk} />
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      </div>
+
+      {/* Prioritized Plan */}
+      {data.prioritizedMitigation?.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" /> Prioritized Mitigation
+          </h3>
+          <div className="grid gap-4">
+            {data.prioritizedMitigation.map((item: any, idx: number) => (
+              <Card
+                key={idx}
+                className="shadow-sm hover:border-primary/50 transition-colors"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-base font-medium">
+                      {item.area}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">Priority {item.priority}</Badge>
+                      {item.timeline && (
+                        <span className="text-xs text-muted-foreground">
+                          {item.timeline}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {item.rationale}
+                  </p>
+                  {item.actions && (
+                    <div className="bg-muted/30 rounded-md p-3">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase block mb-2">
+                        Recommended Actions
+                      </span>
+                      <ul className="space-y-1">
+                        {item.actions.map((act: string, j: number) => (
+                          <li
+                            key={j}
+                            className="text-sm flex items-start gap-2"
+                          >
+                            <span className="text-primary mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                            <span>{act}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+                <CardContent>
+                  <div>
+                    <div>
+                      <div>Resources</div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {item.resources}
+                      </p>
+                    </div>
+                    <div>
+                      <div>Out puts</div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {item.successMetrics}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="">
+        {data.monitoringFramework && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-green-600" /> Monitoring
+                Framework
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted/10 rounded-md border">
+                  <div className="text-xs text-muted-foreground">
+                    Review Frequency
+                  </div>
+                  <div className="font-semibold text-sm">
+                    Monetering frequency should be{" "}
+                    {data.monitoringFramework.reviewFrequency || "N/A"}
+                  </div>
+                </div>
+                <div className="p-3 bg-muted/10 rounded-md border">
+                  <div className="text-xs text-muted-foreground">
+                    Escalation Process
+                  </div>
+                  <div className="font-semibold text-sm">
+                    {data.monitoringFramework.escalationProcess || "N/A"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm p-3 bg-muted/20 rounded-md">
+                <span className="font-medium block mb-1">
+                  Funding Monitoring
+                </span>
+                {data.monitoringFramework?.keyMetrics.map((metric) => (
+                  <p key={metric}>{metric}</p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      <div>
+        <h4 className="font-bold text-lg mb-2 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-primary" />
+          Conclusion
+        </h4>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {data.conclusion}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ✅ SUB-COMPONENT: RISK CARD (REFACTORED)
+function RiskCard({ risk }: { risk: any }) {
+  // Simple helper for border colors based on severity
+  const borderColor =
+    risk.severity?.toUpperCase() === "CRITICAL"
+      ? "border-red-500"
+      : risk.severity?.toUpperCase() === "HIGH"
+      ? "border-orange-500"
+      : risk.severity?.toUpperCase() === "MEDIUM"
+      ? "border-yellow-500"
+      : "border-green-500";
+
+  return (
+    <div
+      className={cn(
+        "group border rounded-lg p-4 bg-card hover:bg-muted/5 transition-colors border-l-4",
+        borderColor
+      )}
+    >
+      <div className="flex justify-between items-start gap-4 mb-2">
+        <h5 className="font-semibold text-sm text-foreground">{risk.name}</h5>
+        <Badge
+          variant={
+            risk.severity?.toUpperCase() === "LOW" ? "outline" : "secondary"
+          }
+          className="shrink-0"
+        >
+          {risk.severity}
+        </Badge>
+      </div>
+
+      <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+        {risk.description}
+      </p>
+
+      <div className="flex gap-4 mb-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="font-medium">Likelihood:</span> {risk.likelihood}%
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="font-medium">Impact:</span> {risk.impact}%
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3 pt-3 border-t">
+        {risk.mitigation && (
+          <div className="text-xs">
+            <span className="font-semibold text-muted-foreground block mb-1">
+              Mitigation
+            </span>
+            <p className="text-muted-foreground">{risk.mitigation}</p>
+          </div>
+        )}
+        {risk.contingencyPlan && (
+          <div className="text-xs">
+            <span className="font-semibold text-muted-foreground block mb-1">
+              Contingency
+            </span>
+            <p className="text-muted-foreground">{risk.contingencyPlan}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ✅ COMPONENT 3: STRATEGIC GROWTH REPORT (REFACTORED)
+function StrategicGrowthReport({ data }: { data: any }) {
+  const reportData = data?.strategicGrowthViabilityJson || data;
+
+  if (!reportData || Object.keys(reportData).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg bg-muted/10 border-dashed">
+        <Rocket className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
+        <h3 className="font-semibold text-lg">No Growth Strategy Found</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mt-1">
+          Strategic growth and viability data is unavailable.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Executive Summary */}
+      {reportData.executiveSummary && (
+        <Card className="border-none shadow-sm bg-muted/20">
+          <CardContent className="p-6">
+            <div className="flex gap-4 items-start">
+              <div className="p-2 bg-background rounded-full border shadow-sm shrink-0">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">
+                  Executive Summary
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {reportData.executiveSummary}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Vision & State */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Vision */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Target className="h-4 w-4 text-purple-600" /> Vision & Mission
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {reportData.visionAndIntent?.vision && (
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+                  Vision
+                </div>
+                <p className="text-sm text-foreground italic">
+                  "{reportData.visionAndIntent.vision}"
+                </p>
+              </div>
+            )}
+            {reportData.visionAndIntent?.mission && (
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+                  Mission
+                </div>
+                <p className="text-sm text-foreground italic">
+                  "{reportData.visionAndIntent.mission}"
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Current State */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" /> Current Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
+              <span className="text-sm font-medium">Phase</span>
+              <Badge variant="secondary">
+                {reportData.visionAndIntent?.currentPhase || "N/A"}
+              </Badge>
+            </div>
+            <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
+              <span className="text-sm font-medium">TRL Level</span>
+              <Badge className="bg-green-600 hover:bg-green-700">
+                {reportData.visionAndIntent?.currentTRL
+                  ? `Level ${reportData.visionAndIntent.currentTRL}`
+                  : "N/A"}
+              </Badge>
+            </div>
+            {reportData.visionAndIntent?.trlJustification && (
+              <p className="text-xs text-muted-foreground pt-2 border-t">
+                {reportData.visionAndIntent.trlJustification}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SWOT Analysis */}
+      {reportData.swotAnalysis && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Grid3x3 className="h-5 w-5" /> SWOT Analysis
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Strengths */}
+            <Card className="border-t-4 border-t-green-500">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-green-700 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" /> Strengths
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {reportData.swotAnalysis.strengths?.map(
+                  (item: any, i: number) => (
+                    <div key={i} className="text-sm p-2 bg-muted/20 rounded">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.description}
+                      </div>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Weaknesses */}
+            <Card className="border-t-4 border-t-red-500">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-red-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" /> Weaknesses
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {reportData.swotAnalysis.weaknesses?.map(
+                  (item: any, i: number) => (
+                    <div key={i} className="text-sm p-2 bg-muted/20 rounded">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.description}
+                      </div>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Opportunities */}
+            <Card className="border-t-4 border-t-blue-500">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-blue-700 flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4" /> Opportunities
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {reportData.swotAnalysis.opportunities?.map(
+                  (item: any, i: number) => (
+                    <div key={i} className="text-sm p-2 bg-muted/20 rounded">
+                      <div className="font-medium flex justify-between">
+                        {item.opportunity}
+                        <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 border rounded">
+                          {item.timeframe}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Strategy: {item.captureStrategy}
+                      </div>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Threats */}
+            <Card className="border-t-4 border-t-orange-500">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-orange-700 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" /> Threats
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {reportData.swotAnalysis.threats?.map(
+                  (item: any, i: number) => (
+                    <div key={i} className="text-sm p-2 bg-muted/20 rounded">
+                      <div className="font-medium">{item.threat}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Mitigation: {item.mitigationStrategy}
+                      </div>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Growth Strategy Timeline */}
+      {reportData.growthStrategy && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Growth Strategy
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-8 relative pl-2">
+              {/* Vertical Line */}
+              <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-border" />
+
+              {/* Short Term */}
+              {reportData.growthStrategy.shortTerm && (
+                <div className="relative pl-8">
+                  <div className="absolute left-0 top-1 h-5 w-5 rounded-full border-4 border-background bg-primary z-10" />
+                  <div className="mb-2">
+                    <h4 className="font-semibold text-base">
+                      Short Term{" "}
+                      <span className="text-muted-foreground font-normal text-sm ml-2">
+                        (0-6 Months)
+                      </span>
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {reportData.growthStrategy.shortTerm.focus}
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {reportData.growthStrategy.shortTerm.objectives?.map(
+                      (obj: string, i: number) => (
+                        <div
+                          key={i}
+                          className="text-sm bg-muted/20 p-2 rounded border flex gap-2 items-start"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <span>{obj}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Medium Term */}
+              {reportData.growthStrategy.mediumTerm && (
+                <div className="relative pl-8">
+                  <div className="absolute left-0 top-1 h-5 w-5 rounded-full border-4 border-background bg-indigo-500 z-10" />
+                  <div className="mb-2">
+                    <h4 className="font-semibold text-base">
+                      Medium Term{" "}
+                      <span className="text-muted-foreground font-normal text-sm ml-2">
+                        (6-18 Months)
+                      </span>
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {reportData.growthStrategy.mediumTerm.focus}
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {reportData.growthStrategy.mediumTerm.objectives?.map(
+                      (obj: string, i: number) => (
+                        <div
+                          key={i}
+                          className="text-sm bg-muted/20 p-2 rounded border flex gap-2 items-start"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <span>{obj}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Long Term */}
+              {reportData.growthStrategy.longTerm && (
+                <div className="relative pl-8">
+                  <div className="absolute left-0 top-1 h-5 w-5 rounded-full border-4 border-background bg-slate-500 z-10" />
+                  <div className="mb-2">
+                    <h4 className="font-semibold text-base">
+                      Long Term{" "}
+                      <span className="text-muted-foreground font-normal text-sm ml-2">
+                        (18+ Months)
+                      </span>
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {reportData.growthStrategy.longTerm.focus}
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {reportData.growthStrategy.longTerm.objectives?.map(
+                      (obj: string, i: number) => (
+                        <div
+                          key={i}
+                          className="text-sm bg-muted/20 p-2 rounded border flex gap-2 items-start"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <span>{obj}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Financials & Competitive */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {reportData.financialProjections && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-green-600" /> Financial
+                Projections
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted/10 rounded-md border">
+                  <div className="text-xs text-muted-foreground">
+                    Revenue Model
+                  </div>
+                  <div className="font-semibold text-sm">
+                    {reportData.financialProjections.revenueModel || "N/A"}
+                  </div>
+                </div>
+                <div className="p-3 bg-muted/10 rounded-md border">
+                  <div className="text-xs text-muted-foreground">
+                    Break Even
+                  </div>
+                  <div className="font-semibold text-sm">
+                    {reportData.financialProjections.breakeven || "N/A"}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm p-3 bg-muted/20 rounded-md">
+                <span className="font-medium block mb-1">
+                  Funding Requirements
+                </span>
+                {reportData.financialProjections?.keyMetrics.map((metric) => (
+                  <p key={metric}>{metric}</p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {reportData.competitiveStrategy && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Award className="h-4 w-4 text-orange-500" /> Competitive
+                Strategy
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+                  Positioning
+                </div>
+                <p className="text-sm text-foreground">
+                  {reportData.competitiveStrategy.positioning}
+                </p>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                  Differentiators
+                </div>
+                <p className="text-sm text-foreground">
+                  {reportData.competitiveStrategy.differentiation}
+                </p>
+                {/* <div className="flex flex-wrap gap-2">
+                  {reportData.competitiveStrategy.differentiation?.map(
+                    (diff: string, i: number) => (
+                      <Badge key={i} variant="outline" className="font-normal">
+                        {diff}
+                      </Badge>
+                    )
+                  )}
+                </div> */}
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+                  Defensibility
+                </div>
+                <p className="text-sm text-foreground">
+                  {reportData.competitiveStrategy.defensibility}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      <div>
+        <h4 className="font-bold text-lg mb-2 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-primary" />
+          Strategic Outlook
+        </h4>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {reportData.conclusion}
+        </p>
+      </div>
+    </div>
+  );
+}
+// ExpandableText Component (Unchanged)
 function ExpandableText({ text }: { text: string }) {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const maxLength = 250;

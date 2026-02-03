@@ -39,6 +39,8 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { STATUS_COLORS } from "@/lib/data/platform";
+import { useUserIdeas } from "@/hooks/useUserIdeas";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { ROLES, type Role } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -75,10 +77,48 @@ import {
   MailIcon,
 } from "@/components/social-icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserIdeas } from "@/hooks/useUserIdeas";
-import { useUserProfile } from "@/hooks/useUserProfile";
+import { useIdeaConsultation } from "@/hooks/useConsultations";
 
-type SortField = "date" | "title" | "score" | "status";
+const ConsultationStatusCell = ({ ideaId }: { ideaId: string }) => {
+  const { data: consultation, isLoading } = useIdeaConsultation(ideaId);
+
+  if (isLoading) {
+    return <span className="text-muted-foreground text-xs">Loading...</span>;
+  }
+
+  if (!consultation || !consultation.status) {
+    return (
+      <Badge
+        variant="secondary"
+        className="text-muted-foreground font-normal bg-gray-100 hover:bg-gray-200"
+      >
+        Not Assigned
+      </Badge>
+    );
+  }
+
+  return (
+    <div className="flex flex-col text-sm">
+      {consultation.status === "Scheduled" && consultation.scheduledAt ? (
+        <>
+          <span className="font-semibold text-green-600">
+            {new Date(consultation.scheduledAt).toLocaleDateString()}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            with {consultation.mentor?.name || "Mentor"}
+            {consultation.mentor?.organization &&
+              ` (${consultation.mentor.organization})`}
+          </span>
+        </>
+      ) : (
+        <Badge variant="outline" className="w-fit">
+          {consultation.status}
+        </Badge>
+      )}
+    </div>
+  );
+};
+
 type SortOrder = "asc" | "desc";
 
 const ActiveShape = (props: any) => {
@@ -167,7 +207,7 @@ export default function IdeasPage() {
     (_: any, index: number) => {
       setActiveIndex(index);
     },
-    [setActiveIndex]
+    [setActiveIndex],
   );
 
   // ============ WORKSPACE LOGIC - SIMPLIFIED ✅ ============
@@ -210,7 +250,7 @@ export default function IdeasPage() {
       filtered = filtered.filter(
         (idea: any) =>
           idea.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          idea.concept?.toLowerCase().includes(searchTerm.toLowerCase())
+          idea.concept?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -267,13 +307,13 @@ export default function IdeasPage() {
   // ============ STATISTICS (Only for My Ideas) ============
   const totalIdeas = myIdeas.length;
   const approvedCount = myIdeas.filter(
-    (i: any) => i.status === "approved"
+    (i: any) => i.status === "approved",
   ).length;
   const approvalRate = totalIdeas > 0 ? (approvedCount / totalIdeas) * 100 : 0;
 
   const totalScoreSum = myIdeas.reduce(
     (sum: number, item: any) => sum + (item.overallScore || 0),
-    0
+    0,
   );
   const averageScore = totalIdeas > 0 ? totalScoreSum / totalIdeas : 0;
 
@@ -373,8 +413,8 @@ export default function IdeasPage() {
             {searchTerm || statusFilter !== "all" || domainFilter !== "all"
               ? "No ideas match your filters."
               : activeTab === "my-workspace"
-              ? "No ideas created yet."
-              : "No ideas shared with you yet."}
+                ? "No ideas created yet."
+                : "No ideas shared with you yet."}
           </p>
           {activeTab === "my-workspace" &&
             role === ROLES.INNOVATOR &&
@@ -424,6 +464,7 @@ export default function IdeasPage() {
                 <ArrowUpDown className="ml-2 h-4 w-4" />
               </Button>
             </TableHead>
+            <TableHead>Consultation</TableHead>
             <TableHead>
               <Button
                 variant="ghost"
@@ -446,15 +487,15 @@ export default function IdeasPage() {
                   router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
                 }
               >
-                {idea._id}
+                {idea._id.substring(0, 8)}...
               </TableCell>
               <TableCell
-                className="cursor-pointer"
+                className="cursor-pointer font-medium"
                 onClick={() =>
                   router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
                 }
               >
-                {idea.title}
+                {idea.title || idea.ideaName}
               </TableCell>
               <TableCell
                 className="cursor-pointer"
@@ -473,6 +514,9 @@ export default function IdeasPage() {
                 <Badge className={STATUS_COLORS[idea.status] || ""}>
                   {idea.status}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                <ConsultationStatusCell ideaId={idea._id} />
               </TableCell>
               <TableCell
                 className="cursor-pointer"
@@ -520,7 +564,7 @@ export default function IdeasPage() {
                       <DropdownMenuItem
                         onSelect={() =>
                           router.push(
-                            `/dashboard/ideas/${idea._id}?role=${role}`
+                            `/dashboard/ideas/${idea._id}?role=${role}`,
                           )
                         }
                       >
@@ -535,7 +579,7 @@ export default function IdeasPage() {
                         <DropdownMenuItem
                           onSelect={() =>
                             router.push(
-                              `/dashboard/consultations?role=${role}&ideaId=${idea._id}`
+                              `/dashboard/consultations?role=${role}&ideaId=${idea._id}`,
                             )
                           }
                         >
@@ -555,12 +599,12 @@ export default function IdeasPage() {
 
   const shareUrl = selectedIdea
     ? encodeURIComponent(
-        `${window.location.origin}/dashboard/ideas/${selectedIdea._id}?role=${role}`
+        `${window.location.origin}/dashboard/ideas/${selectedIdea._id}?role=${role}`,
       )
     : "";
   const shareText = selectedIdea
     ? encodeURIComponent(
-        `Check out my idea: "${selectedIdea.title}" on PragatiAI!`
+        `Check out my idea: "${selectedIdea.title}" on PragatiAI!`,
       )
     : "";
 
@@ -819,7 +863,7 @@ export default function IdeasPage() {
                       <Button asChild variant="outline" size="icon">
                         <a
                           href={`mailto:?subject=${encodeURIComponent(
-                            selectedIdea?.title || ""
+                            selectedIdea?.title || "",
                           )}&body=${shareText} ${shareUrl}`}
                         >
                           <MailIcon className="h-5 w-5" />

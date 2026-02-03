@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
   Card,
@@ -64,6 +64,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "bg-green-500 text-white",
   rejected: "bg-red-500 text-white",
   draft: "bg-gray-500 text-white",
+  validating: "bg-purple-500 text-white", // ✅ NEW
 };
 
 interface College {
@@ -82,9 +83,11 @@ interface Idea {
   collegeName: string;
   collegeId?: string;
   createdAt: string;
+  validationStatus?: "pending" | "processing" | "completed" | "failed"; // ✅ NEW
 }
 
 export default function IdeaOversightPage() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterCollege, setFilterCollege] = React.useState("");
   const [filterDomain, setFilterDomain] = React.useState("all");
@@ -107,7 +110,7 @@ export default function IdeaOversightPage() {
 
   const colleges: College[] = collegesResp?.data || [];
 
-  // ✅ Fetch all ideas with filters
+  // ✅ Fetch all ideas with filters - POLL EVERY 10 SECONDS IF ANY ARE VALIDATING
   const {
     data: ideasResp,
     isLoading,
@@ -128,6 +131,14 @@ export default function IdeaOversightPage() {
       );
       return data;
     },
+    // ✅ Poll every 10 seconds if any idea is validating
+    refetchInterval: (data) => {
+      const ideas = data?.data || [];
+      const hasValidating = ideas.some(
+        (idea: Idea) => idea.validationStatus === "processing"
+      );
+      return hasValidating ? 10000 : false; // Poll every 10s if validating
+    },
   });
 
   const ideas: Idea[] = ideasResp?.data || [];
@@ -136,6 +147,11 @@ export default function IdeaOversightPage() {
   // ✅ Split ideas into validated and submitted
   const validatedIdeas = ideas.filter((idea) => idea.status !== "submitted");
   const submittedIdeas = ideas.filter((idea) => idea.status === "submitted");
+
+  // ✅ Check if any ideas are currently validating
+  const hasValidatingIdeas = ideas.some(
+    (idea) => idea.validationStatus === "processing"
+  );
 
   // Get unique domains from all ideas
   const uniqueDomains = [
@@ -147,16 +163,20 @@ export default function IdeaOversightPage() {
   // ✅ Selection handlers (apply only to submitted ideas)
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(submittedIdeas.map((idea) => idea._id)));
+      // Only select ideas that are NOT currently validating
+      const selectableIds = submittedIdeas
+        .filter((idea) => idea.validationStatus !== "processing")
+        .map((idea) => idea._id);
+      setSelectedIds(new Set(selectableIds));
     } else {
       setSelectedIds(new Set());
     }
   };
 
   const toggleSelectRow = (ideaId: string, checked: boolean) => {
-    // Only allow selecting submitted ideas
+    // Only allow selecting submitted ideas that aren't validating
     const idea = submittedIdeas.find((i) => i._id === ideaId);
-    if (!idea) return;
+    if (!idea || idea.validationStatus === "processing") return;
 
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
@@ -182,7 +202,8 @@ export default function IdeaOversightPage() {
     },
     onSuccess: (response) => {
       setSelectedIds(new Set());
-      refetch();
+      // ✅ Immediately refetch to get updated validation status
+      queryClient.invalidateQueries({ queryKey: ["all-ideas"] });
     },
   });
 
@@ -208,12 +229,19 @@ export default function IdeaOversightPage() {
       return data;
     },
     onSuccess: () => {
-      refetch();
+      // ✅ Immediately refetch to get updated validation status
+      queryClient.invalidateQueries({ queryKey: ["all-ideas"] });
     },
   });
 
   const handleValidateIndividual = (ideaId: string) => {
     validateIndividualMutation.mutate(ideaId);
+  };
+
+  // ✅ Helper to check if an idea is currently validating
+  const isIdeaValidating = (ideaId: string) => {
+    const idea = ideas.find((i) => i._id === ideaId);
+    return idea?.validationStatus === "processing";
   };
 
   if (error) {
@@ -229,6 +257,17 @@ export default function IdeaOversightPage() {
 
   return (
     <div>
+      {/* ✅ Show global validation status */}
+      {hasValidatingIdeas && (
+        <Alert className="mb-4 border-purple-500 bg-purple-50">
+          <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+          <AlertDescription className="text-purple-800">
+            <strong>Validation in progress...</strong> Some ideas are currently
+            being validated. This page will auto-refresh.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Idea Oversight</CardTitle>
@@ -404,9 +443,6 @@ export default function IdeaOversightPage() {
             <CardHeader>
               <CardTitle>Submitted Ideas (Validation Pending)</CardTitle>
             </CardHeader>
-            {/* <h3 className="text-lg font-semibold">
-              Submitted Ideas (Validation Pending)
-            </h3> */}
             {isLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -420,10 +456,20 @@ export default function IdeaOversightPage() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={
-                            submittedIdeas.length > 0 &&
-                            selectedIds.size === submittedIdeas.length
+                            submittedIdeas.filter(
+                              (i) => i.validationStatus !== "processing"
+                            ).length > 0 &&
+                            selectedIds.size ===
+                              submittedIdeas.filter(
+                                (i) => i.validationStatus !== "processing"
+                              ).length
                           }
                           onCheckedChange={toggleSelectAll}
+                          disabled={
+                            submittedIdeas.filter(
+                              (i) => i.validationStatus !== "processing"
+                            ).length === 0
+                          }
                         />
                       </TableHead>
                       <TableHead>ID</TableHead>
@@ -436,63 +482,82 @@ export default function IdeaOversightPage() {
                   </TableHeader>
                   <TableBody>
                     {submittedIdeas.length > 0 ? (
-                      submittedIdeas.map((idea) => (
-                        <TableRow key={idea._id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedIds.has(idea._id)}
-                              onCheckedChange={(checked) =>
-                                toggleSelectRow(idea._id, Boolean(checked))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {idea._id?.slice(0, 8)}...
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {idea.title}
-                          </TableCell>
-                          <TableCell>{idea.collegeName}</TableCell>
-                          <TableCell>
-                            {idea.innovatorName}
-                            <p className="text-xs text-muted-foreground">
-                              {idea.innovatorEmail}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={
-                                STATUS_COLORS[idea.status] ||
-                                "bg-gray-500 text-white"
-                              }
-                            >
-                              {idea.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="link"
-                              size="sm"
-                              onClick={() => handleValidateIndividual(idea._id)}
-                              disabled={validateIndividualMutation.isPending}
-                            >
-                              {validateIndividualMutation.isPending &&
-                              validateIndividualMutation.variables ===
-                                idea._id ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      submittedIdeas.map((idea) => {
+                        const isValidating = isIdeaValidating(idea._id);
+                        return (
+                          <TableRow
+                            key={idea._id}
+                            className={
+                              isValidating ? "bg-purple-50/50" : undefined
+                            }
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(idea._id)}
+                                onCheckedChange={(checked) =>
+                                  toggleSelectRow(idea._id, Boolean(checked))
+                                }
+                                disabled={isValidating}
+                              />
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {idea._id?.slice(0, 8)}...
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {idea.title}
+                            </TableCell>
+                            <TableCell>{idea.collegeName}</TableCell>
+                            <TableCell>
+                              {idea.innovatorName}
+                              <p className="text-xs text-muted-foreground">
+                                {idea.innovatorEmail}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              {isValidating ? (
+                                <Badge className="bg-purple-500 text-white">
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                   Validating...
-                                </>
+                                </Badge>
                               ) : (
-                                <>
-                                  <Sparkles className="mr-2 h-4 w-4" />
-                                  Validate
-                                </>
+                                <Badge
+                                  className={
+                                    STATUS_COLORS[idea.status] ||
+                                    "bg-gray-500 text-white"
+                                  }
+                                >
+                                  {idea.status}
+                                </Badge>
                               )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() =>
+                                  handleValidateIndividual(idea._id)
+                                }
+                                disabled={
+                                  isValidating ||
+                                  validateIndividualMutation.isPending
+                                }
+                              >
+                                {isValidating ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Validating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="mr-2 h-4 w-4" />
+                                    Validate
+                                  </>
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
                         <TableCell
@@ -512,16 +577,24 @@ export default function IdeaOversightPage() {
             {selectedIds.size > 0 && (
               <div className="flex items-center justify-between py-4 px-4 border-t bg-muted/50 rounded-lg">
                 <div className="text-sm text-muted-foreground">
-                  {selectedIds.size} of {submittedIdeas.length} ideas selected
+                  {selectedIds.size} of{" "}
+                  {
+                    submittedIdeas.filter(
+                      (i) => i.validationStatus !== "processing"
+                    ).length
+                  }{" "}
+                  ideas selected
                 </div>
                 <Button
                   onClick={handleValidateSelected}
                   disabled={
-                    validateBatchMutation.isPending || selectedIds.size === 0
+                    validateBatchMutation.isPending ||
+                    selectedIds.size === 0 ||
+                    hasValidatingIdeas
                   }
                   className="min-w-[12rem]"
                 >
-                  {validateBatchMutation.isPending ? (
+                  {validateBatchMutation.isPending || hasValidatingIdeas ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Validating...
