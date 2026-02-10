@@ -63,26 +63,49 @@ export default function CollegeAnalyticsPage() {
     fetchAnalytics();
   }, []);
 
+  React.useEffect(() => {
+    if (summary) {
+      console.log("Analytics Summary:", summary);
+      console.log("Status Breakdown:", summary.statusBreakdown);
+    }
+  }, [summary]);
+
   // Build status chart data
-  const statusChartData = summary
-    ? [
+  // ✅ Colors for pie chart
+  const STATUS_COLORS = {
+    submitted: "hsl(210, 100%, 50%)", // Blue
+    validated: "hsl(150, 100%, 40%)", // Green
+    approved: "hsl(120, 100%, 35%)", // Dark Green
+    rejected: "hsl(0, 100%, 50%)", // Red
+    moderate: "hsl(30, 100%, 50%)", // Orange
+  };
+
+  // Build status chart data
+  const statusChartData = summary?.statusBreakdown
+    ? Object.entries(summary.statusBreakdown).map(([status, count]) => ({
+        name: status.charAt(0).toUpperCase() + status.slice(1),
+        value: count as number,
+        fill:
+          STATUS_COLORS[status.toLowerCase() as keyof typeof STATUS_COLORS] ||
+          "hsl(var(--chart-1))",
+      }))
+    : [
         {
           name: "Approved",
-          value: summary.approvedIdeas || 0,
-          fill: "hsl(var(--color-approved))",
+          value: summary?.approvedIdeas || 0,
+          fill: STATUS_COLORS.approved,
         },
         {
           name: "Submitted",
-          value: summary.statusBreakdown?.submitted || 0,
-          fill: "hsl(var(--color-moderate))",
+          value: summary?.statusBreakdown?.submitted || 0,
+          fill: STATUS_COLORS.submitted,
         },
         {
           name: "Rejected",
-          value: summary.statusBreakdown?.rejected || 0,
-          fill: "hsl(var(--color-rejected))",
+          value: summary?.statusBreakdown?.rejected || 0,
+          fill: STATUS_COLORS.rejected,
         },
-      ]
-    : [];
+      ];
 
   // Loading state
   if (loading) {

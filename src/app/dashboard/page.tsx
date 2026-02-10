@@ -211,7 +211,7 @@ function DashboardPageContent() {
       ? ideas.reduce((acc, item) => acc + item.overallScore, 0) / ideas?.length
       : 0;
   const approvedCount = ideas?.filter(
-    (item) => item.status?.toLowerCase() === "approved"
+    (item) => item.status?.toLowerCase() === "approved",
   )?.length;
 
   const approvalRate = totalIdeas > 0 ? (approvedCount / totalIdeas) * 100 : 0;
@@ -241,7 +241,7 @@ function DashboardPageContent() {
     const sortedIdeas = [...ideas].sort(
       (a, b) =>
         new Date(a.dateSubmitted).getTime() -
-        new Date(b.dateSubmitted).getTime()
+        new Date(b.dateSubmitted).getTime(),
     );
 
     sortedIdeas.forEach((idea) => {
@@ -267,7 +267,7 @@ function DashboardPageContent() {
       setSelectedAction({ action, title, description });
       setDialogOpen(true);
     },
-    []
+    [],
   );
 
   const handleDownload = useCallback(
@@ -279,10 +279,10 @@ function DashboardPageContent() {
             description: `Downloading for idea ${ideaId} is not yet implemented.`,
           }),
         "Confirm Download",
-        "Are you sure you want to download the report for this idea?"
+        "Are you sure you want to download the report for this idea?",
       );
     },
-    [openConfirmationDialog, toast]
+    [openConfirmationDialog, toast],
   );
 
   const handleTrackHistory = useCallback((idea: Idea) => {
@@ -303,7 +303,7 @@ function DashboardPageContent() {
       }).toString();
       router.push(`/dashboard/submit?${query}`);
     },
-    [router]
+    [router],
   );
 
   if (role !== ROLES.INNOVATOR && role !== ROLES.INDIVIDUAL_INNOVATOR) {
@@ -536,7 +536,7 @@ function DashboardPageContent() {
                           className="group transition-all hover:shadow-md cursor-pointer"
                           onClick={() =>
                             router.push(
-                              `/dashboard/ideas/${idea._id}?role=${ROLES.INNOVATOR}`
+                              `/dashboard/ideas/details?id=${idea._id}&role=${ROLES.INNOVATOR}`,
                             )
                           }
                         >
@@ -549,7 +549,7 @@ function DashboardPageContent() {
                                 <span>
                                   {" "}
                                   {new Date(
-                                    idea.createdAt
+                                    idea.createdAt,
                                   ).toLocaleDateString()}
                                 </span>
                                 <span className="flex items-center gap-1">
@@ -557,7 +557,7 @@ function DashboardPageContent() {
                                   <span
                                     className={cn(
                                       "font-medium",
-                                      getScoreColor(getOverallScore(idea))
+                                      getScoreColor(getOverallScore(idea)),
                                     )}
                                   >
                                     {idea.overallScore?.toFixed(2) || "00"}
@@ -569,7 +569,7 @@ function DashboardPageContent() {
                               <Badge
                                 className={cn(
                                   STATUS_COLORS[idea.status],
-                                  "hidden sm:inline-flex"
+                                  "hidden sm:inline-flex",
                                 )}
                               >
                                 {idea.status}
@@ -591,7 +591,7 @@ function DashboardPageContent() {
                                     <DropdownMenuItem
                                       onSelect={() =>
                                         router.push(
-                                          `/dashboard/ideas/${idea._id}?role=${ROLES.INNOVATOR}`
+                                          `/dashboard/ideas/details?id=${idea._id}&role=${ROLES.INNOVATOR}`,
                                         )
                                       }
                                     >
@@ -610,7 +610,7 @@ function DashboardPageContent() {
                                         <DropdownMenuItem
                                           onSelect={() =>
                                             router.push(
-                                              `/dashboard/consultations?role=${ROLES.INNOVATOR}&ideaId=${idea._id}`
+                                              `/dashboard/consultations?role=${ROLES.INNOVATOR}&ideaId=${idea._id}`,
                                             )
                                           }
                                         >

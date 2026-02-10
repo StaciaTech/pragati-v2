@@ -75,6 +75,8 @@ import {
   XCircle,
   Grid3x3,
   Map as MapIcon,
+  ListChecks,
+  ArrowRight,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -150,6 +152,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { ROLES } from "@/lib/constants";
 import html2pdf from "html2pdf.js";
+import { useIdeaConsultation } from "@/hooks/useConsultations";
 
 const getBackLink = (role: string | null) => {
   switch (role) {
@@ -157,6 +160,10 @@ const getBackLink = (role: string | null) => {
       return `/dashboard/admin/ideas?role=${role}`;
     case ROLES.COORDINATOR:
       return `/dashboard/coordinator/feedback?role=${role}`;
+    case ROLES.PRINCIPAL:
+      return `/dashboard/principal/ideas?role=${role}`;
+    case ROLES.MENTOR:
+      return `/dashboard/mentor/consultations?role=${role}`;
     default:
       return `/dashboard/ideas?role=${ROLES.INNOVATOR}`;
   }
@@ -183,6 +190,15 @@ interface ReportData {
   businessCaseJson?: any;
   riskAssessmentJson?: any;
   strategicGrowthViabilityJson?: any;
+  validationResult?: {
+    version_comparison?: {
+      evolution_summary?: Array<any>;
+      feature_comparison_table?: Array<any>;
+      score_progression?: Array<any>;
+      risk_mitigation_log?: Array<any>;
+      final_verdict?: string;
+    };
+  };
 }
 
 interface Consultation {
@@ -244,8 +260,11 @@ const STATUS_COLORS: Record<string, string> = {
 export default function IdeaReportPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const params = useParams();
-  const ideaId = params.ideaId as string;
+  // const params = useParams();
+  console.log("Token", searchParams.get("token"));
+
+  const urlToken = searchParams.get("token");
+  const ideaId = searchParams.get("id") || "";
   const { toast } = useToast();
   const reportRef = React.useRef<HTMLDivElement>(null);
   const spiderChartRef = React.useRef<HTMLDivElement>(null);
@@ -255,21 +274,25 @@ export default function IdeaReportPage() {
   const [selectedConsultationForMom, setSelectedConsultationForMom] =
     React.useState<Consultation | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    new Date()
+    new Date(),
   );
   const [activeActionPoint, setActiveActionPoint] = React.useState(0);
   const [openAccordionItems, setOpenAccordionItems] = React.useState<string[]>(
-    []
+    [],
   );
   const [openParameterItems, setOpenParameterItems] = React.useState<string[]>(
-    []
+    [],
   );
   const [selectedSubParameter, setSelectedSubParameter] = React.useState<{
     clusterName: string;
     paramName: string;
     subParamName: string;
   } | null>(null);
+
   const highlightTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [isVersionSwitching, setIsVersionSwitching] = React.useState(false);
+  const [isSharing, setIsSharing] = React.useState(false);
+  const [shareUrl, setShareUrl] = React.useState("");
 
   const role = searchParams.get("role");
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -287,7 +310,14 @@ export default function IdeaReportPage() {
 
   const token = getToken();
 
+  // ✅ Fetch consultation details
+  const { data: consultationData, isLoading: consultationLoading } =
+    useIdeaConsultation(ideaId);
+
   const [avgClusterScores, setAvgClusterScores] = React.useState({});
+
+  const [reportMetaData, setReportMetaData] = React.useState({});
+  const [versionHistory, setVersionHistory] = React.useState([]);
 
   // Fetch report data
   const {
@@ -298,9 +328,14 @@ export default function IdeaReportPage() {
     queryKey: ["report", ideaId],
     queryFn: async () => {
       const { data } = await axios.get(`${apiUrl}/api/reports/${ideaId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${urlToken ? urlToken : token}` },
       });
       console.log(data);
+      console.log(data.meta);
+      console.log(data.versionHistory);
+      setReportMetaData(data.meta);
+      setVersionHistory(data.versionHistory);
+
       if (data?.data?.detailedAnalysis?.cluster_analyses) {
         console.log(data.data.detailedAnalysis.cluster_analyses);
         const clusterScores: Record<string, number> = {};
@@ -309,13 +344,13 @@ export default function IdeaReportPage() {
           ([clusterName, clusterData]) => {
             // clusterData.score contains the average score for the cluster
             clusterScores[clusterName] = Math.round(
-              (clusterData as { score: number }).score
+              (clusterData as { score: number }).score,
             );
-          }
+          },
         );
 
         setAvgClusterScores(clusterScores);
-        console.log(clusterScores);
+        // console.log(clusterScores);
       }
       return data.data;
     },
@@ -379,7 +414,7 @@ export default function IdeaReportPage() {
               }
             });
           });
-        }
+        },
       );
     }
 
@@ -395,19 +430,19 @@ export default function IdeaReportPage() {
   const handleHighlightClick = (
     clusterName: string,
     paramName: string,
-    subParamName: string
+    subParamName: string,
   ) => {
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current);
     }
 
     setOpenAccordionItems((prev) =>
-      prev.includes(clusterName) ? prev : [...prev, clusterName]
+      prev.includes(clusterName) ? prev : [...prev, clusterName],
     );
 
     const paramKey = `${clusterName}|${paramName}`;
     setOpenParameterItems((prev) =>
-      prev.includes(paramKey) ? prev : [...prev, paramKey]
+      prev.includes(paramKey) ? prev : [...prev, paramKey],
     );
 
     setSelectedSubParameter({ clusterName, paramName, subParamName });
@@ -415,7 +450,7 @@ export default function IdeaReportPage() {
     setTimeout(() => {
       const elementId = `sub-param-${subParamName.replace(
         /[^a-zA-Z0-9]/g,
-        "-"
+        "-",
       )}`;
       const element = document.getElementById(elementId);
       if (element) {
@@ -517,7 +552,7 @@ export default function IdeaReportPage() {
             Authorization: `Bearer ${token}`,
           },
           responseType: "blob", // Important: receive as blob
-        }
+        },
       );
 
       // Create a download link
@@ -564,12 +599,94 @@ export default function IdeaReportPage() {
     }
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link Copied!",
-      description: "The report link has been copied to your clipboard.",
-    });
+  const handleShareClick = async () => {
+    try {
+      setIsSharing(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/reports/share/${ideaId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (response.data && response.data.token) {
+        const shareToken = response.data.token;
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set("token", shareToken); // Attach token to URL
+        const newShareUrl = currentUrl.toString();
+
+        setShareUrl(newShareUrl);
+        setIsShareDialogOpen(true);
+      } else {
+        throw new Error("Failed to generate share token");
+      }
+    } catch (error: any) {
+      console.error("Share error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate share link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!shareUrl) return;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: "Link Copied!",
+          description:
+            "The secure report link has been copied to your clipboard.",
+        });
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand("copy");
+          toast({
+            title: "Link Copied!",
+            description:
+              "The secure report link has been copied to your clipboard.",
+          });
+        } catch (err) {
+          console.error("Fallback: Oops, unable to copy", err);
+          toast({
+            title: "Error",
+            description: "Failed to copy link. Please try manually.",
+            variant: "destructive",
+          });
+        }
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast({
+        title: "Error",
+        description: "Failed to copy link. Please try manually.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleViewMom = (consultation: Consultation) => {
@@ -642,9 +759,9 @@ export default function IdeaReportPage() {
   const idea = MOCK_IDEAS[0];
   const DomainIcon = idea.domain ? domainIcons[idea.domain] : null;
 
-  const shareUrl = encodeURIComponent(window.location.href);
+  const encodedShareUrl = encodeURIComponent(shareUrl);
   const shareText = encodeURIComponent(
-    `Check out my idea report for "${idea.title}" on PragatiAI!`
+    `Check out my idea report for "${idea.title}" on PragatiAI!`,
   );
 
   const allClusterNames = reportData?.detailedViabilityAssessment?.clusters
@@ -689,12 +806,18 @@ export default function IdeaReportPage() {
   };
 
   // Loading state
-  if (isLoading) {
+  const showLoading = isLoading || isVersionSwitching;
+
+  if (showLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading report...</p>
+      <div className="flex h-screen items-center justify-center bg-background/80 backdrop-blur-sm fixed inset-0 z-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-lg font-medium text-foreground animate-pulse">
+            {isVersionSwitching
+              ? "Switching version..."
+              : "Loading idea report..."}
+          </p>
         </div>
       </div>
     );
@@ -709,10 +832,10 @@ export default function IdeaReportPage() {
           {error?.message || "Report not found"}
         </p>
         <Button asChild className="mt-4">
-          <Link href={getBackLink(role)}>
+          <div onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go Back
-          </Link>
+          </div>
         </Button>
       </div>
     );
@@ -730,19 +853,29 @@ export default function IdeaReportPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <div className="flex gap-2">
-            <Button onClick={handleDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsShareDialogOpen(true)}
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-          </div>
+          {urlToken ? (
+            ""
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Export PDF
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleShareClick}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                ) : (
+                  <Share2 className="mr-2 h-4 w-4" />
+                )}
+                {isSharing ? "Generating..." : "Share"}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div ref={reportRef} className="p-4 bg-background">
@@ -758,25 +891,64 @@ export default function IdeaReportPage() {
                         variant="link"
                         className="p-0 h-auto text-sm text-muted-foreground"
                       >
-                        Version: V1.0
+                        {`Version: V${reportMetaData.currentVersion || "1.0"}`}
                         <ChevronDown className="ml-1 h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuLabel>Version History</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        V1.0 -{" "}
-                        {new Date(
-                          reportData.createdAt || reportData.created_at
-                        ).toLocaleDateString("en-GB")}
-                      </DropdownMenuItem>
+                      {versionHistory && versionHistory.length > 0 ? (
+                        versionHistory.map((version: any) => (
+                          <DropdownMenuItem
+                            key={version?.version}
+                            className={cn(
+                              "flex justify-between gap-4 cursor-pointer",
+                              reportMetaData.currentVersion ===
+                                version?.version && "bg-muted font-bold",
+                            )}
+                            disabled={
+                              reportMetaData.currentVersion === version?.version
+                            }
+                            onClick={() => {
+                              if (version?.versionId) {
+                                setIsVersionSwitching(true);
+                                const params = new URLSearchParams(
+                                  searchParams.toString(),
+                                );
+                                params.set("id", version.versionId);
+                                router.push(`?${params.toString()}`);
+
+                                // Artificial delay to show loading state
+                                setTimeout(() => {
+                                  setIsVersionSwitching(false);
+                                }, 800);
+                              }
+                            }}
+                          >
+                            <span className="font-medium">
+                              V{version?.version}
+                              {reportMetaData.currentVersion ===
+                                version?.version && " (Current)"}
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {new Date(
+                                version?.submittedAt || version?.created_at,
+                              ).toLocaleDateString("en-GB")}
+                            </span>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled>
+                          No history available
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <span>
                     Submitted:{" "}
                     {new Date(
-                      reportData.createdAt || reportData.created_at
+                      reportData.createdAt || reportData.created_at,
                     ).toLocaleDateString("en-GB")}
                   </span>
                   <span>
@@ -786,7 +958,7 @@ export default function IdeaReportPage() {
                         STATUS_COLORS[
                           reportData.validationOutcome ||
                             reportData.validation_outcome
-                        ]
+                        ],
                       )}
                     >
                       {reportData.validationOutcome ||
@@ -815,6 +987,12 @@ export default function IdeaReportPage() {
             </CardHeader>
 
             <CardContent className="space-y-8 pt-2">
+              {/* ✅ Consultation Status Card */}
+              <ConsultationStatusCard
+                consultation={consultationData}
+                loading={consultationLoading}
+              />
+
               {reportData.roadmap && (
                 <>
                   <Card className="bg-muted/50">
@@ -835,7 +1013,7 @@ export default function IdeaReportPage() {
                           (
                             activity:
                               | string
-                              | { text: string; timeline: string }
+                              | { text: string; timeline: string },
                           ) => ({
                             text:
                               typeof activity === "string"
@@ -845,7 +1023,7 @@ export default function IdeaReportPage() {
                               typeof activity === "string"
                                 ? ""
                                 : activity.timeline || "",
-                          })
+                          }),
                         )}
                       />
                     </CardContent>
@@ -894,7 +1072,7 @@ export default function IdeaReportPage() {
                                 handleHighlightClick(
                                   item.clusterName,
                                   item.paramName,
-                                  item.name
+                                  item.name,
                                 )
                               }
                               className="flex justify-between w-full hover:bg-muted p-1 rounded-md transition-colors text-left"
@@ -923,7 +1101,7 @@ export default function IdeaReportPage() {
                                 handleHighlightClick(
                                   item.clusterName,
                                   item.paramName,
-                                  item.name
+                                  item.name,
                                 )
                               }
                               className="flex justify-between w-full hover:bg-muted p-1 rounded-md transition-colors text-left"
@@ -960,7 +1138,7 @@ export default function IdeaReportPage() {
                           "p-3 rounded-md text-left transition-colors border-l-4",
                           i === activeActionPoint
                             ? "bg-muted border-primary"
-                            : "bg-transparent hover:bg-muted/50 border-transparent"
+                            : "bg-transparent hover:bg-muted/50 border-transparent",
                         )}
                       >
                         <p className="font-semibold">Improve: {point.name}</p>
@@ -1089,7 +1267,7 @@ export default function IdeaReportPage() {
                     >
                       {reportData?.detailedViabilityAssessment?.clusters &&
                         Object.entries(
-                          reportData.detailedViabilityAssessment.clusters
+                          reportData.detailedViabilityAssessment.clusters,
                         ).map(([clusterName, clusterData]) => (
                           <AccordionItem value={clusterName} key={clusterName}>
                             <AccordionTrigger className="text-lg font-semibold text-primary hover:no-underline">
@@ -1115,7 +1293,7 @@ export default function IdeaReportPage() {
                                         (p) =>
                                           typeof p === "object" &&
                                           p !== null &&
-                                          p.assignedScore !== undefined
+                                          p.assignedScore !== undefined,
                                       )
                                       .map((p) => p.assignedScore);
 
@@ -1124,7 +1302,7 @@ export default function IdeaReportPage() {
                                         ? Math.round(
                                             (scores.reduce((a, b) => a + b, 0) /
                                               scores.length) *
-                                              100
+                                              100,
                                           ) / 100
                                         : 0;
 
@@ -1142,8 +1320,8 @@ export default function IdeaReportPage() {
                                               className={cn(
                                                 "flex items-center justify-center text-base font-bold",
                                                 getScoreColor(
-                                                  Math.round(categoryAverage)
-                                                )
+                                                  Math.round(categoryAverage),
+                                                ),
                                               )}
                                             >
                                               {Math.round(categoryAverage)}
@@ -1176,7 +1354,7 @@ export default function IdeaReportPage() {
                                                   "No data";
                                                 const elementId = `sub-param-${subParamName.replace(
                                                   /[^a-zA-Z0-9]/g,
-                                                  "-"
+                                                  "-",
                                                 )}`;
 
                                                 const subCircumference =
@@ -1201,7 +1379,7 @@ export default function IdeaReportPage() {
                                                     className={cn(
                                                       "p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center scroll-mt-20 transition-all duration-300",
                                                       isHighlighted &&
-                                                        "ring-2 ring-primary bg-primary/5"
+                                                        "ring-2 ring-primary bg-primary/5",
                                                     )}
                                                   >
                                                     <div className="md:col-span-3">
@@ -1230,8 +1408,8 @@ export default function IdeaReportPage() {
                                                             className={cn(
                                                               "stroke-current transition-all duration-500 ease-in-out",
                                                               getScoreColor(
-                                                                score
-                                                              )
+                                                                score,
+                                                              ),
                                                             )}
                                                             strokeWidth="3"
                                                             fill="transparent"
@@ -1248,7 +1426,9 @@ export default function IdeaReportPage() {
                                                         <span
                                                           className={cn(
                                                             "absolute inset-0 flex items-center justify-center text-base font-bold",
-                                                            getScoreColor(score)
+                                                            getScoreColor(
+                                                              score,
+                                                            ),
                                                           )}
                                                         >
                                                           {score}
@@ -1279,14 +1459,14 @@ export default function IdeaReportPage() {
                                                     </div>
                                                   </div>
                                                 );
-                                              }
+                                              },
                                             )}
                                             ;
                                           </div>
                                         </AccordionContent>
                                       </AccordionItem>
                                     );
-                                  }
+                                  },
                                 )}
                               </Accordion>
                             </AccordionContent>
@@ -1298,6 +1478,14 @@ export default function IdeaReportPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Version Comparison Section - Conditionally Rendered */}
+          {reportData?.validationResult?.version_comparison && (
+            <VersionComparisonSection
+              data={reportData.validationResult.version_comparison}
+            />
+          )}
+
           {/* Share Dialog */}
           <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
             <DialogContent>
@@ -1309,7 +1497,7 @@ export default function IdeaReportPage() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="flex items-center space-x-2">
-                  <Input id="link" value={window.location.href} readOnly />
+                  <Input id="link" value={shareUrl} readOnly />
                   <Button type="button" size="sm" onClick={handleCopyLink}>
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -1327,7 +1515,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`}
+                            href={`https://api.whatsapp.com/send?text=${shareText}%20${encodedShareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1341,7 +1529,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
+                            href={`https://twitter.com/intent/tweet?text=${shareText}&url=${encodedShareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1355,7 +1543,7 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
+                            href={`https://www.facebook.com/sharer/sharer.php?u=${encodedShareUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -1369,8 +1557,8 @@ export default function IdeaReportPage() {
                       <TooltipTrigger asChild>
                         <Button asChild variant="outline" size="icon">
                           <a
-                            href={`https://www.linkedin.com/shareArticle?mini=true&url=${shareUrl}&title=${encodeURIComponent(
-                              idea.title || ""
+                            href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodedShareUrl}&title=${encodeURIComponent(
+                              idea.title || "",
                             )}&summary=${shareText}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -1386,7 +1574,7 @@ export default function IdeaReportPage() {
                         <Button asChild variant="outline" size="icon">
                           <a
                             href={`mailto:?subject=${encodeURIComponent(
-                              idea.title || ""
+                              idea.title || "",
                             )}&body=${shareText}%20${shareUrl}`}
                           >
                             <MailIcon className="h-5 w-5" />
@@ -1422,6 +1610,119 @@ export default function IdeaReportPage() {
 }
 
 // ✅ COMPONENT 1: BUSINESS CASE REPORT (REDESIGNED)
+// ✅ COMPONENT: Consultation Status Card
+function ConsultationStatusCard({
+  consultation,
+  loading,
+}: {
+  consultation: any;
+  loading: boolean;
+}) {
+  if (loading) return null;
+
+  return (
+    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 dark:from-blue-950/20 dark:to-indigo-950/20 dark:border-blue-900">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2 text-blue-800 dark:text-blue-300">
+          <Briefcase className="h-5 w-5" />
+          Consultation
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!consultation || consultation.status === "Pending" ? (
+          <div className="flex items-center gap-3 text-muted-foreground p-4 bg-background/50 rounded-lg border border-dashed text-sm">
+            <AlertCircle className="h-5 w-5" />
+            <p>
+              No consultation has been assigned or confirmed for this idea yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">
+                Status
+              </p>
+              <Badge
+                variant={
+                  consultation.status?.toLowerCase() === "completed"
+                    ? "default"
+                    : "secondary"
+                }
+                className={cn(
+                  "text-sm px-3 py-1",
+                  consultation.status?.toLowerCase() === "completed"
+                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                    : "bg-blue-100 text-blue-800 hover:bg-blue-100",
+                )}
+              >
+                {consultation.status}
+              </Badge>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">
+                {consultation.status?.toLowerCase() === "completed"
+                  ? "Completed On"
+                  : "Scheduled For"}
+              </p>
+              <div className="flex items-center gap-2 font-medium">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                <span>
+                  {consultation.scheduledAt
+                    ? new Date(consultation.scheduledAt).toLocaleDateString(
+                        "en-US",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        },
+                      )
+                    : "Date not available"}
+                </span>
+                {consultation.scheduledAt && (
+                  <span className="text-muted-foreground text-sm font-normal">
+                    at{" "}
+                    {new Date(consultation.scheduledAt).toLocaleTimeString(
+                      "en-US",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {consultation.mentor && (
+              <div className="space-y-1 md:col-span-2 pt-2 border-t border-blue-200/50 dark:border-blue-800/50 mt-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Assigned Mentor
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">
+                      {consultation.mentor.name}
+                    </p>
+                    {consultation.mentor.organization && (
+                      <p className="text-xs text-muted-foreground">
+                        {consultation.mentor.organization}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ✅ COMPONENT 1: BUSINESS CASE REPORT (REFACTORED)
 function BusinessCaseReport({ data }: { data: any }) {
   if (!data || Object.keys(data).length === 0) {
@@ -1503,7 +1804,7 @@ function BusinessCaseReport({ data }: { data: any }) {
                         >
                           <span className="">{f}</span>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 )}
@@ -1726,7 +2027,7 @@ function BusinessCaseReport({ data }: { data: any }) {
                             </p>
                           </CardContent>
                         </Card>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -1800,8 +2101,8 @@ function RiskAssessmentReport({ data }: { data: any }) {
                   data.overallRiskProfile.level === "LOW"
                     ? "bg-green-600 hover:bg-green-700"
                     : data.overallRiskProfile.level === "MEDIUM"
-                    ? "bg-orange-500 hover:bg-orange-600"
-                    : "bg-destructive hover:bg-destructive/90"
+                      ? "bg-orange-500 hover:bg-orange-600"
+                      : "bg-destructive hover:bg-destructive/90",
                 )}
               >
                 {data.overallRiskProfile.level || "UNKNOWN"}
@@ -2077,16 +2378,16 @@ function RiskCard({ risk }: { risk: any }) {
     risk.severity?.toUpperCase() === "CRITICAL"
       ? "border-red-500"
       : risk.severity?.toUpperCase() === "HIGH"
-      ? "border-orange-500"
-      : risk.severity?.toUpperCase() === "MEDIUM"
-      ? "border-yellow-500"
-      : "border-green-500";
+        ? "border-orange-500"
+        : risk.severity?.toUpperCase() === "MEDIUM"
+          ? "border-yellow-500"
+          : "border-green-500";
 
   return (
     <div
       className={cn(
         "group border rounded-lg p-4 bg-card hover:bg-muted/5 transition-colors border-l-4",
-        borderColor
+        borderColor,
       )}
     >
       <div className="flex justify-between items-start gap-4 mb-2">
@@ -2262,7 +2563,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                         {item.description}
                       </div>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -2283,7 +2584,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                         {item.description}
                       </div>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -2309,7 +2610,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                         Strategy: {item.captureStrategy}
                       </div>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -2330,7 +2631,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                         Mitigation: {item.mitigationStrategy}
                       </div>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -2376,7 +2677,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                           <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                           <span>{obj}</span>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -2407,7 +2708,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                           <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                           <span>{obj}</span>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -2438,7 +2739,7 @@ function StrategicGrowthReport({ data }: { data: any }) {
                           <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                           <span>{obj}</span>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -2573,5 +2874,279 @@ function ExpandableText({ text }: { text: string }) {
         </span>
       )}
     </p>
+  );
+}
+
+function VersionComparisonSection({ data }: { data: any }) {
+  if (!data) return null;
+
+  const {
+    evolution_summary,
+    top_improvements,
+    drawbacks,
+    parameter_changes,
+    conclusion,
+    final_verdict,
+  } = data;
+
+  // Helper for consistent color theming that works in dark mode
+  const getEvolutionTypeStyle = (type: string) => {
+    const t = type?.toLowerCase() || "";
+    if (t.includes("improvement") || t.includes("improved")) {
+      return {
+        icon: TrendingUp,
+        wrapperClass: "border-l-green-500 bg-green-50 dark:bg-green-900/10",
+        iconColor: "text-green-600 dark:text-green-400",
+        badge:
+          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+      };
+    } else if (
+      t.includes("regression") ||
+      t.includes("declined") ||
+      t.includes("drop")
+    ) {
+      return {
+        icon: TrendingDown,
+        wrapperClass: "border-l-red-500 bg-red-50 dark:bg-red-900/10",
+        iconColor: "text-red-600 dark:text-red-400",
+        badge: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+      };
+    } else {
+      return {
+        icon: Activity,
+        wrapperClass: "border-l-blue-500 bg-blue-50 dark:bg-blue-900/10",
+        iconColor: "text-blue-600 dark:text-blue-400",
+        badge:
+          "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+      };
+    }
+  };
+
+  return (
+    <Card className="mt-6 border shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <History className="h-6 w-6 text-primary" />
+          Version Evolution Analysis
+        </CardTitle>
+        <CardDescription>
+          Detailed breakdown of how your idea has evolved since the last
+          version.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-8">
+        {/* 1. High-Level Evolution Summary */}
+        {evolution_summary && evolution_summary.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="font-semibold text-base flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Strategic Shifts
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {evolution_summary.map((item: any, index: number) => {
+                const style = getEvolutionTypeStyle(item.type);
+                const Icon = style.icon;
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      "p-4 rounded-lg border-l-4 border shadow-sm",
+                      style.wrapperClass,
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Icon
+                        className={cn("h-5 w-5 mt-1 shrink-0", style.iconColor)}
+                      />
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h5 className="font-semibold text-sm">
+                            {item.title}
+                          </h5>
+                          <Badge
+                            variant="outline"
+                            className={cn("text-[10px] h-5", style.badge)}
+                          >
+                            {item.type}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Top Improvements & Drawbacks (Side by Side) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Improvements Column */}
+          {top_improvements && top_improvements.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Major Gains
+              </h4>
+              {top_improvements.map((item: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded border bg-card/50 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-medium bg-secondary px-2 py-1 rounded">
+                      {item.parameter.split(">").pop().trim()}
+                    </span>
+                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                      {item.score_change}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {item.insight}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Drawbacks Column */}
+          {drawbacks && drawbacks.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                <TrendingDown className="h-4 w-4" />
+                Areas of Concern
+              </h4>
+              {drawbacks.map((item: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded border bg-card/50 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-medium bg-secondary px-2 py-1 rounded">
+                      {item.parameter.split(">").pop().trim()}
+                    </span>
+                    <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
+                      {item.score_change}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {item.insight}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 3. Detailed Parameter Changes List */}
+        {parameter_changes && parameter_changes.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="font-semibold text-base flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-primary" />
+              Detailed Analysis Log
+            </h4>
+            <div className="divide-y border rounded-lg overflow-hidden">
+              {parameter_changes.map((change: any, index: number) => {
+                const isImproved = change.change_type === "IMPROVED";
+                return (
+                  <div
+                    key={index}
+                    className="p-4 bg-card hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="flex flex-col md:flex-row gap-4 justify-between">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">
+                            {change.parameter}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] h-5",
+                              isImproved
+                                ? "border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+                                : "border-red-200 text-red-700 dark:border-red-800 dark:text-red-400",
+                            )}
+                          >
+                            {change.change_type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {change.explanation}
+                        </p>
+                      </div>
+
+                      <div className="md:w-1/3 shrink-0">
+                        <div className="bg-secondary/50 p-3 rounded text-xs">
+                          <span className="font-semibold block mb-1 text-primary">
+                            Recommended Action:
+                          </span>
+                          {change.actionable_insight}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Conclusion & Action Plan */}
+        {conclusion && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-xl border-t border-b">
+            <div>
+              <h5 className="font-semibold text-sm mb-3 flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                <AlertTriangle className="h-4 w-4" />
+                Corrections Needed
+              </h5>
+              <ul className="space-y-2">
+                {conclusion.corrections?.map((item: string, i: number) => (
+                  <li
+                    key={i}
+                    className="text-sm text-muted-foreground flex items-start gap-2"
+                  >
+                    <span className="text-orange-400 mt-1">•</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-semibold text-sm mb-3 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <ArrowRight className="h-4 w-4" />
+                Strategic Upgrades
+              </h5>
+              <ul className="space-y-2">
+                {conclusion.upgradations?.map((item: string, i: number) => (
+                  <li
+                    key={i}
+                    className="text-sm text-muted-foreground flex items-start gap-2"
+                  >
+                    <span className="text-blue-400 mt-1">•</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Final Verdict */}
+        {final_verdict && (
+          <div className="bg-primary/5 border border-primary/10 rounded-lg p-4 flex gap-4 items-start">
+            <Award className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-foreground text-sm mb-1">
+                Final Verdict
+              </h4>
+              <p className="text-sm text-muted-foreground">{final_verdict}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

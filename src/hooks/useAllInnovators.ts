@@ -12,6 +12,7 @@ export const useAllInnovators = () =>
       const { data } = await axios.get(`${apiUrl}/api/coordinator/innovators`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log("Innovators API Full Response:", data);
       return data.data as import("./types").Innovator[];
     },
     staleTime: 5 * 60 * 1000,

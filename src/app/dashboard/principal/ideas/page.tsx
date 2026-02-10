@@ -223,7 +223,7 @@ export default function PrincipalIdeaManagementPage() {
                   <TableCell className="text-right">
                     <Button variant="link" size="sm" asChild>
                       <Link
-                        href={`/dashboard/ideas/${idea._id}?role=${ROLES.PRINCIPAL}`}
+                        href={`/dashboard/ideas/details?id=${idea._id}&role=${ROLES.PRINCIPAL}`}
                       >
                         View Report
                       </Link>

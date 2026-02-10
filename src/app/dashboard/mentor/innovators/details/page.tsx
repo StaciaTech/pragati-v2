@@ -32,10 +32,10 @@ const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
 export default function MentorInnovatorDetailPage() {
-  const params = useParams();
+  // const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const innovatorId = params.innovatorId as string;
+  const innovatorId = searchParams.get("id") || "";
   const role = searchParams.get("role") || ROLES.MENTOR;
 
   // ✅ Fetch innovator details
@@ -45,7 +45,7 @@ export default function MentorInnovatorDetailPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/mentors/innovators/${innovatorId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data.data;
     },
@@ -135,7 +135,9 @@ export default function MentorInnovatorDetailPage() {
                     key={idea._id}
                     className="cursor-pointer"
                     onClick={() =>
-                      router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                      router.push(
+                        `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                      )
                     }
                   >
                     <TableCell className="font-medium">{idea.title}</TableCell>
@@ -156,7 +158,7 @@ export default function MentorInnovatorDetailPage() {
                     <TableCell className="text-right">
                       <Button variant="link" size="sm" asChild>
                         <Link
-                          href={`/dashboard/ideas/${idea._id}?role=${role}`}
+                          href={`/dashboard/ideas/details?id=${idea._id}&role=${role}`}
                         >
                           View Details
                         </Link>
@@ -201,7 +203,7 @@ export default function MentorInnovatorDetailPage() {
                     className="cursor-pointer"
                     onClick={() =>
                       router.push(
-                        `/dashboard/mentor/consultations?role=${role}`
+                        `/dashboard/mentor/consultations?role=${role}`,
                       )
                     }
                   >

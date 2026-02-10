@@ -78,11 +78,22 @@ import {
 } from "@/components/social-icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIdeaConsultation } from "@/hooks/useConsultations";
+import axios from "axios";
 
-const ConsultationStatusCell = ({ ideaId }: { ideaId: string }) => {
-  const { data: consultation, isLoading } = useIdeaConsultation(ideaId);
+const ConsultationStatusCell = ({
+  ideaId,
+  initialData,
+}: {
+  ideaId: string;
+  initialData?: any;
+}) => {
+  const { data: fetchedData, isLoading } = useIdeaConsultation(
+    initialData ? "" : ideaId,
+  );
 
-  if (isLoading) {
+  const consultation = initialData || fetchedData;
+
+  if (isLoading && !initialData) {
     return <span className="text-muted-foreground text-xs">Loading...</span>;
   }
 
@@ -364,7 +375,7 @@ export default function IdeasPage() {
 
   const handleCopyLink = () => {
     if (!selectedIdea) return;
-    const link = `${window.location.origin}/dashboard/ideas/${selectedIdea._id}?role=${role}`;
+    const link = `${window.location.origin}/dashboard/ideas/details?id=${selectedIdea._id}&role=${role}`;
     navigator.clipboard.writeText(link);
     toast({
       title: "Link Copied!",
@@ -384,8 +395,75 @@ export default function IdeasPage() {
     setHistoryDialogOpen(true);
   };
 
+  // ============ RESUBMIT LOGIC ============
+  const [resubmitDialogOpen, setResubmitDialogOpen] = React.useState(false);
+  const [resubmitFile, setResubmitFile] = React.useState<File | null>(null);
+  const [resubmitDescription, setResubmitDescription] = React.useState("");
+  const [isResubmitting, setIsResubmitting] = React.useState(false);
+
   const handleResubmit = (idea: any) => {
-    router.push(`/dashboard/submit?ideaId=${idea._id}&role=${role}`);
+    setSelectedIdea(idea);
+    setResubmitDialogOpen(true);
+    setResubmitFile(null);
+    setResubmitDescription("");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setResubmitFile(e.target.files[0]);
+    }
+  };
+
+  const handleResubmitSubmit = async () => {
+    if (!selectedIdea || !resubmitFile) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResubmitting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("ideaId", selectedIdea._id);
+      formData.append("pptFile", resubmitFile);
+      if (resubmitDescription) {
+        formData.append("description", resubmitDescription);
+      }
+
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/ideas/resubmit`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      toast({
+        title: "Success",
+        description: "Idea resubmitted successfully!",
+      });
+      setResubmitDialogOpen(false);
+      // Ideally refetch ideas here or create a way to invalidate the query
+      // queryClient.invalidateQueries(["userIdeas"]);
+    } catch (error: any) {
+      console.error("Resubmit error:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "Failed to resubmit idea. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResubmitting(false);
+    }
   };
 
   // ============ RENDER TABLE ============
@@ -484,7 +562,9 @@ export default function IdeasPage() {
               <TableCell
                 className="font-medium cursor-pointer"
                 onClick={() =>
-                  router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                  router.push(
+                    `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                  )
                 }
               >
                 {idea._id.substring(0, 8)}...
@@ -492,7 +572,9 @@ export default function IdeasPage() {
               <TableCell
                 className="cursor-pointer font-medium"
                 onClick={() =>
-                  router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                  router.push(
+                    `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                  )
                 }
               >
                 {idea.title || idea.ideaName}
@@ -500,7 +582,9 @@ export default function IdeasPage() {
               <TableCell
                 className="cursor-pointer"
                 onClick={() =>
-                  router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                  router.push(
+                    `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                  )
                 }
               >
                 {new Date(idea.createdAt).toLocaleDateString("en-GB")}
@@ -508,7 +592,9 @@ export default function IdeasPage() {
               <TableCell
                 className="cursor-pointer"
                 onClick={() =>
-                  router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                  router.push(
+                    `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                  )
                 }
               >
                 <Badge className={STATUS_COLORS[idea.status] || ""}>
@@ -516,12 +602,17 @@ export default function IdeasPage() {
                 </Badge>
               </TableCell>
               <TableCell>
-                <ConsultationStatusCell ideaId={idea._id} />
+                <ConsultationStatusCell
+                  ideaId={idea._id}
+                  initialData={idea.consultation}
+                />
               </TableCell>
               <TableCell
                 className="cursor-pointer"
                 onClick={() =>
-                  router.push(`/dashboard/ideas/${idea._id}?role=${role}`)
+                  router.push(
+                    `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
+                  )
                 }
               >
                 {idea.overallScore ? idea.overallScore.toFixed(1) : "N/A"}
@@ -564,13 +655,13 @@ export default function IdeasPage() {
                       <DropdownMenuItem
                         onSelect={() =>
                           router.push(
-                            `/dashboard/ideas/${idea._id}?role=${role}`,
+                            `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
                           )
                         }
                       >
                         View Full Report
                       </DropdownMenuItem>
-                      {idea.status === "improvise" && idea.isOwner && (
+                      {idea.isOwner && (
                         <DropdownMenuItem onSelect={() => handleResubmit(idea)}>
                           Resubmit
                         </DropdownMenuItem>
@@ -599,7 +690,7 @@ export default function IdeasPage() {
 
   const shareUrl = selectedIdea
     ? encodeURIComponent(
-        `${window.location.origin}/dashboard/ideas/${selectedIdea._id}?role=${role}`,
+        `${window.location.origin}/dashboard/ideas/details?id=${selectedIdea._id}&role=${role}`,
       )
     : "";
   const shareText = selectedIdea
@@ -770,6 +861,65 @@ export default function IdeasPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Resubmit Dialog */}
+      <Dialog open={resubmitDialogOpen} onOpenChange={setResubmitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resubmit Idea: {selectedIdea?.title}</DialogTitle>
+            <DialogDescription>
+              Upload a new version of your project document (PPT/PDF) and
+              describe what changed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="resubmit-file" className="text-sm font-medium">
+                Upload New Document (PPT/PDF - Max 10MB)
+              </label>
+              <Input
+                id="resubmit-file"
+                type="file"
+                accept=".ppt,.pptx,.pdf"
+                onChange={handleFileChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="resubmit-desc" className="text-sm font-medium">
+                Description of Changes (Optional)
+              </label>
+              <Input
+                as="textarea"
+                id="resubmit-desc"
+                placeholder="e.g., Updated financial projections..."
+                value={resubmitDescription}
+                onChange={(e) => setResubmitDescription(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={handleResubmitSubmit}
+              disabled={isResubmitting || !resubmitFile}
+            >
+              {isResubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resubmitting...
+                </>
+              ) : (
+                "Resubmit Idea"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Share Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent>
@@ -783,7 +933,7 @@ export default function IdeasPage() {
             <div className="flex items-center space-x-2">
               <Input
                 id="link"
-                value={`${window.location.origin}/dashboard/ideas/${selectedIdea?._id}?role=${role}`}
+                value={`${window.location.origin}/dashboard/ideas/details?id=${selectedIdea?._id}&role=${role}`}
                 readOnly
               />
               <Button

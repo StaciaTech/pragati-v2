@@ -98,19 +98,19 @@ export default function InnovatorManagementPage() {
   >(null);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = React.useState(false);
   const [selectedInnovators, setSelectedInnovators] = React.useState<string[]>(
-    []
+    [],
   );
 
   const collegeInnovators = innovators.filter(
-    (inv) => inv.collegeId === userTTC.collegeId
+    (inv) => inv.collegeId === userTTC.collegeId,
   );
   const pendingInnovatorRequests = requests.filter(
-    (req) => req.status.toLowerCase() === "pending"
+    (req) => req.status.toLowerCase() === "pending",
   );
 
   const handleOpenModal = (
-    type: "add" | "assign",
-    innovator?: (typeof innovators)[0]
+    type: "add" | "assign" | "message",
+    innovator?: (typeof innovators)[0],
   ) => {
     setModalType(type);
     setCurrentInnovator(innovator || null);
@@ -122,7 +122,7 @@ export default function InnovatorManagementPage() {
       const { data } = await axios.post(
         `${apiUrl}/api/coordinator/create-innovator`,
         { name, email },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -188,7 +188,7 @@ export default function InnovatorManagementPage() {
       const { data } = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/coordinator/innovators/${innovatorId}/toggle-status`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -235,7 +235,7 @@ export default function InnovatorManagementPage() {
       axios.put(
         `${apiUrl}/api/credits/ttc/incoming-requests/${requestId}/decide`,
         { decision: action },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ttc-credit-requests"] });
@@ -244,7 +244,7 @@ export default function InnovatorManagementPage() {
   });
   const handleRequestAction = async (
     requestId: string,
-    action: "approved" | "rejected"
+    action: "approved" | "rejected",
   ) => {
     try {
       await decideRequestMutation.mutateAsync({ requestId, action });
@@ -262,7 +262,7 @@ export default function InnovatorManagementPage() {
 
   const handleRowClick = (innovatorId: string) => {
     router.push(
-      `/dashboard/coordinator/innovators/${innovatorId}?role=${ROLES.COORDINATOR}`
+      `/dashboard/coordinator/innovators/details?id=${innovatorId}&role=${ROLES.COORDINATOR}`,
     );
   };
 
@@ -278,7 +278,7 @@ export default function InnovatorManagementPage() {
     setSelectedInnovators((prev) =>
       prev.includes(innovatorId)
         ? prev.filter((id) => id !== innovatorId)
-        : [...prev, innovatorId]
+        : [...prev, innovatorId],
     );
   };
 
@@ -340,7 +340,7 @@ export default function InnovatorManagementPage() {
                       INNOV-
                       {innovator._id?.slice(
                         innovator._id.length - 12,
-                        innovator._id.length
+                        innovator._id.length,
                       )}
                     </TableCell>
                     <TableCell className="font-medium text-primary hover:underline">
@@ -425,15 +425,15 @@ export default function InnovatorManagementPage() {
               {modalType === "add"
                 ? "Add New Innovator"
                 : modalType === "assign"
-                ? `Assign Credits to ${currentInnovator?.name}`
-                : `Message ${selectedInnovators.length} Innovator(s)`}
+                  ? `Assign Credits to ${currentInnovator?.name}`
+                  : `Message ${selectedInnovators.length} Innovator(s)`}
             </DialogTitle>
             <DialogDescription>
               {modalType === "add"
                 ? `Enter the details for the new innovator. Your college has ${college?.creditsAvailable} credits available.`
                 : modalType === "assign"
-                ? `College has ${college?.creditsAvailable} credits available.`
-                : `Write a message to be sent to all selected innovators.`}
+                  ? `College has ${college?.creditsAvailable} credits available.`
+                  : `Write a message to be sent to all selected innovators.`}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave}>

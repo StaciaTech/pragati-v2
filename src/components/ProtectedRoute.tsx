@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function ProtectedRoute({
@@ -11,9 +11,13 @@ export default function ProtectedRoute({
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    // Check for token in URL first (for shared links), then localStorage
+    const urlToken = searchParams.get("token");
+    const localToken = localStorage.getItem("token");
+    const token = urlToken || localToken;
 
     if (!token) {
       router.replace("/");
@@ -27,12 +31,15 @@ export default function ProtectedRoute({
       if (Date.now() >= exp * 1000) throw new Error("Expired");
       setVerified(true);
     } catch {
-      localStorage.removeItem("token");
+      // Only remove if it was from local storage
+      if (!urlToken) {
+        localStorage.removeItem("token");
+      }
       router.replace("/login");
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   if (loading) return <p>Loading…</p>;
   if (!verified) return null; // ← never render children until OK

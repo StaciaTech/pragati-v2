@@ -133,7 +133,9 @@ export default function PrincipalDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{subscriptionData?.planName}</p>
+            <p className="text-2xl font-bold">
+              {subscriptionData?.planName || "Custom"}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -147,10 +149,10 @@ export default function PrincipalDashboardPage() {
               {credits.used} / {credits.total}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {credits.available} available
+              {credits.available ?? 0} available
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {credits.usedThisMonth} used this month
+              {credits.usedThisMonth ?? 0} used this month
             </p>
           </CardContent>
         </Card>

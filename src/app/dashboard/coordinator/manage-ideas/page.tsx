@@ -158,7 +158,7 @@ export default function IdeaManagementPage() {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() =>
                     router.push(
-                      `/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`
+                      `/dashboard/ideas/details?id=${idea._id}&role=${ROLES.COORDINATOR}`,
                     )
                   }
                 >
@@ -206,7 +206,7 @@ export default function IdeaManagementPage() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Link
-                        href={`/dashboard/ideas/${idea._id}?role=${ROLES.COORDINATOR}`}
+                        href={`/dashboard/ideas/details?id=${idea._id}&role=${ROLES.COORDINATOR}`}
                       >
                         View Details
                       </Link>

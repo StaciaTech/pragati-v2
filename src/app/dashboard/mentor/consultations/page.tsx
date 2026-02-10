@@ -61,7 +61,7 @@ export default function MentorConsultationsPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/mentors/consultations?filter=upcoming`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -74,7 +74,7 @@ export default function MentorConsultationsPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/mentors/consultations?filter=past`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -84,7 +84,7 @@ export default function MentorConsultationsPage() {
   const pastConsultations = pastResp?.data || [];
 
   const handleViewIdea = (ideaId: string) => {
-    router.push(`/dashboard/ideas/${ideaId}?role=${ROLES.MENTOR}`);
+    router.push(`/dashboard/ideas/details?id=${ideaId}&role=${ROLES.MENTOR}`);
   };
 
   const ConsultationTable = ({
@@ -138,7 +138,7 @@ export default function MentorConsultationsPage() {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
-                        }
+                        },
                       )}
                       {" at "}
                       {new Date(consultation.scheduledAt).toLocaleTimeString(
@@ -146,7 +146,7 @@ export default function MentorConsultationsPage() {
                         {
                           hour: "2-digit",
                           minute: "2-digit",
-                        }
+                        },
                       )}
                     </>
                   ) : (
@@ -156,7 +156,7 @@ export default function MentorConsultationsPage() {
                 <TableCell>
                   <Badge
                     className={cn(
-                      STATUS_COLORS[consultation.status] || "bg-gray-500"
+                      STATUS_COLORS[consultation.status] || "bg-gray-500",
                     )}
                   >
                     {consultation.status.charAt(0).toUpperCase() +

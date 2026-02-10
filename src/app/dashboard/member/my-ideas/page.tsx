@@ -202,9 +202,7 @@ export default function AssignedIdeasPage() {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() =>
                     router.push(
-                      `/dashboard/${isMentor ? "mentor" : "team"}/ideas/${
-                        idea._id
-                      }`
+                      `/dashboard/ideas/details?id=${idea._id}&role=${roleParam}`,
                     )
                   }
                 >
@@ -227,9 +225,7 @@ export default function AssignedIdeasPage() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Link
-                        href={`/dashboard/${
-                          isMentor ? "mentor" : "team"
-                        }/ideas/${idea._id}`}
+                        href={`/dashboard/ideas/details?id=${idea._id}&role=${roleParam}`}
                       >
                         View Details
                       </Link>

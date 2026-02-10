@@ -83,7 +83,7 @@ export default function SuperAdminManagementPage() {
             ttcCoordinatorLimit: payload.ttcLimit,
             creditQuota: payload.creditQuota,
           },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
       }
       return axios.put(
@@ -94,7 +94,7 @@ export default function SuperAdminManagementPage() {
           ttcCoordinatorLimit: payload.ttcLimit,
           creditQuota: payload.creditQuota,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
     },
     onSuccess: (_, vars) => {
@@ -118,7 +118,7 @@ export default function SuperAdminManagementPage() {
       axios.put(
         `${apiUrl}/api/users/${id}/toggle-active`,
         {},
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } },
       ),
     onSuccess: () => {
       toast({ title: "College status toggled" });
@@ -190,7 +190,7 @@ export default function SuperAdminManagementPage() {
       return axios.put(
         `${apiUrl}/api/mentors/external/${payload.id}`,
         payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
     },
     onSuccess: (response, vars) => {
@@ -217,7 +217,7 @@ export default function SuperAdminManagementPage() {
       axios.put(
         `${apiUrl}/api/mentors/external/${id}/toggle-active`,
         {},
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } },
       ),
     onSuccess: () => {
       toast({ title: "Mentor status toggled" });
@@ -227,7 +227,7 @@ export default function SuperAdminManagementPage() {
 
   const [isMentorModalOpen, setIsMentorModalOpen] = React.useState(false);
   const [mentorModalType, setMentorModalType] = React.useState<"add" | "edit">(
-    "add"
+    "add",
   );
   const [currentMentor, setCurrentMentor] =
     React.useState<ExternalMentor | null>(null);
@@ -235,7 +235,7 @@ export default function SuperAdminManagementPage() {
 
   const handleOpenMentorModal = (
     type: "add" | "edit",
-    mentor?: ExternalMentor
+    mentor?: ExternalMentor,
   ) => {
     setMentorModalType(type);
     setCurrentMentor(mentor || null);
@@ -277,7 +277,7 @@ export default function SuperAdminManagementPage() {
     setSelectedDomains((prev) =>
       prev.includes(domain)
         ? prev.filter((d) => d !== domain)
-        : [...prev, domain]
+        : [...prev, domain],
     );
   };
 
@@ -334,7 +334,7 @@ export default function SuperAdminManagementPage() {
                       <TableCell>{college._id}</TableCell>
                       <TableCell className="font-medium">
                         <Link
-                          href={`/dashboard/admin/institutions/${college._id}?role=Super Admin`}
+                          href={`/dashboard/admin/institutions/details?id=${college._id}&role=Super Admin`}
                           className="hover:underline text-primary"
                         >
                           {college.collegeName}
@@ -352,7 +352,7 @@ export default function SuperAdminManagementPage() {
                       <TableCell className="text-right space-x-2 whitespace-nowrap">
                         <Button variant="outline" size="sm" asChild>
                           <Link
-                            href={`/dashboard/admin/institutions/${college._id}/legal`}
+                            href={`/dashboard/admin/institutions/details/legal?id=${college._id}`}
                           >
                             <FileText className="mr-2 h-4 w-4" /> Legal
                           </Link>

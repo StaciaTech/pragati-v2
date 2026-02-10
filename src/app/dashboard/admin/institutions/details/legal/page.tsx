@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
@@ -34,10 +34,11 @@ interface LegalDocuments {
 }
 
 export default function InstitutionLegalDocsPage() {
-  const params = useParams();
+  // const params = useParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const collegeId = params.collegeId as string;
+  const collegeId = searchParams.get("id") || "";
 
   const [terms, setTerms] = React.useState("");
   const [privacy, setPrivacy] = React.useState("");
@@ -53,7 +54,7 @@ export default function InstitutionLegalDocsPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/admin/colleges/${collegeId}/legal`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data.data;
     },
@@ -78,7 +79,7 @@ export default function InstitutionLegalDocsPage() {
       const { data } = await axios.put(
         `${apiUrl}/api/admin/colleges/${collegeId}/legal`,
         payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },

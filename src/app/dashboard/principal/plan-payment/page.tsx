@@ -372,7 +372,7 @@ export default function PlanPaymentPage() {
             <CardDescription>
               {currentSubscription
                 ? "Manage your active subscription plan"
-                : "You don't have an active subscription yet"}
+                : "Custom Plan"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -441,7 +441,9 @@ export default function PlanPaymentPage() {
             ) : (
               <div className="text-center py-6 text-muted-foreground">
                 <p>
-                  No active subscription. Choose a plan below to get started!
+                  You are currently subscribed to a{" "}
+                  <strong>Custom Monthly Plan</strong>. This plan includes 50
+                  credits for ₹10,000 and consultation services for ₹75,000.
                 </p>
               </div>
             )}
@@ -497,10 +499,7 @@ export default function PlanPaymentPage() {
                   </p>
                 )}
               </div>
-              <Button
-                onClick={handlePurchaseAddon}
-                disabled={purchaseAddonMutation.isLoading || !isScriptLoaded}
-              >
+              <Button onClick={handlePurchaseAddon} disabled={true}>
                 {purchaseAddonMutation.isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

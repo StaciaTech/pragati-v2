@@ -93,10 +93,10 @@ interface InnovatorProfile {
 }
 
 export default function AdminInnovatorDetailPage() {
-  const params = useParams();
+  // const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const innovatorId = params.innovatorId as string;
+  const innovatorId = searchParams.get("id") || "";
   const role = searchParams.get("role") || ROLES.SUPER_ADMIN;
 
   // ✅ Fetch Innovator Profile
@@ -110,7 +110,7 @@ export default function AdminInnovatorDetailPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/admin/innovators/${innovatorId}/profile`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data.data;
     },
@@ -165,7 +165,7 @@ export default function AdminInnovatorDetailPage() {
             <span>{innovator.name}</span>
             <Badge
               className={cn(
-                STATUS_COLORS[innovator.isActive ? "Active" : "Inactive"]
+                STATUS_COLORS[innovator.isActive ? "Active" : "Inactive"],
               )}
             >
               {innovator.isActive ? "Active" : "Inactive"}
@@ -224,7 +224,7 @@ export default function AdminInnovatorDetailPage() {
                         className="cursor-pointer"
                         onClick={() =>
                           router.push(
-                            `/dashboard/ideas/${idea._id}?role=${role}`
+                            `/dashboard/ideas/details?id=${idea._id}&role=${role}`,
                           )
                         }
                       >
@@ -249,7 +249,7 @@ export default function AdminInnovatorDetailPage() {
                         >
                           <Button variant="link" size="sm" asChild>
                             <Link
-                              href={`/dashboard/ideas/${idea._id}?role=${role}`}
+                              href={`/dashboard/ideas/details?id=${idea._id}&role=${role}`}
                             >
                               View Report
                             </Link>
@@ -306,7 +306,7 @@ export default function AdminInnovatorDetailPage() {
                         </TableCell>
                         <TableCell>
                           {new Date(
-                            consultation.requestedAt
+                            consultation.requestedAt,
                           ).toLocaleDateString()}
                         </TableCell>
                         <TableCell>

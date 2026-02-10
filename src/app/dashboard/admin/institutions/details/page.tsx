@@ -102,9 +102,9 @@ const getInitials = (name: string) => {
 };
 
 export default function InstitutionDetailsPage() {
-  const params = useParams();
+  // const params = useParams();
   const searchParams = useSearchParams();
-  const collegeId = params.collegeId as string;
+  const collegeId = searchParams.get("id") || "";
   const role = searchParams.get("role") || ROLES.SUPER_ADMIN;
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -121,7 +121,7 @@ export default function InstitutionDetailsPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/admin/colleges/${collegeId}/details`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data.data;
     },
@@ -136,7 +136,7 @@ export default function InstitutionDetailsPage() {
         const token = getToken();
         const { data } = await axios.get(
           `${apiUrl}/api/admin/ttc/${selectedTtcId}/innovators`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         return data.data;
       },

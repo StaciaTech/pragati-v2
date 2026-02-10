@@ -118,7 +118,7 @@ export default function GodsEyeViewPage() {
 
       const { data } = await axios.get(
         `${apiUrl}/api/admin/innovators/all?${params.toString()}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -134,7 +134,7 @@ export default function GodsEyeViewPage() {
       const { data } = await axios.post(
         `${apiUrl}/api/admin/innovators/${innovatorId}/ai-enhance`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -167,7 +167,7 @@ export default function GodsEyeViewPage() {
       const { data } = await axios.post(
         `${apiUrl}/api/admin/impersonate/${innovatorId}`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -211,7 +211,7 @@ export default function GodsEyeViewPage() {
 
   const handleRowClick = (innovatorId: string) => {
     router.push(
-      `/dashboard/admin/innovators/${innovatorId}?role=${ROLES.SUPER_ADMIN}`
+      `/dashboard/admin/innovators/details?id=${innovatorId}&role=${ROLES.SUPER_ADMIN}`,
     );
   };
 

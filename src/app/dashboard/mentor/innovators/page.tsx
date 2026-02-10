@@ -44,7 +44,7 @@ export default function MentorInnovatorsPage() {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/mentors/assigned-innovators`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -54,7 +54,7 @@ export default function MentorInnovatorsPage() {
 
   const handleRowClick = (innovatorId: string) => {
     router.push(
-      `/dashboard/mentor/innovators/${innovatorId}?role=${ROLES.MENTOR}`
+      `/dashboard/mentor/innovators/details?id=${innovatorId}&role=${ROLES.MENTOR}`,
     );
   };
 

@@ -76,7 +76,7 @@ export function UniversalSearch({ role }: { role: Role }) {
     // Set OS for shortcut display
     if (typeof window !== "undefined") {
       setOs(
-        navigator.userAgent.toLowerCase().includes("mac") ? "mac" : "windows"
+        navigator.userAgent.toLowerCase().includes("mac") ? "mac" : "windows",
       );
     }
 
@@ -99,7 +99,7 @@ export function UniversalSearch({ role }: { role: Role }) {
       const token = getToken();
       const { data } = await axios.get(
         `${apiUrl}/api/search/global?q=${encodeURIComponent(debouncedQuery)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return data;
     },
@@ -144,11 +144,11 @@ export function UniversalSearch({ role }: { role: Role }) {
     // Generate appropriate URLs based on item type and user role
     switch (type) {
       case "idea":
-        return `/dashboard/ideas/${id}?role=${role}`;
+        return `/dashboard/ideas/details?id=${id}&role=${role}`;
       case "user":
         return `/dashboard/users/${id}?role=${role}`;
       case "college":
-        return `/dashboard/admin/institutions/${id}?role=${role}`;
+        return `/dashboard/admin/institutions/details?id=${id}&role=${role}`;
       case "mentor":
         return `/dashboard/mentors/${id}?role=${role}`;
       default:
@@ -161,7 +161,7 @@ export function UniversalSearch({ role }: { role: Role }) {
       <Button
         variant="ghost"
         className={cn(
-          "relative h-9 w-9 p-0 text-muted-foreground hover:text-foreground sm:h-10 sm:w-64 sm:px-3 sm:justify-start"
+          "relative h-9 w-9 p-0 text-muted-foreground hover:text-foreground sm:h-10 sm:w-64 sm:px-3 sm:justify-start",
         )}
         onClick={() => setOpen(true)}
       >
@@ -227,7 +227,7 @@ export function UniversalSearch({ role }: { role: Role }) {
                   value={idea.title}
                   onSelect={() => {
                     runCommand(() =>
-                      router.push(getRoleBasedHref("idea", idea._id))
+                      router.push(getRoleBasedHref("idea", idea._id)),
                     );
                   }}
                 >
@@ -253,7 +253,7 @@ export function UniversalSearch({ role }: { role: Role }) {
                   value={user.name}
                   onSelect={() => {
                     runCommand(() =>
-                      router.push(getRoleBasedHref("user", user._id))
+                      router.push(getRoleBasedHref("user", user._id)),
                     );
                   }}
                 >
@@ -278,7 +278,7 @@ export function UniversalSearch({ role }: { role: Role }) {
                   value={college.collegeName}
                   onSelect={() => {
                     runCommand(() =>
-                      router.push(getRoleBasedHref("college", college._id))
+                      router.push(getRoleBasedHref("college", college._id)),
                     );
                   }}
                 >
@@ -303,7 +303,7 @@ export function UniversalSearch({ role }: { role: Role }) {
                   value={mentor.name}
                   onSelect={() => {
                     runCommand(() =>
-                      router.push(getRoleBasedHref("mentor", mentor._id))
+                      router.push(getRoleBasedHref("mentor", mentor._id)),
                     );
                   }}
                 >

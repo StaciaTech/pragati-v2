@@ -487,7 +487,7 @@ export default function PrincipalMentorManagementPage() {
 
       {/* ----------  VIEW DETAILS MODAL  ---------- */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Mentor Details</DialogTitle>
             <DialogDescription>
