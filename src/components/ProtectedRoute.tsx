@@ -15,7 +15,13 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     // Check for token in URL first (for shared links), then localStorage
-    const urlToken = searchParams.get("token");
+    // Fallback to window.location.search parsing if useSearchParams is empty
+    let urlToken = searchParams.get("token");
+    if (!urlToken && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      urlToken = params.get("token");
+    }
+
     const localToken = localStorage.getItem("token");
     const token = urlToken || localToken;
 
@@ -26,7 +32,12 @@ export default function ProtectedRoute({
     }
 
     // Allow guest access with just a token (validation happens on backend)
-    const role = searchParams.get("role");
+    let role = searchParams.get("role");
+    if (!role && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      role = params.get("role");
+    }
+
     if (role === "guest" && urlToken) {
       // Clear any existing login credentials to force guest mode proper
       localStorage.removeItem("token");

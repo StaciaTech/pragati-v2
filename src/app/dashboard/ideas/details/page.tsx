@@ -316,7 +316,8 @@ export default function IdeaReportPage() {
 
   const [avgClusterScores, setAvgClusterScores] = React.useState({});
 
-  const [reportMetaData, setReportMetaData] = React.useState({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reportMetaData, setReportMetaData] = React.useState<any>({});
   const [versionHistory, setVersionHistory] = React.useState([]);
 
   // Fetch report data
@@ -627,7 +628,7 @@ export default function IdeaReportPage() {
 
         const baseUrl =
           process.env.NEXT_PUBLIC_PLATFORM_URL || window.location.origin;
-        const urlObj = new URL("/dashboard/ideas/details", baseUrl);
+        const urlObj = new URL("/dashboard/ideas/details/", baseUrl);
         urlObj.searchParams.set("id", ideaId);
         urlObj.searchParams.set("role", "guest");
         urlObj.searchParams.set("token", shareToken);
