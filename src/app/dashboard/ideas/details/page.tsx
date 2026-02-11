@@ -624,11 +624,15 @@ export default function IdeaReportPage() {
 
       if (response.data && response.data.token) {
         const shareToken = response.data.token;
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("token", shareToken); // Attach token to URL
-        const newShareUrl = currentUrl.toString();
 
-        setShareUrl(newShareUrl);
+        const baseUrl =
+          process.env.NEXT_PUBLIC_PLATFORM_URL || window.location.origin;
+        const urlObj = new URL("/dashboard/ideas/details", baseUrl);
+        urlObj.searchParams.set("id", ideaId);
+        urlObj.searchParams.set("role", "guest");
+        urlObj.searchParams.set("token", shareToken);
+
+        setShareUrl(urlObj.toString());
         setIsShareDialogOpen(true);
       } else {
         throw new Error("Failed to generate share token");
@@ -844,18 +848,19 @@ export default function IdeaReportPage() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        <div className="flex justify-between items-center flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            className="cursor-pointer"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          {urlToken ? (
-            ""
-          ) : (
+        {urlToken ? (
+          ""
+        ) : (
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => router.back()}
+              className="cursor-pointer"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+
             <div className="flex gap-2">
               <Button onClick={handleDownload}>
                 <Download className="mr-2 h-4 w-4" />
@@ -875,8 +880,8 @@ export default function IdeaReportPage() {
                 {isSharing ? "Generating..." : "Share"}
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div ref={reportRef} className="p-4 bg-background">
           <Card>

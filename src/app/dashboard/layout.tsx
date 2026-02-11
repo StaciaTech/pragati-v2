@@ -47,7 +47,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   console.log(user);
 
   const searchParams = useSearchParams();
-  const role = (searchParams.get("role") as Role) || ROLES.INNOVATOR;
+  const roleParam = searchParams.get("role");
+
+  if (roleParam === "guest") {
+    return (
+      <main className="min-h-screen w-full bg-background px-4 py-6 sm:px-6">
+        {children}
+      </main>
+    );
+  }
+
+  const role = (roleParam as Role) || ROLES.INNOVATOR;
 
   const navLinks = NAV_LINKS[role] || [];
 
@@ -75,7 +85,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const credits = getCredits();
   const upcomingConsultations = MOCK_CONSULTATIONS.filter(
-    (c) => c.status === "Scheduled"
+    (c) => c.status === "Scheduled",
   ).length;
 
   // INNOVATOR: "Innovator",
