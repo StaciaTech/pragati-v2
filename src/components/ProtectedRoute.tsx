@@ -25,6 +25,20 @@ export default function ProtectedRoute({
       return; // ← stop here
     }
 
+    // Allow guest access with just a token (validation happens on backend)
+    const role = searchParams.get("role");
+    if (role === "guest" && urlToken) {
+      // Clear any existing login credentials to force guest mode proper
+      localStorage.removeItem("token");
+      localStorage.removeItem("collegeId");
+      localStorage.removeItem("UserId");
+      localStorage.removeItem("role");
+
+      setVerified(true);
+      setLoading(false);
+      return;
+    }
+
     // quick local decode
     try {
       const { exp } = JSON.parse(atob(token.split(".")[1]));
