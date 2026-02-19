@@ -37,12 +37,15 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const zohoAccountId = process.env.NEXT_PUBLIC_ZOHO_ACCOUNT_ID;
+const zohoDomain = process.env.NEXT_PUBLIC_ZOHO_DOMAIN || "IN";
+const zohoApiKey = process.env.NEXT_PUBLIC_ZOHO_API_KEY;
 const getToken = () =>
   typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
 declare global {
   interface Window {
-    ZPaymetns: any; // Note: Library uses this specific casing/spelling
+    ZPayments: any;
   }
 }
 
@@ -86,27 +89,36 @@ export default function PlanPaymentPage() {
   const [showSuccessModal, setShowSuccessModal] = React.useState(false);
   const [purchaseResult, setPurchaseResult] = React.useState<any>(null);
   const [isScriptLoaded, setIsScriptLoaded] = React.useState(false);
+  const [isPaymentWidgetOpen, setIsPaymentWidgetOpen] = React.useState(false);
+  const zpInstanceRef = React.useRef<any>(null);
 
   React.useEffect(() => {
-    // Manually inject script to ensure execution
+    console.log("[PAYMENT] Step 1: Injecting Zoho Payments script...");
     const script = document.createElement("script");
     script.src = "https://static.zohocdn.com/zpay/zpay-js/v1/zpayments.js";
     script.async = true;
     script.onload = () => {
-      console.log("Manual Script Load Verified");
-      // Check for global variable again
+      console.log("[PAYMENT] Step 2: Script loaded successfully");
+      const zpayKeys = Object.keys(window).filter(
+        (k) =>
+          k.toLowerCase().includes("zpay") ||
+          k.toLowerCase().includes("zoho") ||
+          k.toLowerCase().includes("payment"),
+      );
       console.log(
-        "Window Keys:",
-        Object.keys(window).filter(
-          (k) =>
-            k.toLowerCase().includes("zpay") ||
-            k.toLowerCase().includes("zoho"),
-        ),
+        "[PAYMENT] Step 3: Window keys with zpay/zoho/payment:",
+        zpayKeys,
+      );
+      console.log(
+        "[PAYMENT] Step 4: window.ZPayments =",
+        typeof window.ZPayments,
+        window.ZPayments,
       );
       setIsScriptLoaded(true);
+      console.log("[PAYMENT] Step 5: isScriptLoaded set to true");
     };
-    script.onerror = () => {
-      console.error("Manual Script Failure");
+    script.onerror = (e) => {
+      console.error("[PAYMENT] ERROR: Script failed to load", e);
       toast({
         title: "Error",
         description: "Payment gateway failed to load.",
@@ -237,55 +249,138 @@ export default function PlanPaymentPage() {
   };
 
   const confirmPurchase = async () => {
-    if (!selectedPlan) return;
-    console.log(token);
+    if (!selectedPlan) {
+      console.log("[PLAN PURCHASE] No plan selected, aborting");
+      return;
+    }
+    console.log(
+      "[PLAN PURCHASE] Step 1: Starting purchase for plan:",
+      selectedPlan.name,
+      "ID:",
+      selectedPlan._id,
+    );
+    console.log(
+      "[PLAN PURCHASE] Step 2: Token:",
+      token ? `${token.substring(0, 20)}...` : "MISSING",
+    );
 
     try {
-      // Initiate purchase session
+      console.log(
+        "[PLAN PURCHASE] Step 3: Calling /api/payment/initiate-purchase with:",
+        {
+          planId: selectedPlan._id,
+          amount: selectedPlan.totalAmount,
+          description: `Subscription for ${selectedPlan.name}`,
+        },
+      );
+
       const { data } = await axios.post(
         `${apiUrl}/api/payment/initiate-purchase`,
         {
           planId: selectedPlan._id,
-          amount: selectedPlan.totalAmount, // Ensure validation on backend
+          amount: selectedPlan.totalAmount,
           description: `Subscription for ${selectedPlan.name}`,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      console.log(data);
+      console.log("[PLAN PURCHASE] Step 4: API response:", data);
 
       const sessionId = data.payments_session_id;
+      console.log("[PLAN PURCHASE] Step 5: Session ID:", sessionId);
 
-      // Launch Zoho Widget
-      const zp = new window.ZohoPayments();
-      zp.initiatePayment(sessionId, {
-        onSuccess: (response: any) => {
-          setPurchaseResult(response);
-          setShowPurchaseModal(false);
-          setShowSuccessModal(true);
-          queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
-          queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-        },
-        onFailure: (error: any) => {
-          toast({
-            title: "Payment Failed",
-            description: error.message || "Transaction process failed.",
-            variant: "destructive",
-          });
-          setShowPurchaseModal(false);
-        },
+      if (!sessionId) {
+        console.error("[PLAN PURCHASE] ERROR: No session ID in response");
+        throw new Error("No session ID received from server");
+      }
+
+      console.log(
+        "[PLAN PURCHASE] Step 6: window.ZPayments =",
+        typeof window.ZPayments,
+      );
+      if (typeof window.ZPayments === "undefined") {
+        console.error(
+          "[PLAN PURCHASE] ERROR: ZPayments not available on window",
+        );
+        throw new Error(
+          "Zoho Payments library not loaded. Please refresh the page.",
+        );
+      }
+
+      console.log("[PLAN PURCHASE] Step 7: Creating ZPayments instance...");
+      const zp = new window.ZPayments({
+        account_id: zohoAccountId,
+        domain: zohoDomain,
+        otherOptions: { api_key: zohoApiKey },
       });
+      zpInstanceRef.current = zp;
+      setIsPaymentWidgetOpen(true);
+      console.log("[PLAN PURCHASE] Step 7a: ZPayments instance:", zp);
+      console.log(
+        "[PLAN PURCHASE] Step 8: Calling requestPaymentMethod with sessionId:",
+        sessionId,
+      );
+
+      try {
+        const paymentResponse = await zp.requestPaymentMethod({
+          payments_session_id: sessionId,
+          amount: String(selectedPlan.totalAmount),
+          currency_code: "INR",
+          transaction_type: "authorization",
+          redirect_url: `${window.location.origin}/dashboard/principal/plan-payment?role=college_admin`,
+        });
+        console.log(
+          "[PLAN PURCHASE] Step 9: Payment COMPLETE",
+          paymentResponse,
+        );
+        zp.close();
+        zpInstanceRef.current = null;
+        setIsPaymentWidgetOpen(false);
+        setPurchaseResult(paymentResponse);
+        setShowPurchaseModal(false);
+        setShowSuccessModal(true);
+        queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+        queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      } catch (paymentError: any) {
+        console.error("[PLAN PURCHASE] Step 9: Payment REJECTED", paymentError);
+        console.error(
+          "[PLAN PURCHASE] Payment error JSON:",
+          JSON.stringify(paymentError, null, 2),
+        );
+        toast({
+          title: "Payment Failed",
+          description:
+            paymentError?.message ||
+            paymentError?.error_message ||
+            JSON.stringify(paymentError) ||
+            "Transaction failed.",
+          variant: "destructive",
+        });
+        zpInstanceRef.current = null;
+        setIsPaymentWidgetOpen(false);
+        setShowPurchaseModal(false);
+      }
     } catch (error: any) {
+      console.error("[PLAN PURCHASE] CATCH ERROR:", error);
+      console.error("[PLAN PURCHASE] Error response:", error.response?.data);
+      console.error("[PLAN PURCHASE] Error status:", error.response?.status);
       toast({
         title: "Connection Error",
         description:
-          error.response?.data?.error || "Could not reach payment server.",
+          error.response?.data?.error ||
+          error.message ||
+          "Could not reach payment server.",
         variant: "destructive",
       });
     }
   };
 
   const handlePurchaseAddon = async () => {
+    console.log(
+      "[ADDON PURCHASE] Step 1: Starting addon purchase, credits:",
+      addonCredits,
+    );
     if (addonCredits < 1) {
+      console.log("[ADDON PURCHASE] Invalid quantity, aborting");
       toast({
         title: "Invalid Quantity",
         description: "Please enter at least 1 credit.",
@@ -295,7 +390,18 @@ export default function PlanPaymentPage() {
     }
 
     try {
-      // Initiate credits purchase session
+      console.log(
+        "[ADDON PURCHASE] Step 2: Token:",
+        token ? `${token.substring(0, 20)}...` : "MISSING",
+      );
+      console.log(
+        "[ADDON PURCHASE] Step 3: Calling /api/payment/initiate-purchase with:",
+        {
+          amount: addonCredits * 800,
+          description: `Purchase of ${addonCredits} credits`,
+        },
+      );
+
       const { data } = await axios.post(
         `${apiUrl}/api/payment/initiate-purchase`,
         {
@@ -305,46 +411,98 @@ export default function PlanPaymentPage() {
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      console.log("Addon Purchase Response:", data);
+      console.log("[ADDON PURCHASE] Step 4: API response:", data);
 
-      // Handle both nested and flat response structures
       const sessionId =
         data.payments_session_id || data.payments_session?.payments_session_id;
+      console.log("[ADDON PURCHASE] Step 5: Extracted sessionId:", sessionId);
 
       if (!sessionId) {
-        console.error("Missing Session ID in data:", data);
+        console.error(
+          "[ADDON PURCHASE] ERROR: Missing Session ID. Full data:",
+          JSON.stringify(data, null, 2),
+        );
         throw new Error("Invalid session ID received from server");
       }
 
-      if (typeof window.ZPaymetns === "undefined") {
+      console.log("[ADDON PURCHASE] Step 6: Checking window.ZPayments...");
+      console.log(
+        "[ADDON PURCHASE] Step 6a: typeof window.ZPayments =",
+        typeof window.ZPayments,
+      );
+      console.log("[ADDON PURCHASE] Step 6b: isScriptLoaded =", isScriptLoaded);
+
+      if (typeof window.ZPayments === "undefined") {
+        console.error(
+          "[ADDON PURCHASE] ERROR: ZPayments not on window. All window keys with zpay/zoho:",
+          Object.keys(window).filter(
+            (k) =>
+              k.toLowerCase().includes("zpay") ||
+              k.toLowerCase().includes("zoho"),
+          ),
+        );
         throw new Error(
-          "ZohoPayments library not loaded. Please refresh the page.",
+          "Zoho Payments library not loaded. Please refresh the page.",
         );
       }
 
-      console.log("Initializing Zoho Widget...");
-      const zp = new window.ZPaymetns();
-      zp.initiatePayment(data.payments_session_id || sessionId, {
-        onSuccess: () => {
-          console.log("Payment Success Callback Triggered");
-          toast({
-            title: "Credits Purchased",
-            description: "Successfully added credits to your account!",
-          });
-          queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-        },
-        onFailure: (err: any) => {
-          console.error("Payment Failure Callback:", err);
-          toast({
-            title: "Payment Failed",
-            description:
-              err.message || JSON.stringify(err) || "Credits purchase failed.",
-            variant: "destructive",
-          });
-        },
+      console.log("[ADDON PURCHASE] Step 7: Creating ZPayments instance...");
+      const zp = new window.ZPayments({
+        account_id: zohoAccountId,
+        domain: zohoDomain,
+        otherOptions: { api_key: zohoApiKey },
       });
+      zpInstanceRef.current = zp;
+      setIsPaymentWidgetOpen(true);
+      console.log("[ADDON PURCHASE] Step 8: ZPayments instance created:", zp);
+      console.log(
+        "[ADDON PURCHASE] Step 9: Calling requestPaymentMethod with sessionId:",
+        sessionId,
+      );
+
+      try {
+        const paymentResponse = await zp.requestPaymentMethod({
+          payments_session_id: data.payments_session_id || sessionId,
+          amount: String(addonCredits * 800),
+          currency_code: "INR",
+          transaction_type: "authorization",
+          redirect_url: `${window.location.origin}/dashboard/principal/plan-payment?role=college_admin`,
+        });
+        console.log(
+          "[ADDON PURCHASE] Step 10: Payment COMPLETE",
+          paymentResponse,
+        );
+        zp.close();
+        zpInstanceRef.current = null;
+        setIsPaymentWidgetOpen(false);
+        toast({
+          title: "Credits Purchased",
+          description: "Successfully added credits to your account!",
+        });
+        queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      } catch (paymentError: any) {
+        console.error(
+          "[ADDON PURCHASE] Step 10: Payment REJECTED",
+          paymentError,
+        );
+        console.error(
+          "[ADDON PURCHASE] Payment error JSON:",
+          JSON.stringify(paymentError, null, 2),
+        );
+        toast({
+          title: "Payment Failed",
+          description:
+            paymentError?.message ||
+            paymentError?.error_message ||
+            JSON.stringify(paymentError) ||
+            "Credits purchase failed.",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
-      console.error("Payment Flow Error:", error);
+      console.error("[ADDON PURCHASE] CATCH ERROR:", error);
+      console.error("[ADDON PURCHASE] Error response:", error.response?.data);
+      console.error("[ADDON PURCHASE] Error status:", error.response?.status);
       toast({
         title: "Error",
         description: error.message || "Failed to initiate payment.",
@@ -499,7 +657,11 @@ export default function PlanPaymentPage() {
                   </p>
                 )}
               </div>
-              <Button onClick={handlePurchaseAddon} disabled={true}>
+              <Button
+                onClick={handlePurchaseAddon}
+                // disabled={!isScriptLoaded || purchaseAddonMutation.isLoading}
+                disabled={true}
+              >
                 {purchaseAddonMutation.isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
