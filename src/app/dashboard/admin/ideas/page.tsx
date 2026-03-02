@@ -192,11 +192,18 @@ export default function IdeaOversightPage() {
   // ✅ Batch validation mutation (used for both single and batch)
   const validateBatchMutation = useMutation({
     mutationFn: async (ideaIds: string[]) => {
-      const token = getToken();
+      const payload = { ideaIds };
+      console.log("Sending batch validation to AI core server API:", payload);
+
       const { data } = await axios.post(
-        `${aiApiUrl}/api/validate-pitch-decks-batch`,
-        { ideaIds },
-        { headers: { Authorization: `Bearer ${token}` } },
+        `${apiUrl}/api/ideas/validate-pitch-decks-batch`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`,
+          },
+        }
       );
       return data;
     },
@@ -443,9 +450,9 @@ export default function IdeaOversightPage() {
                               (i) => i.validationStatus !== "processing",
                             ).length > 0 &&
                             selectedIds.size ===
-                              submittedIdeas.filter(
-                                (i) => i.validationStatus !== "processing",
-                              ).length
+                            submittedIdeas.filter(
+                              (i) => i.validationStatus !== "processing",
+                            ).length
                           }
                           onCheckedChange={toggleSelectAll}
                           disabled={

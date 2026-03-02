@@ -75,7 +75,7 @@ export default function AssessmentPage() {
         }
 
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_PSYCHOMETRIC_URL}/api/psychometric/generate`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/generate`,
           {
             num_questions: 20,
             user_id: userId || "anonymous",
@@ -186,7 +186,7 @@ export default function AssessmentPage() {
 
       // Call the new psychometric evaluate endpoint
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_PSYCHOMETRIC_URL}/api/psychometric/evaluate`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/psychometric/evaluate`,
         {
           assessment_id: assessmentData.assessment_id,
           user_id: userId,
@@ -237,8 +237,7 @@ export default function AssessmentPage() {
 
         // Redirect to results/analysis page
         router.push(
-          `/dashboard/psychometric-analysis?evaluation_id=${
-            response.data.evaluation_id
+          `/dashboard/psychometric-analysis?evaluation_id=${response.data.evaluation_id
           }&role=${role || "entrepreneur"}`
         );
       }
@@ -331,11 +330,10 @@ export default function AssessmentPage() {
               {currentQuestion.options.map((option) => (
                 <div
                   key={option.option_id}
-                  className={`flex items-center space-x-3 rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent ${
-                    selectedOptionId === option.option_id
+                  className={`flex items-center space-x-3 rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent ${selectedOptionId === option.option_id
                       ? "border-primary bg-primary/5"
                       : "border-border"
-                  }`}
+                    }`}
                   onClick={() => handleAnswer(option.option_id)}
                 >
                   <RadioGroupItem
